@@ -1,0 +1,10 @@
+# Chronological partitions for the supplied dataset, at the source's recorded -04:00 offset.
+# For a new dataset, replace these explicitly or run in labeled rules-only mode. Never random-split.
+version: 1
+dataset_sha256: "9f773643335352d8aa8cc9f07c5f92614b65c806f84c84790f56e4c652970575"
+utc_offset_minutes: -240
+partitions:
+  bootstrap:   {start: "2025-08-01", end_exclusive: "2025-09-01"}
+  train:       {start: "2025-09-01", end_exclusive: "2026-01-01"}
+  calibration: {start: "2026-01-01", end_exclusive: "2026-03-01"}
+  evaluation:  {start: "2026-03-01", end_exclusive: "2026-04-01"}

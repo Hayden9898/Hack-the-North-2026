@@ -1,0 +1,23 @@
+services:
+  db:
+    # Pinned after local smoke test (see reports/sponsor-evidence.md). Tiger Cloud runs PG17 + TimescaleDB 2.x.
+    image: timescale/timescaledb:latest-pg17@sha256:c79fa5891443d1cdf6de5258d4c2bdb8cde29052c45df2062b13d351e0202005
+    container_name: logorder-db
+    environment:
+      POSTGRES_USER: logorder
+      POSTGRES_PASSWORD: logorder
+      POSTGRES_DB: logorder
+    ports:
+      - "5433:5432"
+    volumes:
+      - logorder-pgdata:/var/lib/postgresql/data
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    command: ["postgres", "-c", "shared_preload_libraries=timescaledb", "-c", "max_connections=100"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U logorder -d logorder"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  logorder-pgdata:

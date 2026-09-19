@@ -1,0 +1,53 @@
+# Versioned route configuration. Detection logic reads categories from here, never from account,
+# IP, date or object-ID literals. Order matters: first matching family wins.
+version: 1
+families:
+  - id: login
+    match: {exact: "/api/auth/login"}
+  - id: logout
+    match: {exact: "/logout"}
+  - id: dashboard
+    match: {exact: "/dashboard"}
+  - id: assets
+    match: {prefix: "/assets/"}
+  - id: notifications_poll
+    match: {exact: "/api/notifications/poll"}
+  - id: metrics_report
+    match: {exact: "/api/metrics/report"}
+  - id: forum_new
+    match: {exact: "/intranet/forum/new"}
+  - id: forum_view
+    match: {regex: "^/intranet/forum/view/(?P<object_id>[0-9]+)$"}
+  - id: forum_edit
+    match: {regex: "^/intranet/forum/edit/(?P<object_id>[0-9]+)$"}
+  - id: forum_other
+    match: {prefix: "/intranet/forum/"}
+  - id: admin
+    match: {prefix: "/api/admin/"}
+  - id: api_other
+    match: {prefix: "/api/"}
+  - id: document
+    match: {regex: "^/(finance|hr|it|eng|sales|marketing|exec)/.+"}
+  - id: other
+    match: {any: true}
+
+categories:
+  login_families: [login]
+  # "Configured admin POST" for R3: any POST to these families.
+  admin_families: [admin]
+  # Forum object view/edit families that expose an object id (used for typed object links).
+  forum_object_view_families: [forum_view]
+  forum_object_families: [forum_view, forum_edit]
+  forum_families: [forum_new, forum_view, forum_edit, forum_other]
+  # Common static/polling assets never connect incidents.
+  noise_families: [assets, notifications_poll, metrics_report]
+
+# Heuristic sensitive-resource flag. Not a ground-truth classification.
+sensitive_resource:
+  substrings_case_insensitive: ["CONFIDENTIAL"]
+  path_regexes: ["^/it/scripts/", "^/exec/"]
+
+# Bootstrap-observed query keys per family are learned from the bootstrap partition; keys listed here are
+# additionally treated as expected (never as evidence). Everything else counts as "unusual query key".
+expected_query_keys:
+  forum_new: ["topic"]

@@ -1,0 +1,68 @@
+# Versioned detection policy. All thresholds live here. No account names, IPs, dates or object ids.
+version: 1
+feature_version: "v1"
+classification:
+  precedence: ["high_risk", "suspicious", "normal"]
+rules:
+  R1:
+    name: auth_burst
+    outcome: suspicious
+    window_seconds: 60
+    min_failures: 4          # current + prior pair login 401s inside the window
+    requires_unfamiliar_or_unknown: true
+  R2:
+    name: access_change
+    outcome: suspicious
+    min_prior_denials: 5     # prior account/exact-path 403s
+    max_prior_successes: 0   # prior account/exact-path 200s
+  R3:
+    name: admin_transition
+    outcome: suspicious
+    forum_view_window_seconds: 60
+  R4:
+    name: account_use_sequence
+    outcome: high_risk
+    login_window_seconds: 1800     # successful login for same pair within 30m before the sensitive GET
+    r1_episode_window_seconds: 259200   # R1 episode for same pair within 72h
+  R5:
+    name: linked_access_change_sequence
+    outcome: high_risk
+    window_seconds: 3600     # B viewed O then satisfied R3 within preceding 60m; A viewed O within 60m before B's view
+correlation:
+  window_seconds: 259200     # 72h grouping window for same rule + typed key
+  max_packet_events: 200
+familiarity:
+  min_success_events: 3
+  min_distinct_dates: 2
+features:
+  cold_start_events: 50
+  windows_seconds: {short: 300, medium: 3600, long: 259200}
+model:
+  algorithm: isolation_forest
+  n_estimators: 200
+  max_samples: auto
+  contamination: auto
+  random_state: 42
+  n_jobs: 1
+  calibration_percentile: 99.5
+  candidate_percentiles: [99.0, 99.5, 99.9]
+replay:
+  queue_cap: 1000
+  microbatch: 200
+  default_speed: 60.0
+  max_speed: 100000.0
+  max_attempts: 3
+notifications:
+  suspicious_debounce_seconds: 300
+  max_attempts: 5
+  retry_base_seconds: 2
+  retry_cap_seconds: 60
+  rate_limit_per_second: 1
+investigation:
+  max_tool_calls: 6
+  max_event_rows: 200
+  max_input_tokens: 8000
+  max_output_tokens: 1200
+  attempt_deadline_seconds: 15
+  job_budget_seconds: 30
+  max_repairs: 1
