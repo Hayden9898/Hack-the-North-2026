@@ -8,7 +8,7 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta, timezone
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -145,9 +145,9 @@ def parse_partitions(doc: dict[str, Any]) -> Partitions:
     tz = timezone(timedelta(minutes=offset))
     parts: dict[str, Partition] = {}
     for name, p in doc["partitions"].items():
-        start = datetime.combine(date.fromisoformat(str(p["start"])), datetime.min.time(), tz).astimezone(timezone.utc)
+        start = datetime.combine(date.fromisoformat(str(p["start"])), datetime.min.time(), tz).astimezone(UTC)
         end = datetime.combine(date.fromisoformat(str(p["end_exclusive"])), datetime.min.time(), tz).astimezone(
-            timezone.utc
+            UTC
         )
         if end <= start:
             raise ValueError(f"partition {name} is empty")

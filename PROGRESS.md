@@ -27,3 +27,12 @@ Concise record of milestones, decisions, commands and results. Newest entries at
 - Verified: `python -m pytest -q` → 8 passed (config unit tests, health integration tests incl. DB-missing 503).
 
 ### M1 — ingest + factual investigation ⏳
+- Parser (strict, forensic preservation, one bounded decode pass), registry (accepted/duplicate/conflict), checkpointed
+  idempotent importer, CLI `python tasks.py import`. Investigation script + `reports/investigation.md`.
+- Verified: full import 180,800/0 rejects, hash + status counts + range match; reimport inserts 0; leading-zero IP kept;
+  line 168338 round-trips to its raw line; 77 prior denials confirmed by causal loop and SQL recount.
+  Commands: `python -m scripts.import_dataset` (22.3 s), `pytest tests/integration/test_import.py` (4 passed).
+- Fix: finalize now runs ANALYZE before the registry/raw join — without statistics the planner chose a nested loop that
+  ran >14 minutes on a fresh test database (no index on raw_events.event_id alone; hypertable PK is (time,id)).
+
+### M2 — deterministic vertical slice ⏳

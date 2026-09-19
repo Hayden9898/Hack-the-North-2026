@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -32,7 +32,7 @@ def test_partitions_are_chronological_and_utc_converted():
     assert p["train"].end_exclusive == p["calibration"].start
     assert p["calibration"].end_exclusive == p["evaluation"].start
     # 2026-03-01 00:00 at -04:00 is 04:00 UTC
-    assert p["evaluation"].start == datetime(2026, 3, 1, 4, 0, tzinfo=timezone.utc)
+    assert p["evaluation"].start == datetime(2026, 3, 1, 4, 0, tzinfo=UTC)
 
 
 def test_overlapping_partitions_rejected():

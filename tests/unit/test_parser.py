@@ -1,5 +1,5 @@
 """Parser contract: strict format, forensic preservation, explicit rejects, deterministic evidence ids."""
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
@@ -22,7 +22,7 @@ def test_parses_all_fields_and_preserves_raw_line():
     assert ev.original_time == "15/Mar/2026:11:26:59 -0400"
     assert ev.offset_minutes == -240
     # UTC normalisation keeps the instant: 11:26:59 -0400 == 15:26:59Z
-    assert ev.event_time == datetime(2026, 3, 15, 15, 26, 59, tzinfo=timezone.utc)
+    assert ev.event_time == datetime(2026, 3, 15, 15, 26, 59, tzinfo=UTC)
     assert ev.event_time.astimezone(timezone(timedelta(minutes=-240))).hour == 11
     assert PARSE_VERSION
 
