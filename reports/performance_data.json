@@ -1,0 +1,64 @@
+{
+  "run_id": "0ca0d531-714e-433a-aab0-17e89b561662",
+  "run_name": "rules-only-full",
+  "processed": 180800,
+  "measured_at": "2026-09-19T22:56:39.141896+00:00",
+  "machine": "developer laptop, Docker Desktop TimescaleDB (see PROGRESS.md)",
+  "events_page_query": {
+    "join_then_limit": {
+      "median_ms": 81.05,
+      "min_ms": 77.55,
+      "max_ms": 99.92,
+      "repeats": 7
+    },
+    "limit_then_join": {
+      "median_ms": 3.15,
+      "min_ms": 2.98,
+      "max_ms": 3.91,
+      "repeats": 7
+    }
+  },
+  "detector_stages_ms": {
+    "sample_events": 300,
+    "window_query": {
+      "p50": 0.966,
+      "p95": 1.222,
+      "max": 2.539
+    },
+    "entity_stats_read_uncached": {
+      "p50": 0.005,
+      "p95": 0.675
+    },
+    "feature_vector_pure": {
+      "p50": 0.036,
+      "p95": 0.051
+    }
+  },
+  "tiger_aggregate": {
+    "daily_rollup": {
+      "rows": 243,
+      "identical_results": true,
+      "raw_ms_median": 72.26529999752529,
+      "aggregate_ms_median": 36.71549999853596
+    },
+    "watermark": "2026-03-31 22:00:00+00:00",
+    "rows": 128380,
+    "identical_results": true,
+    "raw_ms": {
+      "median": 756.9512999907602,
+      "min": 716.909000009764,
+      "max": 780.6263999955263
+    },
+    "aggregate_ms": {
+      "median": 395.83999999740627,
+      "min": 383.5194999992382,
+      "max": 408.4559999901103
+    },
+    "repeats": 7
+  },
+  "replay_throughput": {
+    "events": 180800,
+    "wall_seconds": 838.8,
+    "events_per_second": 215.6
+  }
+}

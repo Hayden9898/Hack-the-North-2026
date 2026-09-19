@@ -13,7 +13,7 @@ from typing import Any
 import psycopg
 
 from app.config import DetectionConfig
-from app.db.engine import jsonb
+from app.db.engine import jsonb, one
 from app.features.reference import Reference, build_reference
 from app.observability import sentry
 
@@ -67,7 +67,7 @@ def create_run(
              visible_start, range_start, range_end, float(cfg.policy["replay"]["default_speed"]) if speed is None else float(speed),
              visible_start if phase == "visible" else range_start, range_start or datetime(1970, 1, 1, tzinfo=UTC)),
         )
-        row = dict(cur.fetchone())
+        row = dict(one(cur))
     return row
 
 

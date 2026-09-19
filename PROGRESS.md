@@ -67,3 +67,14 @@ Concise record of milestones, decisions, commands and results. Newest entries at
 - Real provider call is **unverified** (no LLM_API_KEY); the adapter is exercised only through the scripted fake.
 - Fixes from frontend review: events page query limits before joining (90 ms → 1.3 ms server-side on 180k rows),
   summary lines de-duplicated across versions, timeline rows aggregated per event, live runs start in `visible` phase.
+
+### M6 — sponsor integrations + delivery reliability ✅ (cloud services unverified)
+- Migration 0003: continuous aggregate `processed_events_5m` (materialized_only, explicit refresh, watermark table).
+  `app/incidents/analytics.py`: aggregate + raw tail, raw as-of views, raw fallback when never refreshed/missing,
+  server-side roll-up (5m/60m/1d, optional account grouping); endpoints `/analytics/{timeseries,refresh,benchmark}`;
+  side-effect worker refreshes stale runs every ≥30 s.
+- Measured (`python -m scripts.benchmark`, `reports/performance.md`): events page 79.7 → 2.9 ms; aggregate vs raw
+  716 → 402 ms (all buckets) and 72 → 37 ms (daily), identical results; window query p95 1.2 ms; 215.6 ev/s replay.
+- Verified: `tests/integration/test_analytics_and_replay.py` 3 passed (A01/A02, pause drains ≤ queue cap then resumes,
+  virtual clock gates admission). mypy clean (59 files), ruff clean, frontend typecheck/lint/build clean.
+- Sentry/Slack/Tiger Cloud/LLM remain **unverified** externally (no credentials) — see `reports/sponsor-evidence.md`.

@@ -33,7 +33,7 @@ EVENT_NAMES = {
 }
 
 
-def _scrub(event: dict[str, Any], hint: dict[str, Any]) -> dict[str, Any] | None:
+def _scrub(event: Any, hint: Any) -> Any:
     # Defensive scrubbing: drop request bodies/headers that could carry tokens or webhook URLs.
     req = event.get("request")
     if isinstance(req, dict):
@@ -90,6 +90,7 @@ def span(op: str, description: str | None = None, **data: Any) -> Iterator[Any]:
     if not _enabled:
         yield None
         return
+    cm: Any
     try:
         current = sentry_sdk.get_current_span()
         if current is None:
@@ -178,6 +179,6 @@ def flush(timeout: float = 2.0) -> None:
 
 
 def _safe(v: Any) -> Any:
-    if isinstance(v, (str, int, float, bool)) or v is None:
+    if isinstance(v, str | int | float | bool) or v is None:
         return v
     return str(v)

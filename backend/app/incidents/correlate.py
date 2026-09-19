@@ -14,7 +14,7 @@ from typing import Any
 import psycopg
 
 from app.config import DetectionConfig
-from app.db.engine import jsonb
+from app.db.engine import jsonb, one
 from app.detection.rules import RuleMatch
 from app.features.events import Event
 from app.incidents.facts import build_packet
@@ -72,7 +72,7 @@ def apply_matches(
                        VALUES (%s, %s, %s, %s, %s, 'open', 0, 'normal', %s, %s, %s, %s, %s, %s) RETURNING *""",
                     (run_id, incident_id, m.key_type, m.key_value, m.rule_id, ev.run_seq, ev.run_seq, ev.event_time, ev.event_time, acct, ip),
                 )
-                incident = dict(cur.fetchone())
+                incident = dict(one(cur))
                 prev_class = None
             incident_id = incident["incident_id"]
             incident_for_rule[m.rule_id] = incident_id
@@ -146,7 +146,7 @@ def apply_matches(
             change = IncidentChange(incident_id, new_version, prev_class, new_class, rule_ids, packet["packet_hash"], summary)
             if side_effects:
                 cur.execute("SELECT count(*) n FROM incident_evidence WHERE run_id=%s AND incident_id=%s", (run_id, incident_id))
-                n_events = int(cur.fetchone()["n"])
+                n_events = int(one(cur)["n"])
                 change.notification = outbox.enqueue_for_version(
                     conn, run=run, incident=incident, version=new_version, previous_class=prev_class, threat_class=new_class,
                     rule_ids=rule_ids, summary=summary, event_time=ev.event_time, event_count=n_events, app_base_url=app_base_url,

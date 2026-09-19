@@ -11,7 +11,7 @@ from typing import Any
 import psycopg
 
 from app.config import get_config
-from app.db.engine import connect_direct, jsonb
+from app.db.engine import connect_direct, jsonb, one
 from app.ingest.parser import PARSE_VERSION, ParseError, file_event_id, parse_line
 from app.ingest.registry import RegistryRow, register_batch
 from app.observability import sentry
@@ -158,15 +158,15 @@ def _finalize(conn: psycopg.Connection[Any], dataset_id: str, total_lines: int) 
         cur.execute("ANALYZE raw_events")
         # Authoritative counts come from the tables, not from in-memory counters.
         cur.execute("SELECT count(*) AS n FROM event_registry WHERE dataset_id=%s", (dataset_id,))
-        valid = cur.fetchone()["n"]
+        valid = one(cur)["n"]
         cur.execute("SELECT count(*) AS n FROM ingestion_rejects WHERE dataset_id=%s", (dataset_id,))
-        rejected = cur.fetchone()["n"]
+        rejected = one(cur)["n"]
         cur.execute(
             """SELECT min(r.event_time) a, max(r.event_time) b, count(distinct r.username) users
                FROM raw_events r JOIN event_registry e USING (event_id) WHERE e.dataset_id=%s""",
             (dataset_id,),
         )
-        b = cur.fetchone()
+        b = one(cur)
         cur.execute(
             """SELECT r.status, count(*) n FROM raw_events r JOIN event_registry e USING (event_id)
                WHERE e.dataset_id=%s GROUP BY r.status""",
@@ -191,9 +191,8 @@ def _finalize(conn: psycopg.Connection[Any], dataset_id: str, total_lines: int) 
 def _summary(conn: psycopg.Connection[Any], dataset_id: str, rows_inserted: int) -> ImportSummary:
     with conn.cursor() as cur:
         cur.execute("SELECT * FROM datasets WHERE id=%s", (dataset_id,))
-        d = cur.fetchone()
+        d = one(cur)
     conn.commit()
-    assert d is not None
     return ImportSummary(
         dataset_id=d["id"],
         content_sha256=d["content_sha256"],

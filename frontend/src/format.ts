@@ -87,9 +87,9 @@ export function integrationLabel(kind: 'sentry' | 'llm' | 'slack', value: string
     return value === 'enabled' ? { text: 'Sentry enabled', tone: 'ok' } : { text: 'Sentry disabled (no DSN)', tone: 'off' }
   }
   if (kind === 'llm') {
-    return value.startsWith('enabled')
-      ? { text: `AI review ${value.replace('enabled:', '')}`, tone: 'ok' }
-      : { text: 'AI review unavailable (deterministic only)', tone: 'off' }
+    if (value.startsWith('enabled')) return { text: `AI review ${value.replace('enabled:', '')}`, tone: 'ok' }
+    if (value === 'deterministic_only_no_key') return { text: 'AI review: deterministic only (no provider key)', tone: 'off' }
+    return { text: `AI review: ${value.replaceAll('_', ' ')}`, tone: 'off' }
   }
   if (value === 'live') return { text: 'Slack live', tone: 'ok' }
   if (value === 'preview') return { text: 'Slack preview (nothing leaves the app)', tone: 'warn' }

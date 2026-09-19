@@ -205,11 +205,31 @@ class SideEffectWorker:
             sentry.capture_exception(exc, dataset_id=row["id"])
             return "failed"
 
+    # ------------------------------------------------------------------------------------------------ aggregate refresh
+
+    def refresh_aggregate_one(self, conn: psycopg.Connection[Any]) -> str | None:
+        """Explicit Tiger aggregate refresh for one run with new processed data (at most every 30 s per run)."""
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT r.run_id FROM runs r LEFT JOIN aggregate_refreshes a ON a.run_id = r.run_id
+                   WHERE r.last_processed_time IS NOT NULL AND r.state IN ('warming','running','paused','completed')
+                     AND (a.run_id IS NULL OR (a.refreshed_through < r.last_processed_time - interval '5 minutes' AND a.refreshed_at < now() - interval '30 seconds'))
+                   ORDER BY r.updated_at DESC LIMIT 1"""
+            )
+            row = cur.fetchone()
+        conn.commit()
+        if row is None:
+            return None
+        from app.incidents import analytics
+
+        res = analytics.refresh_run(self.database_url, row["run_id"])
+        return "refreshed" if res.get("refreshed") else None
+
     # ------------------------------------------------------------------------------------------------ loop
 
     def tick(self, conn: psycopg.Connection[Any]) -> bool:
         busy = False
-        for fn in (self.deliver_one, self.explain_one, self.import_one):
+        for fn in (self.deliver_one, self.explain_one, self.import_one, self.refresh_aggregate_one):
             try:
                 if fn(conn) is not None:
                     busy = True

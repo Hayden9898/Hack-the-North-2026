@@ -13,6 +13,7 @@ import {
   type FeedbackRow,
   type IncidentDetail,
   type Packet,
+  type PlaybooksBlock,
 } from '../api'
 import {
   DELIVERY_STATE_LABEL,
@@ -59,6 +60,7 @@ export function IncidentPage() {
 
   const facts = packet?.facts ?? []
   const factById = new Map(facts.map((f) => [f.fact_id, f]))
+  const rulesIncomplete = rulesIncompleteCodes(packet)
   const gotoFact = (id: string) => setHighlight(id)
 
   return (
@@ -151,7 +153,11 @@ export function IncidentPage() {
         <div className="row" style={{ marginTop: 4 }}>
           <Tag tone={strength.legs_present ? 'ok' : 'warn'}>{strength.legs_present ? 'all rule legs present in evidence' : 'some rule legs missing from evidence'}</Tag>
           <Tag tone="muted">{strength.distinct_evidence_events} distinct evidence events</Tag>
-          {strength.evaluation_incomplete ? <Tag tone="danger">EVALUATION INCOMPLETE</Tag> : <Tag tone="ok">evaluation complete</Tag>}
+          {strength.evaluation_incomplete || rulesIncomplete.length > 0 ? (
+            <Tag tone="danger">EVALUATION INCOMPLETE{rulesIncomplete.length > 0 ? `: ${rulesIncomplete.join(', ')}` : ''}</Tag>
+          ) : (
+            <Tag tone="ok">evaluation complete</Tag>
+          )}
           {packet?.completeness.listing_truncated ? <Tag tone="warn">evidence listing truncated at {packet.completeness.max_events}</Tag> : null}
         </div>
         {strength.evaluation_incomplete ? (
@@ -250,6 +256,8 @@ export function IncidentPage() {
             gotoFact={gotoFact}
           />
 
+          <PlaybooksSection playbooks={d.playbooks ?? null} />
+
           <BaselineSection baseline={d.baseline} account={d.incident.account} triggerSeq={v.trigger_seq} />
         </div>
 
@@ -264,6 +272,100 @@ export function IncidentPage() {
         <FactDrawer runId={runId} incidentId={incidentId} version={v.version} fact={drawerFact} onClose={() => setDrawerFact(null)} />
       ) : null}
     </div>
+  )
+}
+
+/** packet.completeness.rules_incomplete is a string[] of rule/fact codes (empty = complete); tolerate a legacy boolean. */
+function rulesIncompleteCodes(packet: { completeness?: { rules_incomplete?: boolean | string[] } } | null | undefined): string[] {
+  const v = packet?.completeness?.rules_incomplete
+  if (Array.isArray(v)) return v
+  if (v === true) return ['unspecified']
+  return []
+}
+
+// ------------------------------------------------------------------ playbooks
+
+function asList(v: string | string[] | undefined | null): string[] {
+  if (!v) return []
+  return Array.isArray(v) ? v : [v]
+}
+
+function PlaybooksSection({ playbooks }: { playbooks: PlaybooksBlock | null }) {
+  const selected = new Set(playbooks?.selected_by_ai ?? [])
+  return (
+    <Section title="Remediation playbooks" aside={playbooks ? <span className="muted">catalog v{playbooks.catalog_version}</span> : null}>
+      <p className="muted small">Recommendations are review steps; nothing here executes against any system.</p>
+      {!playbooks || playbooks.applicable.length === 0 ? (
+        <Empty>No playbook in the catalog applies to this incident's rules or fact kinds.</Empty>
+      ) : (
+        <ul className="plain stack">
+          {playbooks.applicable.map((pb) => (
+            <li key={pb.id}>
+              <details className="playbook">
+                <summary>
+                  <span className="row">
+                    <strong>{pb.title}</strong>
+                    {selected.has(pb.id) ? <Tag tone="warn">AI suggested</Tag> : <Tag tone="muted">applicable (deterministic)</Tag>}
+                    <span className="mono small muted">{pb.id}</span>
+                  </span>
+                  <div className="qualifier small" style={{ margin: '4px 0 0' }}>
+                    {pb.uncertainty}
+                  </div>
+                </summary>
+                <div className="playbook-body">
+                  <h3>Proposed steps (for a human reviewer)</h3>
+                  <ol className="bul">
+                    {pb.proposed_steps.map((s, i) =>
+                      typeof s === 'string' ? (
+                        <li key={i}>{s}</li>
+                      ) : (
+                        Object.entries(s).map(([cond, step]) => (
+                          <li key={`${i}-${cond}`}>
+                            <em>{cond}:</em> {step}
+                          </li>
+                        ))
+                      ),
+                    )}
+                  </ol>
+                  <h3>Required evidence (not in these logs)</h3>
+                  <ul className="bul">
+                    {pb.required_evidence.map((r, i) => (
+                      <li key={i}>{r}</li>
+                    ))}
+                  </ul>
+                  <dl className="kvs" style={{ marginTop: 6 }}>
+                    <div className="kv">
+                      <dt>permissions</dt>
+                      <dd>{asList(pb.permissions).join('; ') || '—'}</dd>
+                    </div>
+                    <div className="kv">
+                      <dt>impact</dt>
+                      <dd>{pb.impact || '—'}</dd>
+                    </div>
+                    <div className="kv">
+                      <dt>verification</dt>
+                      <dd>{asList(pb.verification).join('; ') || '—'}</dd>
+                    </div>
+                    <div className="kv">
+                      <dt>rollback</dt>
+                      <dd>{asList(pb.rollback).join('; ') || '—'}</dd>
+                    </div>
+                    <div className="kv">
+                      <dt>applies when</dt>
+                      <dd className="small">
+                        {pb.applicability.any_rules?.length ? `rules ${pb.applicability.any_rules.join(', ')}` : ''}
+                        {pb.applicability.any_rules?.length && pb.applicability.any_fact_kinds?.length ? ' or ' : ''}
+                        {pb.applicability.any_fact_kinds?.length ? `facts ${pb.applicability.any_fact_kinds.join(', ')}` : ''}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              </details>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Section>
   )
 }
 
@@ -621,10 +723,15 @@ function ExplanationSection({
                   These are AI-suggested, validator-checked hypotheses that reference only facts in the packet. They are possibilities to investigate,
                   not findings. The detector verdict above is unaffected by them.
                 </p>
+                {validated?.cached ? (
+                  <div className="small muted" style={{ marginBottom: 6 }}>
+                    <Tag tone="info">cached result</Tag> same fact packet and model as an earlier review; no new provider call was made.
+                  </div>
+                ) : null}
                 {validated && validated.hypotheses.length > 0 ? (
                   validated.hypotheses.map((h, i) => (
                     <div key={i} className="hyp">
-                      <div className="hyp-title">AI suggested: {hypothesisText(h.type)}</div>
+                      <div className="hyp-title">AI suggested: {h.text?.trim() ? h.text : hypothesisText(h.type)}</div>
                       <FactRefs ids={h.supporting_fact_ids} factById={factById} gotoFact={gotoFact} label="supporting facts" />
                       <FactRefs ids={h.counterevidence_fact_ids} factById={factById} gotoFact={gotoFact} label="counterevidence facts" />
                       {h.unknown_codes.length > 0 ? (
@@ -654,6 +761,30 @@ function ExplanationSection({
                       </div>
                     ) : null}
                   </div>
+                ) : null}
+                {validated && validated.forced_inclusions && validated.forced_inclusions.length > 0 ? (
+                  <div className="small" style={{ marginTop: 6 }}>
+                    <span className="muted">Force-included by the system (counterevidence/context the AI could not omit): </span>
+                    {validated.forced_inclusions.map((id) => (
+                      <button key={id} type="button" className="factref" onClick={() => gotoFact(id)}>
+                        {factById.has(id) ? `${factKindLabel(factById.get(id)!.kind)} (${shortId(id, 10)})` : shortId(id, 12)}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                {validated && validated.tool_log && validated.tool_log.length > 0 ? (
+                  <details style={{ marginTop: 6 }}>
+                    <summary className="small muted">AI tool calls (read-only, under cutoff): {validated.tool_log.length}</summary>
+                    <ul className="plain small" style={{ marginTop: 4 }}>
+                      {validated.tool_log.map((t, i) => (
+                        <li key={i} className="mono">
+                          {t.tool}
+                          {t.error ? <span style={{ color: 'var(--danger)' }}> — {t.error}</span> : <span className="muted"> — {fmtNum(t.rows ?? 0)} rows</span>}
+                          {t.args && Object.keys(t.args).length > 0 ? <span className="muted"> {JSON.stringify(t.args)}</span> : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
                 ) : null}
                 {explanation.rejection_reasons.length > 0 ? (
                   <div className="small muted" style={{ marginTop: 6 }}>

@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.api import deps
+from app.db.engine import one
 
 router = APIRouter(tags=["incidents"])
 
@@ -253,7 +254,7 @@ def _recompute(cur: psycopg.Cursor[Any], run_id: str, fact: dict[str, Any], limi
     else:
         return {"query": q, "error": "unknown query identity"}
     cur.execute(f"SELECT count(*) n FROM processed_events p WHERE {where}", params)
-    total = int(cur.fetchone()["n"])
+    total = int(one(cur)["n"])
     cur.execute(f"{base_select} WHERE {where} ORDER BY p.run_seq LIMIT %(lim)s OFFSET %(off)s", {**params, "lim": limit, "off": offset})
     rows = [dict(r) for r in cur.fetchall()]
     recorded = fact["value"]
@@ -279,7 +280,7 @@ def post_feedback(
             "INSERT INTO analyst_feedback (run_id, incident_id, version, reviewer, disposition, reason) VALUES (%s, %s, %s, %s, %s, %s) RETURNING *",
             (run_id, incident_id, inc["current_version"], f"{body.reviewer} ({operator})", body.disposition, body.reason),
         )
-        row = dict(cur.fetchone())
+        row = dict(one(cur))
         # Closing records disposition; detections and versions are never erased or downgraded.
         if body.disposition in ("closed", "false_positive", "benign_explained"):
             cur.execute("UPDATE incidents SET status='closed', updated_at=now() WHERE run_id=%s AND incident_id=%s", (run_id, incident_id))

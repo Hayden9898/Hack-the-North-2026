@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from sse_starlette.sse import EventSourceResponse
 
 from app.api import deps
-from app.db.engine import transaction
+from app.db.engine import one, transaction
 from app.settings import Settings
 
 router = APIRouter(tags=["updates"])
@@ -23,7 +23,7 @@ MAX_GAP = 5000  # if a client is further behind than this, tell it to resync fro
 def _fetch(url: str, run_id: str, after: int, limit: int = 200) -> tuple[list[dict[str, Any]], int]:
     with transaction(url) as conn, conn.cursor() as cur:
         cur.execute("SELECT coalesce(max(update_seq), 0) AS m FROM ui_updates WHERE run_id=%s", (run_id,))
-        latest = int(cur.fetchone()["m"])
+        latest = int(one(cur)["m"])
         cur.execute(
             "SELECT update_seq, type, payload, committed_at FROM ui_updates WHERE run_id=%s AND update_seq > %s ORDER BY update_seq LIMIT %s",
             (run_id, after, limit),
@@ -88,4 +88,4 @@ def snapshot(run_id: str, s: Settings = Depends(deps.settings)) -> dict[str, Any
         deps.load_run(conn, run_id)
         with conn.cursor() as cur:
             cur.execute("SELECT coalesce(max(update_seq),0) m FROM ui_updates WHERE run_id=%s", (run_id,))
-            return {"latest_seq": int(cur.fetchone()["m"])}
+            return {"latest_seq": int(one(cur)["m"])}

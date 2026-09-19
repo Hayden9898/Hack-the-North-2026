@@ -43,7 +43,7 @@ def summarize(rule_ids: list[str], threat_class: str, facts: list[dict[str, Any]
     for f in sorted(facts, key=lambda x: {"trigger": 0, "support": 1, "context": 2}.get(x.get("role", "support"), 1)):
         by_kind.setdefault(f["kind"], []).append(f)
     raw_lines: list[str] = []
-    lines = _Dedup(raw_lines)
+    lines: Any = _Dedup(raw_lines)
     for f in by_kind.get("auth_failures_in_window", []):
         lines.append(f"{f['value']} login failures for {f['args']['pair']} within {f['args']['window_seconds']}s (observed).")
     for f in by_kind.get("prior_denials_count", []):

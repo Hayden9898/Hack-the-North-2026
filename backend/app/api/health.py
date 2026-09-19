@@ -24,7 +24,7 @@ def live() -> dict[str, str]:
 def ready(response: Response) -> dict[str, Any]:
     settings = get_settings()
     db_ok, db_detail = ping(settings.database_url)
-    migrations = {"current": None, "head": None, "ok": False}
+    migrations: dict[str, Any] = {"current": None, "head": None, "ok": False}
     if db_ok:
         try:
             current, head = migrate.current_and_head(settings.database_url)

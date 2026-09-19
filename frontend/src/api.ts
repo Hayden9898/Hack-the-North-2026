@@ -322,9 +322,18 @@ export type HypothesisType =
 
 export interface Hypothesis {
   type: HypothesisType | string
+  /** Reviewed, qualified text from the validator's fixed catalogue (server-side). */
+  text?: string
   supporting_fact_ids: string[]
   counterevidence_fact_ids: string[]
   unknown_codes: string[]
+}
+
+export interface ToolLogEntry {
+  tool: string
+  args?: Record<string, unknown>
+  rows?: number
+  error?: string
 }
 
 export interface ValidatedExplanation {
@@ -336,6 +345,88 @@ export interface ValidatedExplanation {
   playbook_ids: string[]
   ai_review: string
   ai_review_reason?: string | null
+  /** Fact ids the system force-included (counterevidence/context the AI could not omit). */
+  forced_inclusions?: string[]
+  /** Read-only, cutoff-bounded tool calls the AI made. */
+  tool_log?: ToolLogEntry[]
+  cached?: boolean
+}
+
+export interface Playbook {
+  id: string
+  title: string
+  applicability: { any_rules?: string[]; any_fact_kinds?: string[] }
+  uncertainty: string
+  required_evidence: string[]
+  /** Steps are strings, or {"condition": "step"} objects for conditional steps. */
+  proposed_steps: (string | Record<string, string>)[]
+  permissions: string | string[]
+  impact: string
+  verification: string | string[]
+  rollback: string | string[]
+}
+
+export interface PlaybooksBlock {
+  applicable: Playbook[]
+  selected_by_ai: string[]
+  catalog_version: number
+}
+
+// Analytics (Tiger continuous aggregate with raw tail / as-of fallback).
+export interface TimeseriesRow {
+  bucket: string
+  account: string
+  events: number
+  c401: number
+  c403: number
+  /** bigint sum; serialized as a string by the API */
+  response_bytes: number | string
+  high_risk: number
+  suspicious: number
+}
+
+export type TimeseriesSource =
+  | {
+      mode: 'aggregate_plus_raw_tail'
+      materialized_through: string
+      refreshed_at: string
+      materialized_buckets: number
+      raw_tail_buckets: number
+      stale: boolean
+      last_processed_time: string | null
+    }
+  | { mode: 'raw_fallback'; reason: string; stale: true }
+  | { mode: 'raw_as_of'; as_of_seq: number }
+
+export interface TimeseriesResponse {
+  rows: TimeseriesRow[]
+  source: TimeseriesSource
+  cutoff_seq: number
+}
+
+export interface TimeseriesQuery {
+  account?: string
+  start?: string
+  end?: string
+  as_of_seq?: number
+  force_raw?: boolean
+}
+
+export interface RefreshResponse {
+  refreshed: boolean
+  reason?: string
+  refreshed_through?: string
+  buckets?: number
+  duration_ms?: number
+}
+
+export interface BenchmarkResponse {
+  watermark: string | null
+  rows: number
+  identical_results: boolean
+  raw_ms: { median: number; min: number; max: number }
+  aggregate_ms: { median: number; min: number; max: number }
+  repeats: number
 }
 
 export interface Explanation {
@@ -407,6 +498,7 @@ export interface IncidentDetail {
   deliveries: Delivery[]
   feedback: FeedbackRow[]
   baseline: Baseline | null
+  playbooks?: PlaybooksBlock
   cutoff_seq: number
 }
 
@@ -600,6 +692,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+
+  timeseries: (runId: string, q: TimeseriesQuery) =>
+    request<TimeseriesResponse>(`${API}/runs/${enc(runId)}/analytics/timeseries${qs({ ...q })}`),
+  refreshAggregate: (runId: string) => request<RefreshResponse>(`${API}/runs/${enc(runId)}/analytics/refresh`, { method: 'POST' }),
+  benchmark: (runId: string, repeats = 5) => request<BenchmarkResponse>(`${API}/runs/${enc(runId)}/analytics/benchmark${qs({ repeats })}`),
 
   updatesUrl: (runId: string, after?: number | null) => `${API}/runs/${enc(runId)}/updates${qs({ after: after ?? undefined })}`,
   updatesSnapshot: (runId: string) => request<{ latest_seq: number }>(`${API}/runs/${enc(runId)}/updates/snapshot`),

@@ -46,6 +46,7 @@ sse-starlette==2.3.4
 starlette==0.46.2
 threadpoolctl==3.7.0
 truststore==0.10.4
+types-PyYAML==6.0.12.20260906
 typing-inspection==0.4.4
 typing_extensions==4.16.0
 tzdata==2026.4

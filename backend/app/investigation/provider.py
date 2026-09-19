@@ -5,7 +5,7 @@ The adapter only creates messages; the bounded loop, tools and validation live i
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 
 @dataclass
@@ -49,9 +49,9 @@ class AnthropicExplainer:
             model=self.model_name,
             max_tokens=max_tokens,
             system=system,
-            messages=messages,
-            tools=tools,
-            output_config={"effort": self._effort},
+            messages=cast(Any, messages),
+            tools=cast(Any, tools),
+            output_config={"effort": cast(Any, self._effort)},
         )
         blocks: list[Block] = []
         for b in resp.content:

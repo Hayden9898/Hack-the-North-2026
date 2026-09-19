@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 
 from app.api import deps
 from app.config import DetectionConfig
+from app.db.engine import one
 from app.ingest.live import admit_live_batch
 from app.settings import Settings
 from app.workers import runs as runs_mod
@@ -136,7 +137,7 @@ def get_run(run_id: str, conn: psycopg.Connection[Any] = Depends(deps.db), s: Se
         cur.execute("SELECT state, count(*) n FROM explanation_jobs WHERE run_id=%s GROUP BY 1", (run_id,))
         counts["explanation_jobs"] = {r["state"]: r["n"] for r in cur.fetchall()}
         cur.execute("SELECT count(*) n FROM run_late_events WHERE run_id=%s", (run_id,))
-        counts["late_events"] = cur.fetchone()["n"]
+        counts["late_events"] = one(cur)["n"]
     return serialize_run(run, s, counts)
 
 

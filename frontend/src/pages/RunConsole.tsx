@@ -32,6 +32,7 @@ import {
 import { useFetch, useInterval, useThrottledCallback } from '../useFetch'
 import { ClassBadge, Empty, ErrorState, IncidentLink, Loading, ModelHealthBadge, ModelHealthBanner, PhaseBadge, RuleTags, Section, StateBadge, Tag } from '../ui'
 import { useRunUpdates, type ConnectionStatus, type UpdateType } from '../useRunUpdates'
+import { ActivityPanel } from './ActivityPanel'
 
 const WINDOW_ROWS = 300
 const PAGE = 100
@@ -151,6 +152,7 @@ export function RunConsole() {
         <EventsFeed runId={runId} tick={tick} cutoff={merged.processed_seq} />
         <IncidentsPanel runId={runId} tick={incTick} />
       </div>
+      <ActivityPanel runId={runId} processedSeq={merged.processed_seq} />
     </div>
   )
 }

@@ -54,9 +54,10 @@ def _render_packet(packet: dict[str, Any], max_chars: int) -> tuple[str, bool]:
         lines.pop()
         truncated = True
         text = "\n".join(lines)
-    header = json.dumps({"packet_hash": packet["packet_hash"], "incident_id": packet["incident_id"], "version": packet["version"], "cutoff_seq": packet["cutoff_seq"],
+    header_doc: dict[str, Any] = {"packet_hash": packet["packet_hash"], "incident_id": packet["incident_id"], "version": packet["version"], "cutoff_seq": packet["cutoff_seq"],
                          "rule_ids": packet.get("rule_ids", []), "trigger_fact_ids": packet["trigger_fact_ids"], "unknown_codes": packet["unknown_codes"],
-                         "completeness": packet["completeness"], "facts_omitted_from_prompt": truncated})
+                         "completeness": packet["completeness"], "facts_omitted_from_prompt": truncated}
+    header = json.dumps(header_doc)
     return header + "\n" + text, truncated
 
 
@@ -147,7 +148,7 @@ def _attempt(explainer: Explainer, system: str, messages: list[dict[str, Any]], 
         messages.append({"role": "assistant", "content": assistant_content})
         if not tool_uses:
             return None, raw_tail, "no submission (model ended without calling submit_selections)"
-        results = []
+        results: list[dict[str, Any]] = []
         submitted: Any = None
         for tu in tool_uses:
             if tu.name == SUBMIT_TOOL:

@@ -39,7 +39,7 @@ class ToolContext:
         if self.budget.calls >= self.budget.max_calls:
             return json.dumps({"error": "tool call budget exhausted"}), True
         self.budget.calls += 1
-        fn = TOOLS.get(name)
+        fn: Any = TOOLS.get(name)
         if fn is None:
             self.budget.log.append({"tool": name, "error": "unknown tool"})
             return json.dumps({"error": f"unknown tool {name!r}; only the documented read-only tools exist"}), True
@@ -84,7 +84,7 @@ class ToolContext:
 def _clean(v: Any) -> Any:
     if isinstance(v, str):
         return v[:MAX_PARAM_LEN]
-    if isinstance(v, (int, float, bool)) or v is None:
+    if isinstance(v, int | float | bool) or v is None:
         return v
     raise TypeError("nested values are not accepted")
 

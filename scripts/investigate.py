@@ -107,7 +107,7 @@ def main() -> int:
                 if cur_run[k]:
                     run_len[cur_run[k]] += 1
                 cur_run[k] = 0
-        for k, v in cur_run.items():
+        for v in cur_run.values():
             if v:
                 run_len[v] += 1
         out["consecutive_401_run_lengths"] = dict(sorted(run_len.items()))

@@ -13,6 +13,7 @@ from typing import Any
 import psycopg
 
 from app.config import DetectionConfig
+from app.db.engine import one
 from app.features.events import Event
 from app.features.history import StatsStore, WindowCounts
 from app.features.reference import Reference
@@ -110,7 +111,7 @@ def rule_r2_access_change(ctx: RuleContext) -> RuleMatch | None:
             "SELECT count(*) n FROM processed_events WHERE run_id=%s AND username=%s AND path=%s AND method='GET' AND status=403 AND run_seq < %s",
             (ctx.run_id, ev.username, ev.path, ev.run_seq),
         )
-        recount = int(cur.fetchone()["n"])
+        recount = int(one(cur)["n"])
     legs = [_leg(r, "prior_denial") for r in rows] + [{"role": "current_success", **ev.evidence_ref()}]
     return RuleMatch(
         rule_id="R2",

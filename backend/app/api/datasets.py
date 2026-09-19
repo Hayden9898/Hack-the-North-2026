@@ -10,7 +10,7 @@ import psycopg
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 
 from app.api import deps
-from app.db.engine import jsonb
+from app.db.engine import jsonb, one
 from app.ingest.importer import dataset_id_for
 from app.ingest.parser import PARSE_VERSION
 from app.settings import Settings
@@ -96,5 +96,5 @@ async def upload_dataset(
                VALUES (%s, %s, %s, %s, %s, 'pending', %s) RETURNING *""",
             (dataset_id, digest, (file.filename or "upload.log")[:200], size, PARSE_VERSION, jsonb({"upload_path": str(final)})),
         )
-        row = dict(cur.fetchone())
+        row = dict(one(cur))
     return {**_serialize(row), "job": "queued"}

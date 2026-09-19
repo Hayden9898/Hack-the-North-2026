@@ -73,3 +73,11 @@ def ping(url: str | None = None, timeout: float = 3.0) -> tuple[bool, str]:
                 return True, f"timescaledb {row[0]}" if row else "postgres (no timescaledb extension)"
     except Exception as exc:  # noqa: BLE001
         return False, type(exc).__name__
+
+
+def one(cur: Any) -> Any:
+    """fetchone() that fails loudly instead of returning None (for rows that must exist)."""
+    row = cur.fetchone()
+    if row is None:
+        raise LookupError("expected a row")
+    return row
