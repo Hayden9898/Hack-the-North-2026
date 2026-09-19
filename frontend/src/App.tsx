@@ -1,122 +1,96 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useEffect, useState } from 'react'
+import { NavLink, Outlet } from 'react-router-dom'
+import { api, describeError, subscribeDbStatus, type Health } from './api'
+import { degradedModeLabel } from './format'
+import { useFetch, useInterval } from './useFetch'
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const health = useFetch<Health>(() => api.health(), [])
+  const [dbDown, setDbDown] = useState(false)
+  useEffect(() => subscribeDbStatus(setDbDown), [])
+  useInterval(() => void health.reload(), 30_000)
+
+  const healthErr = health.error ? describeError(health.error) : null
+  const notReady = !!health.data && health.data.status !== 'ready'
+  const showDbBanner = dbDown || healthErr?.status === 503 || (health.data ? !health.data.database.ok : false)
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="app">
+      <header className="topbar">
+        <NavLink to="/" className="brand">
+          Log &amp; Order <small>behavioral security investigation console</small>
+        </NavLink>
+        <nav>
+          <NavLink to="/" end>
+            Runs
+          </NavLink>
+        </nav>
+        <span className="spacer" />
+        <HealthChip health={health.data} error={health.error} loading={health.loading} onRetry={() => void health.reload()} />
+      </header>
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+      {showDbBanner ? (
+        <div className="banner banner-danger" role="alert">
+          <strong>Database unavailable.</strong> The API returned 503 or reported the database as down. Nothing shown below is being refreshed;
+          this console never fabricates a healthy feed.{' '}
+          <button type="button" className="btn btn-sm" onClick={() => void health.reload()}>
+            Re-check
+          </button>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      ) : null}
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      {!showDbBanner && healthErr && healthErr.status !== 503 ? (
+        <div className="banner banner-warn" role="alert">
+          <strong>Health check failed</strong> ({healthErr.status ?? 'no response'}: {healthErr.text}).{' '}
+          <button type="button" className="btn btn-sm" onClick={() => void health.reload()}>
+            Retry
+          </button>
+        </div>
+      ) : null}
+
+      {!showDbBanner && notReady && health.data ? (
+        <div className="banner banner-danger" role="alert">
+          <strong>API not ready</strong> — status {health.data.status}. database ok: {String(health.data.database.ok)}; migrations ok:{' '}
+          {String(health.data.migrations.ok)} ({health.data.migrations.current ?? '?'} / {health.data.migrations.head ?? '?'}); config ok:{' '}
+          {String(health.data.config.ok)}.
+        </div>
+      ) : null}
+
+      {health.data && health.data.degraded_modes.length > 0 ? (
+        <div className="banner banner-warn" role="status">
+          <strong>Degraded modes declared by the API:</strong>{' '}
+          {health.data.degraded_modes.map((m, i) => (
+            <span key={m}>
+              {i > 0 ? ' · ' : ''}
+              {degradedModeLabel(m)}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      <main className="page">
+        <Outlet />
+      </main>
+    </div>
   )
 }
 
-export default App
+function HealthChip({ health, error, loading, onRetry }: { health: Health | null; error: unknown; loading: boolean; onRetry: () => void }) {
+  if (loading && !health) return <span className="conn conn-connecting"><span className="dot" /> checking health…</span>
+  if (error && !health) {
+    const e = describeError(error)
+    return (
+      <button type="button" className="link conn conn-disconnected" onClick={onRetry} title={e.text}>
+        <span className="dot" /> health: {e.status === 503 ? 'database unavailable' : `error ${e.status ?? ''}`}
+      </button>
+    )
+  }
+  if (!health) return null
+  const ok = health.status === 'ready'
+  return (
+    <span className={`conn ${ok ? 'conn-live' : 'conn-disconnected'}`} title={`db: ${health.database.detail ?? '—'}; models: ${health.models.artifacts.join(', ') || 'none'}`}>
+      <span className="dot" /> API {ok ? 'ready' : health.status}
+      {health.models.artifacts.length === 0 ? <span className="muted"> · no model artifacts</span> : null}
+    </span>
+  )
+}

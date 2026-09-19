@@ -36,3 +36,22 @@ Concise record of milestones, decisions, commands and results. Newest entries at
   ran >14 minutes on a fresh test database (no index on raw_events.event_id alone; hypertable PK is (time,id)).
 
 ### M2 — deterministic vertical slice ⏳
+- Detector (ordered microbatch transactions, entity counters, bounded window queries), rules R1–R5, correlation with
+  immutable versions + typed fact packets, deterministic summaries, Slack preview outbox with debounce, run
+  admission/controls (speed 0 = unbounded fast-forward), API (runs/events/incidents/facts/feedback/SSE/live ingest),
+  side-effect worker (leases, retries, 429 Retry-After, permanent 4xx, ambiguous timeouts, preview mode).
+- Verified: `pytest -m "not slow"` → 62 passed (R01–R06, T02, T04–T06, D01–D04, Q02/Q03, S02, T03/D03, U01 once-mode).
+  Full real-dataset rules-only replay: 180,800 events in 840 s (215 ev/s), 3 incidents, rule matches exactly at lines
+  168314/168324–6 (R1), 168336 (R3), 168338 (R2+R5 high risk), 168345 (R4 high risk); zero matches elsewhere.
+- D-006 Model-only anomalies mark the event `suspicious` in the feed (with measured deviations) but create no incident
+  and no Slack message; only rules create incidents. Reason: calibration review showed ML flags are rarities, not
+  sequences; incident/alert semantics stay deterministic and inspectable.
+- D-007 SSE endpoint gained `?once=true` (send available updates then close) as the documented polling fallback.
+
+### M3 — ML trained, calibrated, integrated ✅
+- `ml/train.py` fits IsolationForest on Sep–Dec causal snapshots (92,001 rows), calibrates on Jan–Feb (43,972 rows);
+  `ml/calibrate.py` reviews burden at 99/99.5/99.9 with sampled alerts vs a naive rarity baseline; `ml/evaluate.py`
+  reports rules/model/hybrid/baseline on March + known-sequence timing. Model `if_v1_2026-09-19` active at the 99.9th
+  percentile (threshold 0.6338, 0.75 flags/day on calibration). See `reports/evaluation.md`.
+- Verified: `tests/integration/test_model_integration.py` → 3 passed (M01 parity + shadow, M03 degraded/schema/hash/path
+  refusal, M02 failures never familiar, M04 cold start not high risk).

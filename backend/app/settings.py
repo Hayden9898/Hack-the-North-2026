@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     sentry_traces_sample_rate: float = 1.0
 
     llm_provider: str = "anthropic"
-    llm_model: str = "claude-sonnet-5"
+    llm_model: str = "claude-opus-5"
     llm_api_key: str = ""
 
     slack_mode: str = Field(default="preview", pattern="^(preview|live)$")

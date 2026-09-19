@@ -52,7 +52,10 @@ def create_run(
     }
     if visible_start is None:
         visible_start = cfg.partitions["evaluation"].start if dataset_id else datetime.now(UTC)
-    phase = "warmup" if (range_start or datetime.min.replace(tzinfo=UTC)) < visible_start else "visible"
+    if mode == "live":
+        phase = "visible"  # live runs have no historical range to warm through
+    else:
+        phase = "warmup" if (range_start or datetime.min.replace(tzinfo=UTC)) < visible_start else "visible"
     model_health = "rules_only" if model_id is None else "pending_load"
     with conn.cursor() as cur:
         cur.execute(
@@ -61,7 +64,7 @@ def create_run(
                    last_admitted_time, last_admitted_line)
                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'created', %s, %s, 0) RETURNING *""",
             (run_id, name, dataset_id, source_id, mode, phase, model_id, model_health, cfg.config_hash, jsonb(config), cfg.feature_version,
-             visible_start, range_start, range_end, speed or float(cfg.policy["replay"]["default_speed"]),
+             visible_start, range_start, range_end, float(cfg.policy["replay"]["default_speed"]) if speed is None else float(speed),
              visible_start if phase == "visible" else range_start, range_start or datetime(1970, 1, 1, tzinfo=UTC)),
         )
         row = dict(cur.fetchone())
@@ -78,8 +81,8 @@ def get_run(conn: psycopg.Connection[Any], run_id: str, lock: bool = False) -> d
 def current_virtual_time(run: dict[str, Any], now: datetime | None = None) -> datetime | None:
     """Virtual clock for replay in the visible phase: anchor + (wall elapsed) × speed while running."""
     vt = run.get("virtual_time")
-    if vt is None:
-        return None
+    if vt is None or float(run.get("speed") or 0) <= 0:
+        return None  # speed 0 = unbounded fast-forward: admission is limited only by the queue cap
     if run["state"] != "running" or run.get("virtual_anchor_wall") is None:
         return vt
     now = now or datetime.now(UTC)
@@ -113,9 +116,9 @@ def control(conn: psycopg.Connection[Any], run_id: str, action: str, speed: floa
             new_state = "warming" if run["phase"] == "warmup" else "running"
             cur.execute("UPDATE runs SET state=%s, virtual_anchor_wall=%s, updated_at=now() WHERE run_id=%s", (new_state, now, run_id))
         elif action == "speed":
-            if speed is None or speed <= 0:
-                raise ValueError("speed must be positive")
-            speed = min(float(speed), max_speed)
+            if speed is None or speed < 0:
+                raise ValueError("speed must be >= 0 (0 = unbounded fast-forward)")
+            speed = min(float(speed), max_speed) if speed > 0 else 0.0
             vt = current_virtual_time(run, now)
             cur.execute(
                 "UPDATE runs SET speed=%s, virtual_time=%s, virtual_anchor_wall=CASE WHEN state='running' THEN %s ELSE virtual_anchor_wall END, updated_at=now() WHERE run_id=%s",

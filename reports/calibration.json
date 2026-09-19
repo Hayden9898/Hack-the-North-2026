@@ -1,0 +1,763 @@
+{
+  "model_id": "if_v1_2026-09-19",
+  "calibration_rows": 43972,
+  "calibration_days": 59,
+  "percentiles": {
+    "99.0": {
+      "threshold": 0.5936609246318867,
+      "alerts": 440,
+      "alerts_per_day": 7.46,
+      "baseline_threshold": 5.559935720321048,
+      "baseline_alerts": 440,
+      "overlap_with_baseline": 92
+    },
+    "99.5": {
+      "threshold": 0.6062249332086029,
+      "alerts": 220,
+      "alerts_per_day": 3.73,
+      "baseline_threshold": 5.633589054128358,
+      "baseline_alerts": 220,
+      "overlap_with_baseline": 68
+    },
+    "99.9": {
+      "threshold": 0.6338351659503074,
+      "alerts": 44,
+      "alerts_per_day": 0.75,
+      "baseline_threshold": 10.712374865134603,
+      "baseline_alerts": 44,
+      "overlap_with_baseline": 16
+    }
+  },
+  "flagged_breakdown": [
+    {
+      "username": "amanda_l",
+      "route_family": "document",
+      "status": 403,
+      "n": 4
+    },
+    {
+      "username": "ashley_k",
+      "route_family": "forum_new",
+      "status": 302,
+      "n": 4
+    },
+    {
+      "username": "michael_t",
+      "route_family": "document",
+      "status": 403,
+      "n": 4
+    },
+    {
+      "username": "nicole_h",
+      "route_family": "document",
+      "status": 403,
+      "n": 3
+    },
+    {
+      "username": "jessica_w",
+      "route_family": "document",
+      "status": 403,
+      "n": 2
+    },
+    {
+      "username": "joshua_c",
+      "route_family": "login",
+      "status": 200,
+      "n": 2
+    },
+    {
+      "username": "sarah_j",
+      "route_family": "document",
+      "status": 403,
+      "n": 2
+    },
+    {
+      "username": "jessica_w",
+      "route_family": "document",
+      "status": 200,
+      "n": 2
+    },
+    {
+      "username": "matthew_r",
+      "route_family": "forum_edit",
+      "status": 302,
+      "n": 2
+    },
+    {
+      "username": "amanda_l",
+      "route_family": "document",
+      "status": 200,
+      "n": 2
+    },
+    {
+      "username": "joshua_c",
+      "route_family": "document",
+      "status": 403,
+      "n": 2
+    },
+    {
+      "username": "nicole_h",
+      "route_family": "document",
+      "status": 200,
+      "n": 2
+    },
+    {
+      "username": "chris_b",
+      "route_family": "document",
+      "status": 403,
+      "n": 2
+    },
+    {
+      "username": "chris_b",
+      "route_family": "document",
+      "status": 200,
+      "n": 1
+    },
+    {
+      "username": "michael_t",
+      "route_family": "logout",
+      "status": 302,
+      "n": 1
+    },
+    {
+      "username": "michael_t",
+      "route_family": "document",
+      "status": 200,
+      "n": 1
+    },
+    {
+      "username": "ashley_k",
+      "route_family": "logout",
+      "status": 302,
+      "n": 1
+    },
+    {
+      "username": "sarah_j",
+      "route_family": "document",
+      "status": 200,
+      "n": 1
+    },
+    {
+      "username": "joshua_c",
+      "route_family": "login",
+      "status": 401,
+      "n": 1
+    },
+    {
+      "username": "david_m",
+      "route_family": "forum_edit",
+      "status": 302,
+      "n": 1
+    },
+    {
+      "username": "sarah_j",
+      "route_family": "forum_edit",
+      "status": 302,
+      "n": 1
+    },
+    {
+      "username": "ashley_k",
+      "route_family": "document",
+      "status": 200,
+      "n": 1
+    },
+    {
+      "username": "jessica_w",
+      "route_family": "forum_edit",
+      "status": 302,
+      "n": 1
+    },
+    {
+      "username": "david_m",
+      "route_family": "forum_new",
+      "status": 302,
+      "n": 1
+    }
+  ],
+  "flagged_by_local_hour": {
+    "0": 2,
+    "1": 4,
+    "2": 4,
+    "3": 2,
+    "4": 1,
+    "5": 5,
+    "6": 3,
+    "7": 1,
+    "8": 14,
+    "15": 1,
+    "18": 1,
+    "20": 1,
+    "21": 3,
+    "22": 1,
+    "23": 1
+  },
+  "chosen": {
+    "percentile": 99.9,
+    "threshold": 0.6338351659503074,
+    "alerts": 44,
+    "alerts_per_day": 0.75,
+    "ties": 0
+  },
+  "samples": [
+    {
+      "line_number": 115909,
+      "event_time": "2026-01-04T05:59:20+00:00",
+      "account": "jessica_w",
+      "ip": "10.0.6.21",
+      "request": "POST /intranet/forum/edit/1046 -> 302 (112)",
+      "score": 0.6446041629833011,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          7.979595711597257
+        ],
+        [
+          "acct_family_rarity",
+          3.010406684483251
+        ],
+        [
+          "pair_rarity",
+          8.575961584945415e-05
+        ],
+        [
+          "pair_unfamiliar",
+          0.0
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 1
+    },
+    {
+      "line_number": 121146,
+      "event_time": "2026-01-10T01:58:03+00:00",
+      "account": "michael_t",
+      "ip": "10.0.5.88",
+      "request": "GET /hr/directory_full_CONFIDENTIAL.csv -> 200 (4812)",
+      "score": 0.6395623218492064,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          9.395740518379736
+        ],
+        [
+          "bytes_delta_vs_bootstrap",
+          -3.97386076040096
+        ],
+        [
+          "acct_family_rarity",
+          1.6081081250040987
+        ],
+        [
+          "pair_rarity",
+          8.323276046255766e-05
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 21
+    },
+    {
+      "line_number": 121151,
+      "event_time": "2026-01-11T01:27:55+00:00",
+      "account": "michael_t",
+      "ip": "10.0.5.88",
+      "request": "GET /logout -> 302 (0)",
+      "score": 0.6357885739261591,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          8.70267641154777
+        ],
+        [
+          "acct_family_rarity",
+          2.423074490248172
+        ],
+        [
+          "pair_rarity",
+          8.322583334670058e-05
+        ],
+        [
+          "pair_unfamiliar",
+          0.0
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 21
+    },
+    {
+      "line_number": 121152,
+      "event_time": "2026-01-11T06:11:22+00:00",
+      "account": "matthew_r",
+      "ip": "10.0.7.15",
+      "request": "POST /intranet/forum/edit/1035 -> 302 (112)",
+      "score": 0.6508432279806435,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          8.299120096915134
+        ],
+        [
+          "acct_family_rarity",
+          2.99307975210486
+        ],
+        [
+          "pair_rarity",
+          8.306682731034681e-05
+        ],
+        [
+          "pair_unfamiliar",
+          0.0
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 2
+    },
+    {
+      "line_number": 125355,
+      "event_time": "2026-01-16T12:11:56+00:00",
+      "account": "amanda_l",
+      "ip": "10.0.8.22",
+      "request": "GET /finance/reports/budget_v2_CONFIDENTIAL.xlsx -> 403 (245)",
+      "score": 0.6495831682192256,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          2.6268417418471346
+        ],
+        [
+          "acct_family_rarity",
+          1.606804967202194
+        ],
+        [
+          "pair_rarity",
+          7.995202882536829e-05
+        ],
+        [
+          "pair_unfamiliar",
+          0.0
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 8
+    },
+    {
+      "line_number": 130613,
+      "event_time": "2026-01-23T12:11:52+00:00",
+      "account": "amanda_l",
+      "ip": "10.0.8.22",
+      "request": "GET /finance/reports/q1_draft_CONFIDENTIAL.zip -> 403 (245)",
+      "score": 0.6504036126386028,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          2.618667795429042
+        ],
+        [
+          "acct_family_rarity",
+          1.5992189567336434
+        ],
+        [
+          "pair_rarity",
+          7.670770532665759e-05
+        ],
+        [
+          "pair_unfamiliar",
+          0.0
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 8
+    },
+    {
+      "line_number": 131670,
+      "event_time": "2026-01-25T06:46:19+00:00",
+      "account": "david_m",
+      "ip": "10.0.8.45",
+      "request": "POST /intranet/forum/new -> 302 (112)",
+      "score": 0.6473814695717384,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          9.486607541612665
+        ],
+        [
+          "acct_family_rarity",
+          2.962058555560708
+        ],
+        [
+          "pair_rarity",
+          7.599072916761605e-05
+        ],
+        [
+          "pair_unfamiliar",
+          0.0
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 2
+    },
+    {
+      "line_number": 132680,
+      "event_time": "2026-01-26T22:46:17+00:00",
+      "account": "jessica_w",
+      "ip": "10.0.6.21",
+      "request": "GET /exec/board_deck.pptx -> 403 (245)",
+      "score": 0.6362306332049769,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          2.375862557798488
+        ],
+        [
+          "acct_family_rarity",
+          1.6127469325249915
+        ],
+        [
+          "pair_rarity",
+          7.513430260121999e-05
+        ],
+        [
+          "pair_unfamiliar",
+          0.0
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 18
+    },
+    {
+      "line_number": 133747,
+      "event_time": "2026-01-28T12:07:49+00:00",
+      "account": "joshua_c",
+      "ip": "10.0.8.50",
+      "request": "GET /finance/reports/q1_draft_CONFIDENTIAL.zip -> 403 (245)",
+      "score": 0.6407486328158062,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          2.533681937543243
+        ],
+        [
+          "acct_family_rarity",
+          1.6610800287672638
+        ],
+        [
+          "pair_rarity",
+          7.450732037865896e-05
+        ],
+        [
+          "pair_unfamiliar",
+          0.0
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 8
+    },
+    {
+      "line_number": 133785,
+      "event_time": "2026-01-28T12:30:39+00:00",
+      "account": "sarah_j",
+      "ip": "10.0.5.12",
+      "request": "GET /finance/reports/q1_draft_CONFIDENTIAL.zip -> 403 (245)",
+      "score": 0.6568047975273719,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          2.58437184595758
+        ],
+        [
+          "acct_family_rarity",
+          1.61454532927494
+        ],
+        [
+          "pair_rarity",
+          7.497094879248351e-05
+        ],
+        [
+          "pair_unfamiliar",
+          0.0
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 8
+    },
+    {
+      "line_number": 136899,
+      "event_time": "2026-01-31T05:17:20+00:00",
+      "account": "ashley_k",
+      "ip": "10.0.7.11",
+      "request": "GET /logout -> 302 (0)",
+      "score": 0.6360921041266211,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          8.146491763244365
+        ],
+        [
+          "acct_family_rarity",
+          2.3929769929579505
+        ],
+        [
+          "pair_rarity",
+          7.255577728559434e-05
+        ],
+        [
+          "pair_unfamiliar",
+          0.0
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 1
+    },
+    {
+      "line_number": 139065,
+      "event_time": "2026-02-04T12:28:20+00:00",
+      "account": "amanda_l",
+      "ip": "10.0.8.22",
+      "request": "GET /hr/directory_full_CONFIDENTIAL.csv -> 403 (245)",
+      "score": 0.6419603441408867,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          2.6163976961788404
+        ],
+        [
+          "acct_family_rarity",
+          1.6062788058435518
+        ],
+        [
+          "pair_rarity",
+          7.19605656410912e-05
+        ],
+        [
+          "pair_unfamiliar",
+          0.0
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 8
+    },
+    {
+      "line_number": 142169,
+      "event_time": "2026-02-08T05:18:36+00:00",
+      "account": "ashley_k",
+      "ip": "10.0.7.11",
+      "request": "POST /intranet/forum/new -> 302 (112)",
+      "score": 0.64661778796181,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          7.777513296728075
+        ],
+        [
+          "acct_family_rarity",
+          2.9877252681992617
+        ],
+        [
+          "pair_rarity",
+          6.995208285184492e-05
+        ],
+        [
+          "pair_unfamiliar",
+          0.0
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 1
+    },
+    {
+      "line_number": 143226,
+      "event_time": "2026-02-10T12:16:01+00:00",
+      "account": "jessica_w",
+      "ip": "10.0.6.21",
+      "request": "GET /finance/reports/q1_draft_CONFIDENTIAL.zip -> 403 (245)",
+      "score": 0.6401171534903961,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          2.5397148862829955
+        ],
+        [
+          "acct_family_rarity",
+          1.6123614840556681
+        ],
+        [
+          "pair_rarity",
+          6.95531212243205e-05
+        ],
+        [
+          "pair_unfamiliar",
+          0.0
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 8
+    },
+    {
+      "line_number": 146361,
+      "event_time": "2026-02-13T03:47:11+00:00",
+      "account": "nicole_h",
+      "ip": "10.0.9.05",
+      "request": "GET /exec/board_deck.pptx -> 200 (5120000)",
+      "score": 0.6677434247458043,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          7.983440063006542
+        ],
+        [
+          "bytes_delta_vs_bootstrap",
+          2.9957285626241017
+        ],
+        [
+          "acct_family_rarity",
+          1.6075280830561103
+        ],
+        [
+          "pair_rarity",
+          6.831767722553695e-05
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 23
+    },
+    {
+      "line_number": 147381,
+      "event_time": "2026-02-15T11:25:07+00:00",
+      "account": "sarah_j",
+      "ip": "10.0.5.12",
+      "request": "POST /intranet/forum/edit/1062 -> 302 (112)",
+      "score": 0.6346460258235276,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          8.495629013500396
+        ],
+        [
+          "acct_family_rarity",
+          3.0252774398347793
+        ],
+        [
+          "pair_rarity",
+          6.822445849478676e-05
+        ],
+        [
+          "pair_unfamiliar",
+          0.0
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 7
+    },
+    {
+      "line_number": 150515,
+      "event_time": "2026-02-19T04:08:08+00:00",
+      "account": "sarah_j",
+      "ip": "10.0.5.12",
+      "request": "GET /finance/reports/budget_v2_CONFIDENTIAL.xlsx -> 200 (45120)",
+      "score": 0.6451605913668254,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          7.670961429211031
+        ],
+        [
+          "bytes_delta_vs_bootstrap",
+          -1.7358335806571592
+        ],
+        [
+          "acct_family_rarity",
+          1.615991366408942
+        ],
+        [
+          "pair_rarity",
+          6.669556810417678e-05
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 0
+    },
+    {
+      "line_number": 150516,
+      "event_time": "2026-02-19T07:38:28+00:00",
+      "account": "nicole_h",
+      "ip": "10.0.9.05",
+      "request": "GET /finance/templates/expense.docx -> 403 (245)",
+      "score": 0.6532257133977424,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          9.621920081084202
+        ],
+        [
+          "acct_family_rarity",
+          1.6100349471793547
+        ],
+        [
+          "pair_rarity",
+          6.635920238676608e-05
+        ],
+        [
+          "pair_unfamiliar",
+          0.0
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 3
+    },
+    {
+      "line_number": 152610,
+      "event_time": "2026-02-21T07:57:34+00:00",
+      "account": "ashley_k",
+      "ip": "10.0.7.11",
+      "request": "GET /sales/targets_q1.xlsx -> 200 (34000)",
+      "score": 0.6367705845010442,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          8.945723572455398
+        ],
+        [
+          "bytes_delta_vs_bootstrap",
+          -2.018791414773583
+        ],
+        [
+          "acct_family_rarity",
+          1.5978988242023995
+        ],
+        [
+          "pair_rarity",
+          6.524221173409094e-05
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 3
+    },
+    {
+      "line_number": 152616,
+      "event_time": "2026-02-23T01:58:29+00:00",
+      "account": "joshua_c",
+      "ip": "10.0.8.50",
+      "request": "GET /finance/templates/expense.docx -> 403 (245)",
+      "score": 0.6601866297082417,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          8.947090715664986
+        ],
+        [
+          "acct_family_rarity",
+          1.658342030224532
+        ],
+        [
+          "pair_rarity",
+          6.515294656505151e-05
+        ],
+        [
+          "pair_unfamiliar",
+          0.0
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 21
+    }
+  ]
+}

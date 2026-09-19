@@ -1,0 +1,26 @@
+{
+  "_comment": "Provisional analyst inventory of the March 2026 sequence (overview.md). Evaluation/fixture data only; never read by detection code. Line numbers are 1-based in the supplied file.",
+  "dataset_sha256": "9f773643335352d8aa8cc9f07c5f92614b65c806f84c84790f56e4c652970575",
+  "events": [
+    {"line": 168311, "role": "failed_login_1", "expect_rule": null},
+    {"line": 168312, "role": "failed_login_2", "expect_rule": null},
+    {"line": 168313, "role": "failed_login_3", "expect_rule": null},
+    {"line": 168314, "role": "failed_login_4", "expect_rule": "R1"},
+    {"line": 168321, "role": "night2_failed_login_1", "expect_rule": null},
+    {"line": 168322, "role": "night2_failed_login_2", "expect_rule": null},
+    {"line": 168323, "role": "night2_failed_login_3", "expect_rule": null},
+    {"line": 168324, "role": "night2_failed_login_4", "expect_rule": "R1"},
+    {"line": 168325, "role": "night2_failed_login_5", "expect_rule": "R1"},
+    {"line": 168326, "role": "night2_failed_login_6", "expect_rule": "R1"},
+    {"line": 168330, "role": "forum_post_unusual_key_500", "expect_rule": null},
+    {"line": 168331, "role": "forum_post_unusual_key_400", "expect_rule": null},
+    {"line": 168332, "role": "forum_post_unusual_key_302", "expect_rule": null},
+    {"line": 168333, "role": "actor_views_object", "expect_rule": null},
+    {"line": 168335, "role": "victim_views_object", "expect_rule": null},
+    {"line": 168336, "role": "victim_admin_request", "expect_rule": "R3"},
+    {"line": 168338, "role": "actor_sensitive_200_after_denials", "expect_rule": "R5"},
+    {"line": 168339, "role": "actor_edits_object", "expect_rule": null},
+    {"line": 168343, "role": "victim_login_200_unfamiliar_source", "expect_rule": null},
+    {"line": 168345, "role": "victim_sensitive_200_unfamiliar_source", "expect_rule": "R4"}
+  ]
+}
