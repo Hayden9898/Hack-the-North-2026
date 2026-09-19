@@ -20,6 +20,18 @@ QUALIFIERS = {
 }
 
 
+class _Dedup(list):
+    """Appends only lines not seen before (keeps first occurrence order)."""
+
+    def __init__(self, target: list[str]) -> None:
+        super().__init__()
+        self._target = target
+
+    def append(self, line: str) -> None:  # type: ignore[override]
+        if line not in self._target:
+            self._target.append(line)
+
+
 def _fmt_event(v: dict[str, Any]) -> str:
     line = f"line {v['line_number']}" if v.get("line_number") else v["event_id"][:10]
     return f"{v['event_time']} {v['account']}@{v['ip']} {v['method']} {v['path']} -> {v['status']} ({line})"
@@ -27,9 +39,11 @@ def _fmt_event(v: dict[str, Any]) -> str:
 
 def summarize(rule_ids: list[str], threat_class: str, facts: list[dict[str, Any]], unknown_codes: list[str]) -> dict[str, Any]:
     by_kind: dict[str, list[dict[str, Any]]] = {}
-    for f in facts:
+    # Current-version (trigger) facts first; older support facts only add lines that are not already present.
+    for f in sorted(facts, key=lambda x: {"trigger": 0, "support": 1, "context": 2}.get(x.get("role", "support"), 1)):
         by_kind.setdefault(f["kind"], []).append(f)
-    lines: list[str] = []
+    raw_lines: list[str] = []
+    lines = _Dedup(raw_lines)
     for f in by_kind.get("auth_failures_in_window", []):
         lines.append(f"{f['value']} login failures for {f['args']['pair']} within {f['args']['window_seconds']}s (observed).")
     for f in by_kind.get("prior_denials_count", []):
@@ -43,6 +57,7 @@ def summarize(rule_ids: list[str], threat_class: str, facts: list[dict[str, Any]
     for f in by_kind.get("source_familiarity", []):
         if f["role"] != "context":
             lines.append(f"Source pair {f['args']['pair']} is '{f['value']}' relative to the frozen August login reference.")
+    lines = raw_lines
     trig = [f for f in by_kind.get("event_observed", []) if f["role"] == "trigger"]
     primary = rule_ids[-1] if rule_ids else ""
     return {

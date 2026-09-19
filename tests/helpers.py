@@ -23,6 +23,7 @@ def make_config(tmp_path: Path, bootstrap: tuple[date, date], train: tuple[date,
     cdir.mkdir(exist_ok=True)
     src = REPO_ROOT / "config"
     shutil.copy(src / "routes.yaml", cdir / "routes.yaml")
+    shutil.copy(src / "playbooks.yaml", cdir / "playbooks.yaml")
     policy = yaml.safe_load((src / "policy.yaml").read_text(encoding="utf-8"))
     for k, v in (policy_overrides or {}).items():
         _deep_set(policy, k, v)

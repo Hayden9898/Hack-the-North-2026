@@ -9,17 +9,16 @@ import joblib
 import numpy as np
 import pytest
 import sklearn
+from ml.common import sha256_file
 from sklearn.ensemble import IsolationForest
+from tests.fixtures.synth import TZ, baseline_traffic, default_world, scenario_auth_burst
+from tests.helpers import drive, import_world, make_config, q, start_run
 
-from app.config import load_config
 from app.db.engine import connect_direct, jsonb
 from app.detection.model import ModelLoadError, load_model
 from app.features.reference import build_reference
 from app.features.vector import FEATURE_NAMES, FEATURE_VERSION
 from app.settings import get_settings
-from ml.common import sha256_file
-from tests.fixtures.synth import TZ, baseline_traffic, default_world, scenario_auth_burst
-from tests.helpers import drive, import_world, make_config, q, start_run
 
 pytestmark = pytest.mark.integration
 D0 = date(2025, 1, 6)

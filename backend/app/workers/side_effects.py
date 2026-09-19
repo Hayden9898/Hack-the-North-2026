@@ -48,7 +48,16 @@ class SideEffectWorker:
             self.slack = SlackWebhookAdapter(self.settings.slack_webhook_url)
         else:
             self.slack = PreviewAdapter()
-        self._explainer = explainer
+        if explainer is not None:
+            self._explainer = explainer
+        else:
+            from app.investigation.provider import build_explainer
+
+            try:
+                self._explainer = build_explainer(self.settings)
+            except Exception as exc:  # noqa: BLE001 - misconfiguration must not stop deliveries
+                log.warning("LLM provider not available (%s); deterministic explanations only", type(exc).__name__)
+                self._explainer = None
         self._last_send: dict[str, float] = {}
 
     # ------------------------------------------------------------------------------------------------ notifications

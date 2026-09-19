@@ -55,3 +55,15 @@ Concise record of milestones, decisions, commands and results. Newest entries at
   percentile (threshold 0.6338, 0.75 flags/day on calibration). See `reports/evaluation.md`.
 - Verified: `tests/integration/test_model_integration.py` → 3 passed (M01 parity + shadow, M03 degraded/schema/hash/path
   refusal, M02 failures never familiar, M04 cold start not high risk).
+
+### M5 — constrained AI investigation + playbooks ✅
+- `app/investigation/`: typed selection schema (fact ids/codes only, no prose), validator (schema, packet hash,
+  membership, cutoff, per-hypothesis minimum predicates, contradictions, playbook applicability, forced trigger
+  inclusion), bounded read-only tools (run_id/cutoff injected; ≤6 calls, ≤200 rows), Anthropic adapter (official SDK
+  1.7.0, `claude-opus-5`, strict client tools, `submit_selections` tool), pipeline (deadline, one repair, cache by
+  packet hash, deterministic fallback), reviewed `config/playbooks.yaml`, playbooks in incident API.
+- Verified: `tests/unit/test_validator.py` 10 passed; `tests/integration/test_investigation.py` 6 passed
+  (valid+tools, E01, E02 injection/tool scope, E03 stale version, E04 FP cannot suppress, Q01 timeout fallback).
+- Real provider call is **unverified** (no LLM_API_KEY); the adapter is exercised only through the scripted fake.
+- Fixes from frontend review: events page query limits before joining (90 ms → 1.3 ms server-side on 180k rows),
+  summary lines de-duplicated across versions, timeline rows aggregated per event, live runs start in `visible` phase.

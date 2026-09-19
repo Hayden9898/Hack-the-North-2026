@@ -1,0 +1,74 @@
+# Reviewed remediation playbook catalog. Recommendations never claim to patch CSE's system or identify exact code.
+# Applicability predicates are matched by code against the incident's rule ids and fact kinds; the AI may only
+# select from applicable entries.
+version: 1
+playbooks:
+  - id: review_account_activity
+    title: Review account and session activity for the affected account/source pair
+    applicability:
+      any_rules: [R1, R4]
+      any_fact_kinds: [auth_failures_in_window, source_familiarity]
+    uncertainty: Repeated failures and a later success from an unfamiliar source are consistent with credential guessing, a
+      shared workstation, or a user travelling; the logs contain no session identity or user agent.
+    required_evidence:
+      - Authentication system logs for the same account and time window (session ids, MFA outcome)
+      - Asset inventory for the source IP (owner, shared/kiosk status)
+    proposed_steps:
+      - Confirm with the account owner whether they used the recorded source at the recorded times
+      - Review active sessions for the account; revoke sessions not recognised by the owner (reversible)
+      - If unrecognised: rotate credentials and require re-authentication
+    permissions: Identity administrator; account owner contact
+    impact: Session revocation logs the user out; credential rotation blocks access until reset
+    verification: No further logins for the pair from the unfamiliar source after rotation; owner confirms activity
+    rollback: Restore session or issue a new credential; no data is destroyed by these steps
+  - id: role_audit_review
+    title: Audit role and permission changes around the admin request
+    applicability:
+      any_rules: [R3, R5]
+      any_fact_kinds: [prior_endpoint_post_2xx_count, first_success_after_denials]
+    uncertainty: The access log shows an admin endpoint returned 200 but not what changed; an authorised change would
+      produce the same record.
+    required_evidence:
+      - Application/admin audit log entries for the role_update call (actor, target, before/after)
+      - Change management record or ticket authorising the change
+    proposed_steps:
+      - Compare current role assignments for the accounts involved with the last approved baseline
+      - If an unapproved change is found, revert the role assignment (reversible) and preserve the audit entries
+    permissions: Application administrator; change management reviewer
+    impact: Reverting a role removes access the account currently has
+    verification: Role assignments match the approved baseline; sensitive-resource requests by the account return 403 again if that was the baseline
+    rollback: Re-apply the role if the change turns out to have been authorised
+  - id: forum_content_request_protection_review
+    title: Review the forum object content and the request protections on admin endpoints
+    applicability:
+      any_rules: [R3, R5]
+      any_fact_kinds: [same_object, unusual_query_keys]
+    uncertainty: Request bodies and page contents are not logged; a forum-mediated request is one hypothesis among several.
+    required_evidence:
+      - Stored content and revision history of the forum object
+      - Whether admin endpoints validate an anti-forgery token and the request origin
+    proposed_steps:
+      - Export the object's content/revisions for review; do not delete (evidence)
+      - Verify anti-forgery token and same-origin checks on state-changing admin endpoints in a test environment
+      - Review the forum's content sanitisation for embedded active content
+    permissions: Application security reviewer; forum administrator
+    impact: Review only; hardening changes require a normal release
+    verification: Test requests without a valid token are rejected in the test environment
+    rollback: Not applicable to the review; hardening changes follow the normal release rollback
+  - id: sensitive_access_authorization_review
+    title: Confirm whether the sensitive-resource access change was authorised
+    applicability:
+      any_rules: [R2, R4, R5]
+      any_fact_kinds: [prior_denials_count, first_success_after_denials]
+    uncertainty: A first 200 after repeated 403s is a measured change; approval records determine whether it was legitimate.
+    required_evidence:
+      - Authorization/ACL change history for the resource
+      - Business justification or ticket for granting access to the account
+    proposed_steps:
+      - Ask the resource owner whether access for the account was approved and when
+      - If not approved, restore the previous ACL (reversible) and preserve the copy served (response bytes are known)
+      - Record the outcome as analyst disposition on the incident
+    permissions: Resource owner; access administrator
+    impact: Restoring the ACL removes the account's access to the resource
+    verification: Subsequent requests by the account return 403; owner confirms the intended state
+    rollback: Re-grant access if the change was approved

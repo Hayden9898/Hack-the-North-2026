@@ -192,6 +192,7 @@ def build_packet(
         "incident_id": incident_id,
         "version": version,
         "cutoff_seq": cutoff_seq,
+        "rule_ids": sorted({m["rule_id"] for m in matches}),
         "reference_hash": reference_hash,
         "facts": facts,
         "trigger_fact_ids": trigger_ids,

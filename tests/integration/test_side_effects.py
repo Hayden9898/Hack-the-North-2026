@@ -5,12 +5,12 @@ import json
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from tests.helpers import q
 
 from app.config import load_config
 from app.db.engine import connect_direct, jsonb
 from app.notifications.slack import DeliveryResult, PreviewAdapter, SlackWebhookAdapter
 from app.workers.side_effects import SideEffectWorker
-from tests.helpers import q
 
 pytestmark = pytest.mark.integration
 

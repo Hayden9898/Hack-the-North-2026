@@ -211,17 +211,24 @@ def list_events(
         clauses.append("d.phase = %(phase)s")
         params["phase"] = phase
     if account:
-        clauses.append("p.username = %(acct)s")
+        # Semi-join keeps the account filter inside the bounded detections scan (index on processed_events(run_id, username, event_time)).
+        clauses.append("EXISTS (SELECT 1 FROM processed_events p2 WHERE p2.run_id = d.run_id AND p2.run_seq = d.run_seq AND p2.event_time = d.event_time AND p2.username = %(acct)s)")
         params["acct"] = account
+    direction = "DESC" if order == "desc" else "ASC"
     with conn.cursor() as cur:
+        # Select the page from detections first (PK order + LIMIT), then join. Joining before limiting made the planner
+        # hash-join the whole hypertable (measured 108–900 ms on 180k rows); this form is index lookups only.
         cur.execute(
-            f"""SELECT d.run_seq, d.event_id, d.event_time, d.phase, d.threat_class, d.processing_status, d.model_score, d.anomaly_percentile,
+            f"""WITH page AS (
+                    SELECT d.* FROM detections d WHERE {' AND '.join(clauses)} ORDER BY d.run_seq {direction} LIMIT %(lim)s
+                )
+                SELECT d.run_seq, d.event_id, d.event_time, d.phase, d.threat_class, d.processing_status, d.model_score, d.anomaly_percentile,
                        d.model_flagged, d.model_health, d.reason_codes, d.rule_ids, d.top_deviations,
                        p.username, p.ip_raw, p.method, p.path, p.status, p.response_bytes, p.route_family, p.object_id, e.line_number
-                FROM detections d
+                FROM page d
                 JOIN processed_events p ON p.run_id = d.run_id AND p.run_seq = d.run_seq AND p.event_time = d.event_time
                 LEFT JOIN event_registry e ON e.event_id = d.event_id
-                WHERE {' AND '.join(clauses)} ORDER BY d.run_seq {'DESC' if order == 'desc' else 'ASC'} LIMIT %(lim)s""",
+                ORDER BY d.run_seq {direction}""",
             params,
         )
         rows = [dict(r) for r in cur.fetchall()]

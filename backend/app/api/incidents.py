@@ -86,12 +86,15 @@ def get_incident(
         cur.execute("SELECT * FROM fact_packets WHERE run_id=%s AND incident_id=%s AND version=%s", (run_id, incident_id, v))
         packet_row = cur.fetchone()
         cur.execute(
-            """SELECT e.event_id, e.run_seq, e.event_time, e.relation_type, e.rule_id, e.added_version,
+            """SELECT e.event_id, e.run_seq, e.event_time, string_agg(DISTINCT e.relation_type, ',') AS relation_type,
+                      string_agg(DISTINCT e.rule_id, ',') AS rule_id, min(e.added_version) AS added_version,
                       p.username, p.ip_raw, p.method, p.path, p.status, p.response_bytes, p.object_id, p.threat_class, reg.line_number
                FROM incident_evidence e
                JOIN processed_events p ON p.run_id=e.run_id AND p.run_seq=e.run_seq AND p.event_time=e.event_time
                LEFT JOIN event_registry reg ON reg.event_id = e.event_id
-               WHERE e.run_id=%s AND e.incident_id=%s AND e.run_seq <= %s ORDER BY e.run_seq""",
+               WHERE e.run_id=%s AND e.incident_id=%s AND e.run_seq <= %s
+               GROUP BY e.event_id, e.run_seq, e.event_time, p.username, p.ip_raw, p.method, p.path, p.status, p.response_bytes, p.object_id, p.threat_class, reg.line_number
+               ORDER BY e.run_seq""",
             (run_id, incident_id, ver["trigger_seq"] if version else int(run["processed_seq"])),
         )
         timeline = [dict(r) for r in cur.fetchall()]
@@ -136,7 +139,14 @@ def get_incident(
             )
             baseline["hour_histogram"] = {int(r["h"]): r["n"] for r in cur.fetchall()}
     packet = packet_row["facts"] if packet_row else None
+    from app.investigation import playbooks as pb_mod
+
+    catalog = pb_mod.load_catalog()
+    kinds = {f["kind"] for f in (packet or {}).get("facts", [])}
+    applicable = pb_mod.applicable(catalog, list(ver["rule_ids"]), kinds)
+    selected = set((expl["validated"] or {}).get("playbook_ids", [])) if expl and expl.get("validated") else set()
     return {
+        "playbooks": {"applicable": applicable, "selected_by_ai": sorted(selected), "catalog_version": 1},
         "incident": {**inc, "phase": "warmup" if inc["first_event_time"] < run["visible_start"] else "visible"},
         "version": ver,
         "versions": [{k: x[k] for k in ("version", "threat_class", "trigger_seq", "trigger_event_id", "timeline_start", "timeline_end", "rule_ids", "created_at")} for x in versions],

@@ -4,14 +4,12 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 
 import pytest
-
 from tests.fixtures.synth import (
     TZ,
     baseline_traffic,
     default_world,
     scenario_access_change,
     scenario_auth_burst,
-    scenario_forum_admin,
     scenario_linked_sequence,
 )
 from tests.helpers import drive, import_world, make_config, q, start_run
