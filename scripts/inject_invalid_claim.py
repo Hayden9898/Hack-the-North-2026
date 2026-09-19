@@ -8,14 +8,12 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-import uuid
 
 from app.config import get_config
 from app.db.engine import connect_direct, jsonb
 from app.investigation.provider import Block, Reply
 from app.observability import sentry
 from app.settings import get_settings
-from app.workers.side_effects import SideEffectWorker
 
 
 class ScriptedBadExplainer:
@@ -72,22 +70,34 @@ def main() -> int:
             return 1
         cur.execute("SELECT packet_hash FROM fact_packets WHERE run_id=%s AND incident_id=%s AND version=%s", (args.run_id, inc["incident_id"], inc["current_version"]))
         ph = cur.fetchone()["packet_hash"]
-        # Archive any existing explanation for this version so the injected attempt is visible, then queue a fresh job.
+        # Replace any existing explanation for this version with the injected attempt. The pipeline is invoked directly
+        # (not through the job queue) so a live side-effect worker cannot race for the job.
+        cur.execute("SELECT facts FROM fact_packets WHERE run_id=%s AND incident_id=%s AND version=%s", (args.run_id, inc["incident_id"], inc["current_version"]))
+        packet = cur.fetchone()["facts"]
         cur.execute("DELETE FROM explanations WHERE run_id=%s AND incident_id=%s AND version=%s", (args.run_id, inc["incident_id"], inc["current_version"]))
-        cur.execute("DELETE FROM explanation_jobs WHERE run_id=%s AND incident_id=%s AND version=%s", (args.run_id, inc["incident_id"], inc["current_version"]))
-        cur.execute(
-            "INSERT INTO explanation_jobs (job_id, run_id, incident_id, version, packet_hash, state, trace_context) VALUES (%s, %s, %s, %s, %s, 'pending', %s)",
-            (str(uuid.uuid4()), args.run_id, inc["incident_id"], inc["current_version"], ph, jsonb({"fault_injection": True})),
-        )
         conn.commit()
-    worker = SideEffectWorker(s.database_url, cfg=cfg, explainer=ScriptedBadExplainer(ph), worker_id="fault-injection")
+    from app.investigation.explain import explain_packet
+    from app.investigation.jobs import PROMPT_VERSION
+
     with connect_direct(s.database_url) as conn:
-        outcome = worker.explain_one(conn)
+        result = explain_packet(conn, args.run_id, packet, ScriptedBadExplainer(ph), cfg)
         with conn.cursor() as cur:
-            cur.execute("SELECT state, rejection_reasons, validated->>'ai_review' ai FROM explanations WHERE run_id=%s AND incident_id=%s AND version=%s", (args.run_id, inc["incident_id"], inc["current_version"]))
-            row = cur.fetchone()
+            cur.execute(
+                """INSERT INTO explanations (run_id, incident_id, version, packet_hash, prompt_version, model_name, state, proposal_raw, validated, rejection_reasons, latency_ms, tool_calls)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 0, %s)""",
+                (args.run_id, inc["incident_id"], inc["current_version"], ph, PROMPT_VERSION, result["model_name"], result["state"],
+                 jsonb(result.get("proposal_raw")), jsonb(result.get("validated")), result.get("rejection_reasons", []), int(result.get("tool_calls", 0))),
+            )
+            cur.execute(
+                "INSERT INTO ui_updates (run_id, update_seq, type, payload) VALUES (%s, (SELECT coalesce(max(update_seq),0)+1 FROM ui_updates WHERE run_id=%s), 'explanation', %s)",
+                (args.run_id, args.run_id, jsonb({"incident_id": inc["incident_id"], "version": inc["current_version"], "state": result["state"], "fault_injection": True})),
+            )
+        conn.commit()
+        for reason in result.get("rejection_reasons", []):
+            sentry.log_event("claim_rejected", "warning", run_id=args.run_id, incident_id=inc["incident_id"], version=inc["current_version"], reason=reason[:200], fault_injection=True)
+    outcome = result["state"]
     print(json.dumps({"label": "FAULT INJECTION (scripted invalid proposal, not a real provider)", "incident_id": inc["incident_id"], "version": inc["current_version"],
-                      "outcome": outcome, "explanation_state": row["state"], "ai_review": row["ai"], "rejection_reasons": row["rejection_reasons"],
+                      "outcome": outcome, "ai_review": (result.get("validated") or {}).get("ai_review"), "rejection_reasons": result.get("rejection_reasons", []),
                       "sentry": "claim_rejected logged per reason" if sentry.enabled() else "Sentry disabled (no DSN): reasons logged locally"}, indent=2))
     sentry.flush()
     return 0 if outcome == "rejected" else 2

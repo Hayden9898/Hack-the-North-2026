@@ -375,7 +375,8 @@ export interface PlaybooksBlock {
 // Analytics (Tiger continuous aggregate with raw tail / as-of fallback).
 export interface TimeseriesRow {
   bucket: string
-  account: string
+  /** null when group_by_account=false (accounts summed) */
+  account: string | null
   events: number
   c401: number
   c403: number
@@ -385,8 +386,14 @@ export interface TimeseriesRow {
   suspicious: number
 }
 
+interface TimeseriesSourceCommon {
+  /** server-side roll-up that was applied (echoes the request) */
+  bucket_minutes?: number
+  group_by_account?: boolean
+}
+
 export type TimeseriesSource =
-  | {
+  | (TimeseriesSourceCommon & {
       mode: 'aggregate_plus_raw_tail'
       materialized_through: string
       refreshed_at: string
@@ -394,9 +401,9 @@ export type TimeseriesSource =
       raw_tail_buckets: number
       stale: boolean
       last_processed_time: string | null
-    }
-  | { mode: 'raw_fallback'; reason: string; stale: true }
-  | { mode: 'raw_as_of'; as_of_seq: number }
+    })
+  | (TimeseriesSourceCommon & { mode: 'raw_fallback'; reason: string; stale: true })
+  | (TimeseriesSourceCommon & { mode: 'raw_as_of'; as_of_seq: number })
 
 export interface TimeseriesResponse {
   rows: TimeseriesRow[]
@@ -410,6 +417,10 @@ export interface TimeseriesQuery {
   end?: string
   as_of_seq?: number
   force_raw?: boolean
+  /** server-side roll-up: 5 | 60 | 1440 */
+  bucket_minutes?: 5 | 60 | 1440
+  /** false = accounts summed (account is null in rows) */
+  group_by_account?: boolean
 }
 
 export interface RefreshResponse {

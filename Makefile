@@ -3,7 +3,7 @@
 PY ?= python
 DATASET_PATH ?= ./htn_challenge_logs_2026.txt
 
-.PHONY: dev migrate import train calibrate evaluate replay-demo test benchmark build lint typecheck db-up db-down
+.PHONY: dev migrate import train calibrate evaluate replay-demo test benchmark build lint typecheck db-up db-down investigate demo-inject
 
 dev:
 	$(PY) tasks.py dev
@@ -33,3 +33,7 @@ typecheck:
 	$(PY) tasks.py typecheck
 build:
 	$(PY) tasks.py build
+investigate:
+	$(PY) tasks.py investigate
+demo-inject:
+	$(PY) tasks.py demo-inject RUN_ID=$(RUN_ID)

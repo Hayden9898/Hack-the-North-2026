@@ -2,7 +2,7 @@
 """Cross-platform task runner mirroring the Makefile targets (make is not always available on Windows).
 
 Usage: python tasks.py <target> [KEY=VALUE ...]
-Targets: dev migrate import train calibrate evaluate replay-demo test benchmark build lint typecheck db-up db-down
+Targets: dev migrate import train calibrate evaluate replay-demo test benchmark build lint typecheck db-up db-down investigate demo-inject
 """
 from __future__ import annotations
 
@@ -81,6 +81,18 @@ def target_evaluate(**kw: str) -> None:
 
 def target_replay_demo(**kw: str) -> None:
     run([PY, "-m", "scripts.replay_demo", *_passthrough(kw)])
+
+
+def target_investigate(**_: str) -> None:
+    run([PY, "-m", "scripts.investigate"])
+
+
+def target_demo_inject(**kw: str) -> None:
+    """Labelled fault injection: submit an invalid AI proposal for a real incident and show the rejection."""
+    args = [PY, "-m", "scripts.inject_invalid_claim", "--run-id", kw["RUN_ID"]]
+    if kw.get("INCIDENT_ID"):
+        args += ["--incident-id", kw["INCIDENT_ID"]]
+    run(args)
 
 
 def target_test(**kw: str) -> None:

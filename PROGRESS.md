@@ -78,3 +78,22 @@ Concise record of milestones, decisions, commands and results. Newest entries at
 - Verified: `tests/integration/test_analytics_and_replay.py` 3 passed (A01/A02, pause drains ≤ queue cap then resumes,
   virtual clock gates admission). mypy clean (59 files), ruff clean, frontend typecheck/lint/build clean.
 - Sentry/Slack/Tiger Cloud/LLM remain **unverified** externally (no credentials) — see `reports/sponsor-evidence.md`.
+
+### M7 — harden, evaluate, package ✅
+- Full regression: `pytest -m "not slow"` → 81 passed + `test_analytics_and_replay.py`/`test_generality.py` 5 passed
+  when run serially (three failures in the combined run were caused by a second pytest process truncating the shared
+  test database concurrently — rerun serially: all green). `-m slow` D01 full-file import: passed (23 s).
+- Full-dataset replay with the active model (`hybrid-full`): 180,800 events, same 3 incidents, March = 2 high risk +
+  36 suspicious (7 rule + 31 model-only markers, matching `ml.evaluate`). 77 ev/s while the test suite shared the DB
+  (215.6 ev/s uncontended, `rules-only-full`).
+- R07 generality: renamed accounts/IPs, /24, object ids, seed and dates shifted to 2027 → identical rule set and
+  incident classes (`tests/integration/test_generality.py`).
+- Browser verification (Chrome, this session): run console start → warmup → auto-pause at visible boundary → resume
+  (virtual clock at 120×, SSE live) → pause; detector worker killed mid-run and restarted: processed == detections,
+  no gaps/duplicates, run continued; hybrid run incidents; R2/R5 incident evidence drawer (78 exact lines, proof
+  77 = 77 ✓); labelled fault injection → "AI proposal rejected by validator" with reasons, deterministic facts and
+  unknowns intact; playbooks; no console errors. Servers stopped afterwards.
+- `mypy` clean, `ruff` clean, frontend `tsc`/`oxlint`/`vite build` clean.
+- Commands/reports: `reports/{investigation,evaluation,performance,sponsor-evidence,demo-script}.md`.
+- Not done / blocked: real Slack, Sentry, Tiger Cloud and Anthropic calls (no credentials supplied) — adapters tested
+  with stubs only; live-mode p95 latency not measured (no live source).

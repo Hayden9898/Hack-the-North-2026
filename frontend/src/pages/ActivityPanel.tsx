@@ -1,5 +1,14 @@
 import { useMemo, useState } from 'react'
-import { api, describeError, type BenchmarkResponse, type RefreshResponse, type TimeseriesResponse, type TimeseriesRow, type TimeseriesSource } from '../api'
+import {
+  api,
+  describeError,
+  type BenchmarkResponse,
+  type RefreshResponse,
+  type Run,
+  type TimeseriesResponse,
+  type TimeseriesRow,
+  type TimeseriesSource,
+} from '../api'
 import { fmtNum, fmtTime } from '../format'
 import { useFetch } from '../useFetch'
 import { Empty, ErrorState, Loading, Section, Tag } from '../ui'
@@ -15,11 +24,18 @@ interface Bin {
   high_risk: number
 }
 
-type Rollup = '5m' | 'hour' | 'day'
+type Rollup = 'server' | 'hour' | 'day'
 
-/** Roll 5-minute buckets up client-side to hourly or daily bins when there are too many to draw. */
-function rollup(rows: TimeseriesRow[]): { bins: Bin[]; unit: Rollup } {
-  if (rows.length === 0) return { bins: [], unit: '5m' }
+function bucketLabel(minutes: number): string {
+  if (minutes === 1440) return 'daily'
+  if (minutes === 60) return 'hourly'
+  if (minutes === 5) return 'five-minute'
+  return `${minutes}-minute`
+}
+
+/** Safety net: roll server buckets up client-side to hourly or daily bins when there are still too many to draw. */
+function rollup(rows: TimeseriesRow[], serverMinutes: number): { bins: Bin[]; unit: Rollup } {
+  if (rows.length === 0) return { bins: [], unit: 'server' }
   // No spread over the row list: a full run returns >100k rows (per account per 5-minute bucket).
   const distinctTimes = new Set<number>()
   let tMin = Number.POSITIVE_INFINITY
@@ -31,11 +47,11 @@ function rollup(rows: TimeseriesRow[]): { bins: Bin[]; unit: Rollup } {
     if (t < tMin) tMin = t
     if (t > tMax) tMax = t
   }
-  let unit: Rollup = '5m'
-  let size = 5 * 60_000
-  if (distinctTimes.size > MAX_BUCKETS) {
+  let unit: Rollup = 'server'
+  let size = serverMinutes * 60_000
+  if (distinctTimes.size > MAX_BUCKETS && serverMinutes < 1440) {
     unit = 'hour'
-    size = 3_600_000
+    size = Math.max(size, 3_600_000)
     const span = tMax - tMin
     if (span / size > MAX_BUCKETS) {
       unit = 'day'
@@ -62,13 +78,40 @@ function iso(ms: number): string {
   return new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z')
 }
 
-export function ActivityPanel({ runId, processedSeq }: { runId: string; processedSeq: number }) {
+type BucketMinutes = 5 | 60 | 1440
+
+const DAY_MS = 86_400_000
+
+/**
+ * Server-side roll-up choice: hourly by default; daily when the run spans more than 14 days;
+ * five-minute when the visible window is shorter than 24 h or a single account is selected.
+ */
+function chooseBucketMinutes(run: Run, account: string): BucketMinutes {
+  if (account) return 5
+  const end = Date.parse(run.last_processed_time ?? run.last_admitted_time ?? '') || Date.now()
+  const visibleStart = Date.parse(run.visible_start ?? '')
+  const spanStart = Date.parse(run.range_start ?? run.visible_start ?? '')
+  const visibleWindow = Number.isFinite(visibleStart) ? end - visibleStart : Number.NaN
+  if (Number.isFinite(visibleWindow) && visibleWindow > 0 && visibleWindow < DAY_MS) return 5
+  const span = Number.isFinite(spanStart) ? end - spanStart : Number.NaN
+  if (Number.isFinite(span) && span > 14 * DAY_MS) return 1440
+  return 60
+}
+
+export function ActivityPanel({ runId, processedSeq, run }: { runId: string; processedSeq: number; run: Run }) {
   const [account, setAccount] = useState('')
   const [accountDraft, setAccountDraft] = useState('')
   const [asOf, setAsOf] = useState(false)
+  const bucketMinutes = chooseBucketMinutes(run, account)
   const ts = useFetch<TimeseriesResponse>(
-    () => api.timeseries(runId, { account: account || undefined, as_of_seq: asOf ? processedSeq : undefined }),
-    [runId, account, asOf],
+    () =>
+      api.timeseries(runId, {
+        account: account || undefined,
+        as_of_seq: asOf ? processedSeq : undefined,
+        bucket_minutes: bucketMinutes,
+        group_by_account: !!account,
+      }),
+    [runId, account, asOf, bucketMinutes],
   )
   const [refresh, setRefresh] = useState<{ busy: boolean; result: RefreshResponse | null; error: unknown | null }>({ busy: false, result: null, error: null })
   const [bench, setBench] = useState<{ open: boolean; busy: boolean; result: BenchmarkResponse | null; error: unknown | null }>({
@@ -78,7 +121,7 @@ export function ActivityPanel({ runId, processedSeq }: { runId: string; processe
     error: null,
   })
 
-  const rolled = useMemo(() => rollup(ts.data?.rows ?? []), [ts.data])
+  const rolled = useMemo(() => rollup(ts.data?.rows ?? [], ts.data?.source.bucket_minutes ?? bucketMinutes), [ts.data, bucketMinutes])
 
   async function doRefresh() {
     setRefresh({ busy: true, result: null, error: null })
@@ -164,9 +207,12 @@ export function ActivityPanel({ runId, processedSeq }: { runId: string; processe
             ) : null}
             <ActivityChart bins={rolled.bins} />
             <p className="muted small" style={{ marginTop: 4 }}>
-              {fmtNum(ts.data.rows.length)} five-minute rows{account ? ` for ${account}` : ' summed across accounts'}
-              {rolled.unit !== '5m' ? `, rolled up client-side to ${rolled.unit === 'hour' ? 'hourly' : 'daily'} bins (${fmtNum(rolled.bins.length)}) because more than ${MAX_BUCKETS} buckets were returned` : ''}
-              . Bars: events per bin. Markers: <span style={{ color: 'var(--warn)' }}>401</span> · <span style={{ color: '#ffb36b' }}>403</span> ·{' '}
+              {fmtNum(ts.data.rows.length)} {bucketLabel(ts.data.source.bucket_minutes ?? bucketMinutes)} rows from the server
+              {account ? ` for ${account}` : ' (accounts summed server-side)'}
+              {rolled.unit !== 'server'
+                ? `, rolled up client-side to ${rolled.unit === 'hour' ? 'hourly' : 'daily'} bins (${fmtNum(rolled.bins.length)}) because more than ${MAX_BUCKETS} buckets were returned`
+                : ` → ${fmtNum(rolled.bins.length)} bins`}
+              . Bin size: {bucketLabel(rolled.unit === 'server' ? (ts.data.source.bucket_minutes ?? bucketMinutes) : rolled.unit === 'hour' ? 60 : 1440)}. Bars: events per bin. Markers: <span style={{ color: 'var(--warn)' }}>401</span> · <span style={{ color: '#ffb36b' }}>403</span> ·{' '}
               <span style={{ color: 'var(--warn)' }}>■ suspicious</span> · <span style={{ color: 'var(--danger)' }}>■ high risk</span>. Counts are measured from processed
               evidence under cutoff #{fmtNum(ts.data.cutoff_seq)}.
             </p>

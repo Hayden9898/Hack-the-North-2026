@@ -152,7 +152,7 @@ export function RunConsole() {
         <EventsFeed runId={runId} tick={tick} cutoff={merged.processed_seq} />
         <IncidentsPanel runId={runId} tick={incTick} />
       </div>
-      <ActivityPanel runId={runId} processedSeq={merged.processed_seq} />
+      <ActivityPanel runId={runId} processedSeq={merged.processed_seq} run={merged} />
     </div>
   )
 }

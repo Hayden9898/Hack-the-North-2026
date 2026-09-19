@@ -77,6 +77,13 @@ Observations:
 - False positives (rules): none observed in 180,800 events. Misses (rules): the three forum posts with unusual query
   keys and the actor's object view/edit produce no rule; they appear only as context facts on the R5 incident.
 
+### 3.1 Confirmation with the model active in the detector
+
+A second full causal replay (`hybrid-full`, run `273433b4-…`) with the model loaded and active produced the same
+three incidents and, in March, 2 high-risk + 36 suspicious events = 38 alerts — exactly the hybrid@99.9 figure
+derived from snapshots above (7 rule events + 31 model-only markers). Warmup carried 237 model-only suspicious
+markers over Aug–Feb (never alerted; warmup produces no notifications).
+
 ## 4. Alert burden and grouping
 
 Before grouping, rules produced 7 event alerts in March; after grouping, 3 incidents. Slack payloads: 2 high-risk
