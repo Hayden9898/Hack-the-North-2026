@@ -12,7 +12,7 @@ import { Reveal, RuleTag, Section, Stamp } from './parts'
  */
 export function Docket() {
   return (
-    <Section id="docket" className="py-20 sm:py-24">
+    <Section id="docket" className="py-16 sm:py-20">
       <Stamp>March 2026 · {RUN.incidentsTotal} incidents · rules only</Stamp>
 
       <h2 className="mt-7 max-w-[22ch] font-serif text-[clamp(1.875rem,3.6vw,2.75rem)] leading-[1.05] tracking-[-0.02em]">
@@ -24,7 +24,7 @@ export function Docket() {
         the record.
       </p>
 
-      <ol className="mt-12 flex flex-col">
+      <ol className="mt-10 flex flex-col">
         {INCIDENTS.map((inc, i) => {
           const major = inc.verdict === 'high_risk'
           return (

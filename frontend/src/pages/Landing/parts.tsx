@@ -14,13 +14,22 @@ const { motion } = motionReact
 export function Stamp({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <div className={cn('flex items-center gap-4', className)}>
-      <span className="shrink-0 font-mono text-caption text-fg-subtle uppercase">{children}</span>
+      {/* min-w-0, not shrink-0: a long stamp must wrap rather than widen the page. */}
+      <span className="min-w-0 font-mono text-caption text-fg-subtle uppercase">{children}</span>
       <span aria-hidden className="h-px min-w-8 flex-1 bg-border" />
     </div>
   )
 }
 
-/** Scroll-triggered rise. Collapses to a plain fade when the user asks for reduced motion. */
+/**
+ * A short entrance rise, played on mount rather than on scroll.
+ *
+ * This deliberately does NOT use whileInView. Scroll-triggered reveals leave the element at
+ * opacity 0 until an IntersectionObserver fires, so anything that stops that callback — a
+ * headless render, an anchor jump straight to mid-page, an observer that never fires after a
+ * viewport resize — leaves real content permanently invisible. Page copy must not depend on
+ * an observer to become readable. A mount animation always completes.
+ */
 export function Reveal({
   children,
   delay = 0,
@@ -31,13 +40,13 @@ export function Reveal({
   className?: string
 }) {
   const reduced = useReducedMotion()
+  if (reduced) return <div className={className}>{children}</div>
   return (
     <motion.div
       className={className}
-      initial={reduced ? { opacity: 0 } : { opacity: 0, y: 12 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-64px' }}
-      transition={{ duration: reduced ? DUR.instant : DUR.base, ease: EASE.out, delay: reduced ? 0 : delay }}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: DUR.base, ease: EASE.out, delay }}
     >
       {children}
     </motion.div>

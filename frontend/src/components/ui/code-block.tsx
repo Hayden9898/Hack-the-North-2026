@@ -18,6 +18,7 @@ export function CodeBlock({
   maxHeight,
   className,
   copyable = true,
+  wrap = true,
 }: {
   code: string
   /** Short caption, e.g. "raw log line 168338". */
@@ -28,6 +29,12 @@ export function CodeBlock({
   maxHeight?: string
   className?: string
   copyable?: boolean
+  /**
+   * Wrap long lines instead of scrolling them. On by default: evidence the reader has to
+   * scroll sideways to finish reading is evidence they will not check, and an unconstrained
+   * <pre> widens its grid track, which broke the mobile layout.
+   */
+  wrap?: boolean
 }) {
   const [copied, setCopied] = useState(false)
 
@@ -49,7 +56,7 @@ export function CodeBlock({
   return (
     <figure
       data-slot="code-block"
-      className={cn('group/code relative overflow-hidden rounded-lg border border-border bg-surface', className)}
+      className={cn('group/code relative w-full min-w-0 overflow-hidden rounded-lg border border-border bg-surface', className)}
     >
       {label ? (
         <figcaption className="flex items-center justify-between gap-2 border-b border-border bg-surface-raised px-3 py-1.5 text-caption text-fg-muted uppercase">
@@ -75,7 +82,11 @@ export function CodeBlock({
       ) : null}
 
       <pre
-        className="overflow-auto px-3 py-2.5 font-mono text-mono text-fg"
+        className={cn(
+          'px-3 py-2.5 font-mono text-mono text-fg',
+          wrap ? 'whitespace-pre-wrap break-all' : 'overflow-x-auto',
+          maxHeight && 'overflow-y-auto',
+        )}
         style={maxHeight ? { maxHeight } : undefined}
         tabIndex={0}
       >
