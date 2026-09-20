@@ -14,31 +14,43 @@ from app.observability import sentry
 
 LEASE_SECONDS = 45
 PROMPT_VERSION = "1"
+# A job whose worker keeps dying is reclaimed after lease expiry; this caps how often. Overridable through
+# policy.investigation.max_attempts.
+DEFAULT_MAX_JOB_ATTEMPTS = 3
 
 
-def claim_job(conn: psycopg.Connection[Any], worker_id: str, now: datetime) -> dict[str, Any] | None:
-    with conn.cursor() as cur:
-        cur.execute(
-            """SELECT * FROM explanation_jobs
-               WHERE (state='pending' OR (state='leased' AND lease_expires_at < %s)) AND next_attempt_at <= %s
-               ORDER BY created_at LIMIT 1 FOR UPDATE SKIP LOCKED""",
-            (now, now),
-        )
-        row = cur.fetchone()
-        if row is None:
-            conn.commit()
-            return None
-        cur.execute(
-            "UPDATE explanation_jobs SET state='leased', lease_owner=%s, lease_expires_at=%s, attempts=attempts+1, updated_at=now() WHERE job_id=%s",
-            (worker_id, now + timedelta(seconds=LEASE_SECONDS), row["job_id"]),
-        )
-    conn.commit()
-    return dict(row)
+def claim_job(conn: psycopg.Connection[Any], worker_id: str, now: datetime, max_attempts: int = DEFAULT_MAX_JOB_ATTEMPTS) -> dict[str, Any] | None:
+    """Lease the oldest ready job. Jobs that already used `max_attempts` leases are marked failed (with a deterministic
+    fallback explanation so the incident still shows a summary) and skipped."""
+    while True:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT * FROM explanation_jobs
+                   WHERE (state='pending' OR (state='leased' AND lease_expires_at < %s)) AND next_attempt_at <= %s
+                   ORDER BY created_at LIMIT 1 FOR UPDATE SKIP LOCKED""",
+                (now, now),
+            )
+            row = cur.fetchone()
+            if row is None:
+                conn.commit()
+                return None
+            job = dict(row)
+            if int(job["attempts"]) >= max_attempts:
+                _exhaust_job(cur, job, max_attempts)
+                conn.commit()
+                continue
+            cur.execute(
+                "UPDATE explanation_jobs SET state='leased', lease_owner=%s, lease_expires_at=%s, attempts=attempts+1, updated_at=now() WHERE job_id=%s",
+                (worker_id, now + timedelta(seconds=LEASE_SECONDS), job["job_id"]),
+            )
+        conn.commit()
+        return job
 
 
 def run_one_job(conn: psycopg.Connection[Any], worker: Any, explainer: Any | None) -> str | None:
     now = worker.now()
-    job = claim_job(conn, worker.worker_id, now)
+    icfg = worker.cfg.policy.get("investigation", {})
+    job = claim_job(conn, worker.worker_id, now, int(icfg.get("max_attempts", DEFAULT_MAX_JOB_ATTEMPTS)))
     if job is None:
         return None
     with conn.cursor() as cur:
@@ -62,6 +74,8 @@ def run_one_job(conn: psycopg.Connection[Any], worker: Any, explainer: Any | Non
         result = explain_packet(conn, job["run_id"], packet, explainer, worker.cfg)
     latency_ms = int((time.perf_counter() - t0) * 1000)
     # Stale-version guard (E03): a newer incident version wins; archive this result but never overwrite current view.
+    # This pre-call read is only a hint; the persist step re-checks under lock because the detector may supersede
+    # the version while the provider call is in flight.
     stale = int(inc["current_version"]) != int(job["version"])
     _persist_explanation(conn, worker.worker_id, job, packet, result, latency_ms, stale)
     return result["state"]
@@ -69,11 +83,19 @@ def run_one_job(conn: psycopg.Connection[Any], worker: Any, explainer: Any | Non
 
 def _persist_explanation(conn: psycopg.Connection[Any], worker_id: str, job: dict[str, Any], packet: dict[str, Any], result: dict[str, Any], latency_ms: int, stale: bool) -> None:
     with conn.cursor() as cur:
-        cur.execute("SELECT lease_owner FROM explanation_jobs WHERE job_id=%s FOR UPDATE", (job["job_id"],))
+        # Lock order matches the detector (run row first, then incident/job rows) so the version re-check below and
+        # the ui_updates sequence allocation cannot race a microbatch commit.
+        cur.execute("SELECT 1 FROM runs WHERE run_id=%s FOR UPDATE", (job["run_id"],))
+        cur.execute("SELECT state, lease_owner FROM explanation_jobs WHERE job_id=%s FOR UPDATE", (job["job_id"],))
         row = cur.fetchone()
         if row is None or row["lease_owner"] != worker_id:
             conn.commit()
             return
+        cur.execute("SELECT current_version FROM incidents WHERE run_id=%s AND incident_id=%s", (job["run_id"], job["incident_id"]))
+        inc = cur.fetchone()
+        # Re-check under lock: the detector marks in-flight jobs 'superseded' and bumps current_version when a newer
+        # version appears. Late output for an obsolete version stays archived and never becomes the current view.
+        stale = stale or row["state"] == "superseded" or inc is None or int(inc["current_version"]) != int(job["version"])
         cur.execute(
             """INSERT INTO explanations (run_id, incident_id, version, packet_hash, prompt_version, model_name, state, proposal_raw, validated,
                    rejection_reasons, latency_ms, tool_calls)
@@ -89,13 +111,45 @@ def _persist_explanation(conn: psycopg.Connection[Any], worker_id: str, job: dic
             ("superseded" if stale else "done", None if not result.get("rejection_reasons") else "; ".join(result["rejection_reasons"])[:500], job["job_id"]),
         )
         if not stale:
-            cur.execute(
-                "INSERT INTO ui_updates (run_id, update_seq, type, payload) VALUES (%s, (SELECT coalesce(max(update_seq),0)+1 FROM ui_updates WHERE run_id=%s), 'explanation', %s)",
-                (job["run_id"], job["run_id"], jsonb({"incident_id": job["incident_id"], "version": job["version"], "state": result["state"]})),
-            )
+            _emit_explanation_update(cur, job, result["state"])
         for reason in result.get("rejection_reasons", []):
             sentry.log_event("claim_rejected", "warning", run_id=job["run_id"], incident_id=job["incident_id"], version=job["version"], reason=reason[:200])
     conn.commit()
+
+
+def _emit_explanation_update(cur: psycopg.Cursor[Any], job: dict[str, Any], state: str) -> None:
+    """Caller must hold the run row lock (update_seq is allocated as max+1 under that lock)."""
+    cur.execute(
+        "INSERT INTO ui_updates (run_id, update_seq, type, payload) VALUES (%s, (SELECT coalesce(max(update_seq),0)+1 FROM ui_updates WHERE run_id=%s), 'explanation', %s)",
+        (job["run_id"], job["run_id"], jsonb({"incident_id": job["incident_id"], "version": job["version"], "state": state})),
+    )
+
+
+def _exhaust_job(cur: psycopg.Cursor[Any], job: dict[str, Any], max_attempts: int) -> None:
+    """Attempt ceiling reached: fail the job and, when no explanation exists yet, store the deterministic fallback so
+    the incident view is never left waiting. Runs inside the claim transaction (job row already locked)."""
+    from app.investigation.explain import deterministic_fallback
+
+    error = f"attempt ceiling reached ({int(job['attempts'])}/{max_attempts})"
+    cur.execute(
+        "UPDATE explanation_jobs SET state='failed', lease_owner=NULL, lease_expires_at=NULL, last_error=%s, updated_at=now() WHERE job_id=%s",
+        (error, job["job_id"]),
+    )
+    sentry.log_event("claim_rejected", "warning", run_id=job["run_id"], incident_id=job["incident_id"], version=job["version"], reason=error)
+    cur.execute("SELECT facts FROM fact_packets WHERE run_id=%s AND incident_id=%s AND version=%s", (job["run_id"], job["incident_id"], job["version"]))
+    packet_row = cur.fetchone()
+    if packet_row is None:
+        return
+    fb = deterministic_fallback(packet_row["facts"], "AI review unavailable (explanation job attempt ceiling reached); deterministic summary shown")
+    # No ui_update here: that needs the run row lock, which must be taken before the job row (detector lock order)
+    # and the claim query already holds the job row. The incident view reads the explanation row directly.
+    cur.execute(
+        """INSERT INTO explanations (run_id, incident_id, version, packet_hash, prompt_version, model_name, state, proposal_raw, validated,
+               rejection_reasons, latency_ms, tool_calls)
+           VALUES (%s, %s, %s, %s, %s, 'none', 'fallback', NULL, %s, %s, NULL, 0)
+           ON CONFLICT (run_id, incident_id, version) DO NOTHING""",
+        (job["run_id"], job["incident_id"], job["version"], job["packet_hash"], PROMPT_VERSION, jsonb(fb["validated"]), [error]),
+    )
 
 
 def _finish(conn: psycopg.Connection[Any], worker_id: str, job: dict[str, Any], state: str, error: str | None = None) -> None:

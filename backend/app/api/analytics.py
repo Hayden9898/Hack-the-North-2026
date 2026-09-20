@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Query
 
 from app.api import deps
 from app.incidents import analytics
+from app.observability import sentry
 from app.settings import Settings
 
 router = APIRouter(tags=["analytics"])
@@ -31,8 +32,9 @@ def timeseries(
         as_of_seq = min(as_of_seq, int(run["processed_seq"]))
     if bucket_minutes not in (5, 60, 1440):
         bucket_minutes = 5
-    out = analytics.timeseries(conn, run_id, account=account, start=start, end=end, as_of_seq=as_of_seq, force_raw=force_raw,
-                               bucket_minutes=bucket_minutes, group_by_account=group_by_account)
+    with sentry.span("analytics.query", run_id=run_id, bucket_minutes=bucket_minutes):
+        out = analytics.timeseries(conn, run_id, account=account, start=start, end=end, as_of_seq=as_of_seq, force_raw=force_raw,
+                                   bucket_minutes=bucket_minutes, group_by_account=group_by_account)
     out["cutoff_seq"] = int(run["processed_seq"])
     return out
 
@@ -47,4 +49,5 @@ def refresh(run_id: str, conn: psycopg.Connection[Any] = Depends(deps.db), s: Se
 @router.get("/runs/{run_id}/analytics/benchmark")
 def benchmark(run_id: str, conn: psycopg.Connection[Any] = Depends(deps.db), repeats: int = Query(default=5, ge=1, le=20)) -> dict[str, Any]:
     deps.load_run(conn, run_id)
-    return analytics.compare_raw_vs_aggregate(conn, run_id, repeats)
+    with sentry.span("analytics.benchmark", run_id=run_id, repeats=repeats):
+        return analytics.compare_raw_vs_aggregate(conn, run_id, repeats)

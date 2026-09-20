@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     config_dir: str = str(REPO_ROOT / "config")
     upload_dir: str = str(REPO_ROOT / "data" / "uploads")
     max_upload_bytes: int = 200 * 1024 * 1024
+    # Built frontend served by the API itself (same-origin) when the directory exists; empty disables it.
+    static_dir: str = str(REPO_ROOT / "frontend" / "dist")
     app_base_url: str = "http://127.0.0.1:5173"
     api_host: str = "127.0.0.1"
     api_port: int = 8000
@@ -30,7 +32,8 @@ class Settings(BaseSettings):
 
     sentry_dsn: str = ""
     sentry_environment: str = "development"
-    sentry_traces_sample_rate: float = 1.0
+    sentry_release: str = ""
+    sentry_traces_sample_rate: float = Field(default=0.1, ge=0, le=1)
 
     llm_provider: str = "anthropic"
     llm_model: str = "claude-opus-5"
@@ -38,6 +41,9 @@ class Settings(BaseSettings):
 
     slack_mode: str = Field(default="preview", pattern="^(preview|live)$")
     slack_webhook_url: str = ""
+    # Containment actions. `preview` records what would be issued; `live` POSTs it to ACTION_WEBHOOK_URL.
+    action_mode: str = Field(default="preview", pattern="^(preview|live)$")
+    action_webhook_url: str = ""
     max_run_notification_count: int = 20
 
     # Worker identity; overridden per process.
@@ -56,8 +62,22 @@ class Settings(BaseSettings):
         return self.slack_mode == "live" and bool(self.slack_webhook_url)
 
     @property
+    def action_live(self) -> bool:
+        """Actions reach a real system only when a mode AND an endpoint are both configured."""
+        return self.action_mode == "live" and bool(self.action_webhook_url)
+
+    @property
     def loopback_only(self) -> bool:
         return self.api_host in ("127.0.0.1", "localhost", "::1")
+
+    @property
+    def operator_auth_required(self) -> bool:
+        """Mutations need a bearer token whenever a secret is configured or the bind is not loopback."""
+        return bool(self.app_auth_secret) or not self.loopback_only
+
+    @property
+    def ingest_auth_required(self) -> bool:
+        return bool(self.ingest_token) or not self.loopback_only
 
     def integration_status(self) -> dict[str, str]:
         """Visible integration status. Never includes secret values."""
@@ -67,10 +87,17 @@ class Settings(BaseSettings):
             slack = "preview"
         else:
             slack = "live_requested_missing_webhook"
+        if self.action_live:
+            actions = "live"
+        elif self.action_mode == "preview":
+            actions = "preview"
+        else:
+            actions = "live_requested_missing_webhook"
         return {
             "sentry": "enabled" if self.sentry_enabled else "disabled_no_dsn",
             "llm": f"enabled:{self.llm_provider}" if self.llm_enabled else "deterministic_only_no_key",
             "slack": slack,
+            "actions": actions,
         }
 
 

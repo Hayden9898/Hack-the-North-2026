@@ -1,5 +1,5 @@
 # Versioned detection policy. All thresholds live here. No account names, IPs, dates or object ids.
-version: 1
+version: 2
 feature_version: "v1"
 classification:
   precedence: ["high_risk", "suspicious", "normal"]
@@ -9,6 +9,12 @@ rules:
     outcome: suspicious
     window_seconds: 60
     min_failures: 4          # current + prior pair login 401s inside the window
+    requires_unfamiliar_or_unknown: true
+  R6:
+    name: slow_auth_burst
+    outcome: suspicious
+    window_seconds: 3600     # patient guessing: six failures over up to one hour
+    min_failures: 6
     requires_unfamiliar_or_unknown: true
   R2:
     name: access_change
@@ -23,7 +29,7 @@ rules:
     name: account_use_sequence
     outcome: high_risk
     login_window_seconds: 1800     # successful login for same pair within 30m before the sensitive GET
-    r1_episode_window_seconds: 259200   # R1 episode for same pair within 72h
+    auth_episode_window_seconds: 259200   # R1 or R6 episode for same pair within 72h
   R5:
     name: linked_access_change_sequence
     outcome: high_risk

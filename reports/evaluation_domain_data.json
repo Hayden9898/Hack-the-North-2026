@@ -1,0 +1,918 @@
+{
+  "model_id": "if_v1_domain_2026-09-19",
+  "source_run_id": "0ca0d531-714e-433a-aab0-17e89b561662",
+  "partition": {
+    "name": "evaluation",
+    "start": "2026-03-01T04:00:00+00:00",
+    "end_exclusive": "2026-04-01T04:00:00+00:00",
+    "days": 31,
+    "events": 22982
+  },
+  "not_blind": "The evaluation partition informed rule design; results are chronological, not a blind holdout. No organizer labels exist.",
+  "rules_only": {
+    "event_alerts": 7,
+    "high_risk_events": 2,
+    "incidents_after_grouping": 3,
+    "incident_versions": 8,
+    "incidents": [
+      {
+        "incident_id": "d24e1056-2162-42e2-b765-85aa1d0568ba",
+        "primary_rule_id": "R1",
+        "current_class": "high_risk",
+        "key_value": "sarah_j|10.0.8.45",
+        "first_event_time": "2026-03-14T03:10:32+00:00",
+        "last_event_time": "2026-03-16T02:30:40+00:00",
+        "current_version": 5
+      },
+      {
+        "incident_id": "2dae978e-39bd-4c11-a912-009d7f9694d7",
+        "primary_rule_id": "R3",
+        "current_class": "suspicious",
+        "key_value": "sarah_j|/api/admin/role_update",
+        "first_event_time": "2026-03-15T15:07:57+00:00",
+        "last_event_time": "2026-03-15T15:07:57+00:00",
+        "current_version": 1
+      },
+      {
+        "incident_id": "76b0461b-db88-408a-8152-6cd0f6054c70",
+        "primary_rule_id": "R2",
+        "current_class": "high_risk",
+        "key_value": "david_m|/finance/reports/q1_draft_CONFIDENTIAL.zip",
+        "first_event_time": "2026-03-15T15:26:59+00:00",
+        "last_event_time": "2026-03-15T15:26:59+00:00",
+        "current_version": 2
+      }
+    ],
+    "notifications_by_kind": {
+      "high_risk_escalation": 2,
+      "suspicious_digest": 3
+    },
+    "alerts_per_day": 0.226
+  },
+  "model_only": {
+    "99.0": {
+      "threshold": 0.590835155488319,
+      "event_alerts": 341,
+      "alerts_per_day": 11.0,
+      "grouped_account_day": 170,
+      "overlap_with_rule_events": 7,
+      "rule_events_missed_by_model": 0,
+      "high_risk_events_flagged_by_model": 2
+    },
+    "99.5": {
+      "threshold": 0.6018399849663525,
+      "event_alerts": 188,
+      "alerts_per_day": 6.06,
+      "grouped_account_day": 108,
+      "overlap_with_rule_events": 7,
+      "rule_events_missed_by_model": 0,
+      "high_risk_events_flagged_by_model": 2
+    },
+    "99.9": {
+      "threshold": 0.6295532944475567,
+      "event_alerts": 50,
+      "alerts_per_day": 1.61,
+      "grouped_account_day": 32,
+      "overlap_with_rule_events": 7,
+      "rule_events_missed_by_model": 0,
+      "high_risk_events_flagged_by_model": 2
+    }
+  },
+  "hybrid": {
+    "99.0": {
+      "event_alerts": 341,
+      "alerts_per_day": 11.0,
+      "added_by_model": 334
+    },
+    "99.5": {
+      "event_alerts": 188,
+      "alerts_per_day": 6.06,
+      "added_by_model": 181
+    },
+    "99.9": {
+      "event_alerts": 50,
+      "alerts_per_day": 1.61,
+      "added_by_model": 43
+    }
+  },
+  "baseline_rarity": {
+    "99.0": {
+      "event_alerts": 230,
+      "overlap_with_rule_events": 6,
+      "overlap_with_model": 64
+    },
+    "99.5": {
+      "event_alerts": 115,
+      "overlap_with_rule_events": 6,
+      "overlap_with_model": 46
+    },
+    "99.9": {
+      "event_alerts": 23,
+      "overlap_with_rule_events": 6,
+      "overlap_with_model": 18
+    }
+  },
+  "known_sequence": {
+    "provisional": true,
+    "rows": [
+      {
+        "line": 168311,
+        "role": "failed_login_1",
+        "expect_rule": null,
+        "found": true,
+        "event_time": "2026-03-14T03:10:19+00:00",
+        "rule_ids": [],
+        "rules_class": "normal",
+        "model_score": 1.699411186433092,
+        "model_flagged_at_chosen": true,
+        "model_flagged_at": [
+          "99.0",
+          "99.5",
+          "99.9"
+        ],
+        "rule_matches_expectation": true
+      },
+      {
+        "line": 168312,
+        "role": "failed_login_2",
+        "expect_rule": null,
+        "found": true,
+        "event_time": "2026-03-14T03:10:25+00:00",
+        "rule_ids": [],
+        "rules_class": "normal",
+        "model_score": 1.692519984919019,
+        "model_flagged_at_chosen": true,
+        "model_flagged_at": [
+          "99.0",
+          "99.5",
+          "99.9"
+        ],
+        "rule_matches_expectation": true
+      },
+      {
+        "line": 168313,
+        "role": "failed_login_3",
+        "expect_rule": null,
+        "found": true,
+        "event_time": "2026-03-14T03:10:28+00:00",
+        "rule_ids": [],
+        "rules_class": "normal",
+        "model_score": 1.698095823874767,
+        "model_flagged_at_chosen": true,
+        "model_flagged_at": [
+          "99.0",
+          "99.5",
+          "99.9"
+        ],
+        "rule_matches_expectation": true
+      },
+      {
+        "line": 168314,
+        "role": "failed_login_4",
+        "expect_rule": "R1",
+        "found": true,
+        "event_time": "2026-03-14T03:10:32+00:00",
+        "rule_ids": [
+          "R1"
+        ],
+        "rules_class": "suspicious",
+        "model_score": 1.7071880423302042,
+        "model_flagged_at_chosen": true,
+        "model_flagged_at": [
+          "99.0",
+          "99.5",
+          "99.9"
+        ],
+        "rule_matches_expectation": true
+      },
+      {
+        "line": 168321,
+        "role": "night2_failed_login_1",
+        "expect_rule": null,
+        "found": true,
+        "event_time": "2026-03-15T02:11:26+00:00",
+        "rule_ids": [],
+        "rules_class": "normal",
+        "model_score": 1.7127199520084324,
+        "model_flagged_at_chosen": true,
+        "model_flagged_at": [
+          "99.0",
+          "99.5",
+          "99.9"
+        ],
+        "rule_matches_expectation": true
+      },
+      {
+        "line": 168322,
+        "role": "night2_failed_login_2",
+        "expect_rule": null,
+        "found": true,
+        "event_time": "2026-03-15T02:11:30+00:00",
+        "rule_ids": [],
+        "rules_class": "normal",
+        "model_score": 1.705697621071121,
+        "model_flagged_at_chosen": true,
+        "model_flagged_at": [
+          "99.0",
+          "99.5",
+          "99.9"
+        ],
+        "rule_matches_expectation": true
+      },
+      {
+        "line": 168323,
+        "role": "night2_failed_login_3",
+        "expect_rule": null,
+        "found": true,
+        "event_time": "2026-03-15T02:11:32+00:00",
+        "rule_ids": [],
+        "rules_class": "normal",
+        "model_score": 1.7105294948909726,
+        "model_flagged_at_chosen": true,
+        "model_flagged_at": [
+          "99.0",
+          "99.5",
+          "99.9"
+        ],
+        "rule_matches_expectation": true
+      },
+      {
+        "line": 168324,
+        "role": "night2_failed_login_4",
+        "expect_rule": "R1",
+        "found": true,
+        "event_time": "2026-03-15T02:11:35+00:00",
+        "rule_ids": [
+          "R1"
+        ],
+        "rules_class": "suspicious",
+        "model_score": 1.7191039804151873,
+        "model_flagged_at_chosen": true,
+        "model_flagged_at": [
+          "99.0",
+          "99.5",
+          "99.9"
+        ],
+        "rule_matches_expectation": true
+      },
+      {
+        "line": 168325,
+        "role": "night2_failed_login_5",
+        "expect_rule": "R1",
+        "found": true,
+        "event_time": "2026-03-15T02:11:37+00:00",
+        "rule_ids": [
+          "R1"
+        ],
+        "rules_class": "suspicious",
+        "model_score": 1.721835554799385,
+        "model_flagged_at_chosen": true,
+        "model_flagged_at": [
+          "99.0",
+          "99.5",
+          "99.9"
+        ],
+        "rule_matches_expectation": true
+      },
+      {
+        "line": 168326,
+        "role": "night2_failed_login_6",
+        "expect_rule": "R1",
+        "found": true,
+        "event_time": "2026-03-15T02:11:39+00:00",
+        "rule_ids": [
+          "R1"
+        ],
+        "rules_class": "suspicious",
+        "model_score": 1.7222517164906541,
+        "model_flagged_at_chosen": true,
+        "model_flagged_at": [
+          "99.0",
+          "99.5",
+          "99.9"
+        ],
+        "rule_matches_expectation": true
+      },
+      {
+        "line": 168330,
+        "role": "forum_post_unusual_key_500",
+        "expect_rule": null,
+        "found": true,
+        "event_time": "2026-03-15T13:20:20+00:00",
+        "rule_ids": [],
+        "rules_class": "normal",
+        "model_score": 3.5631656249409662,
+        "model_flagged_at_chosen": true,
+        "model_flagged_at": [
+          "99.0",
+          "99.5",
+          "99.9"
+        ],
+        "rule_matches_expectation": true
+      },
+      {
+        "line": 168331,
+        "role": "forum_post_unusual_key_400",
+        "expect_rule": null,
+        "found": true,
+        "event_time": "2026-03-15T13:42:35+00:00",
+        "rule_ids": [],
+        "rules_class": "normal",
+        "model_score": 3.5403343458793763,
+        "model_flagged_at_chosen": true,
+        "model_flagged_at": [
+          "99.0",
+          "99.5",
+          "99.9"
+        ],
+        "rule_matches_expectation": true
+      },
+      {
+        "line": 168332,
+        "role": "forum_post_unusual_key_302",
+        "expect_rule": null,
+        "found": true,
+        "event_time": "2026-03-15T14:18:52+00:00",
+        "rule_ids": [],
+        "rules_class": "normal",
+        "model_score": 1.5443893402502837,
+        "model_flagged_at_chosen": true,
+        "model_flagged_at": [
+          "99.0",
+          "99.5",
+          "99.9"
+        ],
+        "rule_matches_expectation": true
+      },
+      {
+        "line": 168333,
+        "role": "actor_views_object",
+        "expect_rule": null,
+        "found": true,
+        "event_time": "2026-03-15T14:18:55+00:00",
+        "rule_ids": [],
+        "rules_class": "normal",
+        "model_score": 0.4796739636383418,
+        "model_flagged_at_chosen": false,
+        "model_flagged_at": [],
+        "rule_matches_expectation": true
+      },
+      {
+        "line": 168335,
+        "role": "victim_views_object",
+        "expect_rule": null,
+        "found": true,
+        "event_time": "2026-03-15T15:07:56+00:00",
+        "rule_ids": [],
+        "rules_class": "normal",
+        "model_score": 0.5375550574324758,
+        "model_flagged_at_chosen": false,
+        "model_flagged_at": [],
+        "rule_matches_expectation": true
+      },
+      {
+        "line": 168336,
+        "role": "victim_admin_request",
+        "expect_rule": "R3",
+        "found": true,
+        "event_time": "2026-03-15T15:07:57+00:00",
+        "rule_ids": [
+          "R3"
+        ],
+        "rules_class": "suspicious",
+        "model_score": 2.51715896673651,
+        "model_flagged_at_chosen": true,
+        "model_flagged_at": [
+          "99.0",
+          "99.5",
+          "99.9"
+        ],
+        "rule_matches_expectation": true
+      },
+      {
+        "line": 168338,
+        "role": "actor_sensitive_200_after_denials",
+        "expect_rule": "R5",
+        "found": true,
+        "event_time": "2026-03-15T15:26:59+00:00",
+        "rule_ids": [
+          "R2",
+          "R5"
+        ],
+        "rules_class": "high_risk",
+        "model_score": 1.6326827721500743,
+        "model_flagged_at_chosen": true,
+        "model_flagged_at": [
+          "99.0",
+          "99.5",
+          "99.9"
+        ],
+        "rule_matches_expectation": true
+      },
+      {
+        "line": 168339,
+        "role": "actor_edits_object",
+        "expect_rule": null,
+        "found": true,
+        "event_time": "2026-03-15T15:48:01+00:00",
+        "rule_ids": [],
+        "rules_class": "normal",
+        "model_score": 0.548668597414352,
+        "model_flagged_at_chosen": false,
+        "model_flagged_at": [],
+        "rule_matches_expectation": true
+      },
+      {
+        "line": 168343,
+        "role": "victim_login_200_unfamiliar_source",
+        "expect_rule": null,
+        "found": true,
+        "event_time": "2026-03-16T02:29:43+00:00",
+        "rule_ids": [],
+        "rules_class": "normal",
+        "model_score": 1.6835888232470944,
+        "model_flagged_at_chosen": true,
+        "model_flagged_at": [
+          "99.0",
+          "99.5",
+          "99.9"
+        ],
+        "rule_matches_expectation": true
+      },
+      {
+        "line": 168345,
+        "role": "victim_sensitive_200_unfamiliar_source",
+        "expect_rule": "R4",
+        "found": true,
+        "event_time": "2026-03-16T02:30:40+00:00",
+        "rule_ids": [
+          "R4"
+        ],
+        "rules_class": "high_risk",
+        "model_score": 1.6995137813378212,
+        "model_flagged_at_chosen": true,
+        "model_flagged_at": [
+          "99.0",
+          "99.5",
+          "99.9"
+        ],
+        "rule_matches_expectation": true
+      }
+    ],
+    "first_event_time": "2026-03-14T03:10:19+00:00",
+    "firsts": {
+      "model_first_flag": "2026-03-14T03:10:19+00:00",
+      "rules_first_warning": "2026-03-14T03:10:32+00:00",
+      "rules_first_high_risk": "2026-03-15T15:26:59+00:00"
+    },
+    "event_time_delay_seconds": {
+      "rules_first_warning": 13.0,
+      "rules_first_high_risk": 130600.0,
+      "model_first_flag": 0.0
+    },
+    "expectations_met": true
+  },
+  "ml_only_examples": [
+    {
+      "line_number": 168330,
+      "event_time": "2026-03-15T13:20:20+00:00",
+      "account": "david_m",
+      "ip": "10.0.8.45",
+      "request": "POST /intranet/forum/new -> 500 (1024)",
+      "score": 3.5631656249409662,
+      "top_measured_deviations": [
+        [
+          "acct_family_rarity",
+          2.9861091512069335
+        ],
+        [
+          "acct_hour_rarity",
+          2.3763739331839933
+        ],
+        [
+          "unusual_query_key_count",
+          1.0
+        ],
+        [
+          "pair_rarity",
+          5.935598755265666e-05
+        ]
+      ]
+    },
+    {
+      "line_number": 168331,
+      "event_time": "2026-03-15T13:42:35+00:00",
+      "account": "david_m",
+      "ip": "10.0.8.45",
+      "request": "POST /intranet/forum/new -> 400 (512)",
+      "score": 3.5403343458793763,
+      "top_measured_deviations": [
+        [
+          "acct_family_rarity",
+          2.984994073728112
+        ],
+        [
+          "acct_hour_rarity",
+          2.3757952496956216
+        ],
+        [
+          "unusual_query_key_count",
+          1.0
+        ],
+        [
+          "pair_rarity",
+          5.935246462855384e-05
+        ]
+      ]
+    },
+    {
+      "line_number": 168321,
+      "event_time": "2026-03-15T02:11:26+00:00",
+      "account": "sarah_j",
+      "ip": "10.0.8.45",
+      "request": "POST /api/auth/login -> 401 (88)",
+      "score": 1.7127199520084324,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          8.627123250788433
+        ],
+        [
+          "pair_rarity",
+          8.115042584275903
+        ],
+        [
+          "acct_family_rarity",
+          3.0095754076461887
+        ],
+        [
+          "pair_unfamiliar",
+          1.0
+        ]
+      ]
+    },
+    {
+      "line_number": 168323,
+      "event_time": "2026-03-15T02:11:32+00:00",
+      "account": "sarah_j",
+      "ip": "10.0.8.45",
+      "request": "POST /api/auth/login -> 401 (88)",
+      "score": 1.7105294948909726,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          8.116417072794205
+        ],
+        [
+          "pair_rarity",
+          7.778689943421142
+        ],
+        [
+          "acct_family_rarity",
+          3.0072736375383977
+        ],
+        [
+          "acct_req_5m_log1p",
+          1.0986122886681098
+        ]
+      ]
+    },
+    {
+      "line_number": 168322,
+      "event_time": "2026-03-15T02:11:30+00:00",
+      "account": "sarah_j",
+      "ip": "10.0.8.45",
+      "request": "POST /api/auth/login -> 401 (88)",
+      "score": 1.705697621071121,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          8.339500903005945
+        ],
+        [
+          "pair_rarity",
+          7.932780827153068
+        ],
+        [
+          "acct_family_rarity",
+          3.008423791536685
+        ],
+        [
+          "pair_unfamiliar",
+          1.0
+        ]
+      ]
+    },
+    {
+      "line_number": 168311,
+      "event_time": "2026-03-14T03:10:19+00:00",
+      "account": "sarah_j",
+      "ip": "10.0.8.45",
+      "request": "POST /api/auth/login -> 401 (88)",
+      "score": 1.699411186433092,
+      "top_measured_deviations": [
+        [
+          "pair_rarity",
+          9.72418144470263
+        ],
+        [
+          "acct_hour_rarity",
+          8.116058692668519
+        ],
+        [
+          "acct_family_rarity",
+          3.0141965644890427
+        ],
+        [
+          "pair_unfamiliar",
+          1.0
+        ]
+      ]
+    },
+    {
+      "line_number": 168313,
+      "event_time": "2026-03-14T03:10:28+00:00",
+      "account": "sarah_j",
+      "ip": "10.0.8.45",
+      "request": "POST /api/auth/login -> 401 (88)",
+      "score": 1.698095823874767,
+      "top_measured_deviations": [
+        [
+          "pair_rarity",
+          8.625748597970583
+        ],
+        [
+          "acct_hour_rarity",
+          7.779705930360471
+        ],
+        [
+          "acct_family_rarity",
+          3.0118830404313996
+        ],
+        [
+          "acct_req_5m_log1p",
+          1.0986122886681098
+        ]
+      ]
+    },
+    {
+      "line_number": 168312,
+      "event_time": "2026-03-14T03:10:25+00:00",
+      "account": "sarah_j",
+      "ip": "10.0.8.45",
+      "request": "POST /api/auth/login -> 401 (88)",
+      "score": 1.692519984919019,
+      "top_measured_deviations": [
+        [
+          "pair_rarity",
+          9.0311538956777
+        ],
+        [
+          "acct_hour_rarity",
+          7.933796874815411
+        ],
+        [
+          "acct_family_rarity",
+          3.0130390642558287
+        ],
+        [
+          "pair_unfamiliar",
+          1.0
+        ]
+      ]
+    },
+    {
+      "line_number": 168343,
+      "event_time": "2026-03-16T02:29:43+00:00",
+      "account": "sarah_j",
+      "ip": "10.0.8.45",
+      "request": "POST /api/auth/login -> 200 (128)",
+      "score": 1.6835888232470944,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          7.529108048357313
+        ],
+        [
+          "pair_rarity",
+          7.327183059763718
+        ],
+        [
+          "acct_family_rarity",
+          3.0029862845603366
+        ],
+        [
+          "pair_unfamiliar",
+          1.0
+        ]
+      ]
+    },
+    {
+      "line_number": 168346,
+      "event_time": "2026-03-16T02:33:40+00:00",
+      "account": "sarah_j",
+      "ip": "10.0.8.45",
+      "request": "GET /logout -> 302 (0)",
+      "score": 1.672508084392711,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          7.241605032278925
+        ],
+        [
+          "pair_rarity",
+          7.086200284030168
+        ],
+        [
+          "acct_family_rarity",
+          2.456875135932114
+        ],
+        [
+          "acct_req_5m_log1p",
+          1.3862943611198906
+        ]
+      ]
+    },
+    {
+      "line_number": 168344,
+      "event_time": "2026-03-16T02:29:45+00:00",
+      "account": "sarah_j",
+      "ip": "10.0.8.45",
+      "request": "GET /dashboard -> 200 (2048)",
+      "score": 1.6128778873878564,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          7.423807221719709
+        ],
+        [
+          "pair_rarity",
+          7.240231446706574
+        ],
+        [
+          "acct_family_rarity",
+          2.3893901511987043
+        ],
+        [
+          "pair_unfamiliar",
+          1.0
+        ]
+      ]
+    },
+    {
+      "line_number": 168332,
+      "event_time": "2026-03-15T14:18:52+00:00",
+      "account": "david_m",
+      "ip": "10.0.8.45",
+      "request": "POST /intranet/forum/new -> 302 (112)",
+      "score": 1.5443893402502837,
+      "top_measured_deviations": [
+        [
+          "acct_family_rarity",
+          2.983880370324122
+        ],
+        [
+          "acct_hour_rarity",
+          2.391278991573889
+        ],
+        [
+          "unusual_query_key_count",
+          1.0
+        ],
+        [
+          "pair_rarity",
+          5.934894212248722e-05
+        ]
+      ]
+    },
+    {
+      "line_number": 163097,
+      "event_time": "2026-03-07T00:27:30+00:00",
+      "account": "david_m",
+      "ip": "10.0.8.45",
+      "request": "GET /finance/reports/q1_draft_CONFIDENTIAL.zip -> 403 (245)",
+      "score": 0.6707061366464235,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          8.089727843028406
+        ],
+        [
+          "acct_family_rarity",
+          1.607046813535759
+        ],
+        [
+          "pair_rarity",
+          6.141940240852226e-05
+        ],
+        [
+          "bytes_delta_vs_bootstrap",
+          0.0
+        ]
+      ]
+    },
+    {
+      "line_number": 167277,
+      "event_time": "2026-03-13T07:12:08+00:00",
+      "account": "ashley_k",
+      "ip": "10.0.7.11",
+      "request": "GET /finance/templates/expense.docx -> 403 (245)",
+      "score": 0.6654980529630973,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          8.632781227229499
+        ],
+        [
+          "acct_family_rarity",
+          1.5979146648196638
+        ],
+        [
+          "pair_rarity",
+          5.946894236236575e-05
+        ],
+        [
+          "bytes_delta_vs_bootstrap",
+          0.0
+        ]
+      ]
+    },
+    {
+      "line_number": 162048,
+      "event_time": "2026-03-06T04:19:33+00:00",
+      "account": "sarah_j",
+      "ip": "10.0.5.12",
+      "request": "GET /finance/reports/q1_draft_CONFIDENTIAL.zip -> 200 (8459200)",
+      "score": 0.6601399053070457,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          7.610171865549231
+        ],
+        [
+          "bytes_delta_vs_bootstrap",
+          3.497828652973734
+        ],
+        [
+          "acct_family_rarity",
+          1.613225442962328
+        ],
+        [
+          "pair_rarity",
+          6.200973554840006e-05
+        ]
+      ]
+    }
+  ],
+  "preprocessing": {
+    "version": "domain_v1",
+    "forest_features": 22,
+    "blind_spots": [
+      "pair_unfamiliar",
+      "reference_unknown",
+      "first_200_after_denials",
+      "is_admin",
+      "status_other",
+      "unusual_query_key_count",
+      "bytes_reference_missing",
+      "cold_start"
+    ],
+    "rows_departing_a_blind_spot": 19,
+    "departures_by_feature": {
+      "pair_unfamiliar": 14,
+      "reference_unknown": 0,
+      "first_200_after_denials": 1,
+      "is_admin": 1,
+      "status_other": 2,
+      "unusual_query_key_count": 3,
+      "bytes_reference_missing": 3,
+      "cold_start": 0
+    },
+    "departing_rows_overlapping_rule_events": 7
+  },
+  "model_flags_by_local_hour_chosen": {
+    "0": 2,
+    "1": 1,
+    "3": 1,
+    "6": 2,
+    "8": 14,
+    "9": 4,
+    "10": 2,
+    "11": 2,
+    "17": 1,
+    "18": 2,
+    "20": 3,
+    "21": 2,
+    "22": 10,
+    "23": 4
+  },
+  "score_distribution": {
+    "min": 0.3943288183940943,
+    "p50": 0.46059419666946955,
+    "p99": 0.5984145083592864,
+    "p99_5": 0.6102407096130378,
+    "p99_9": 0.6529639017445551,
+    "max": 3.5631656249409662,
+    "chosen_threshold": 0.6295532944475567
+  }
+}

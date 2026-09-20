@@ -247,6 +247,15 @@ button.link {
 .row-between {
   justify-content: space-between;
 }
+.monitoring-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: min(560px, 42vw);
+}
+.monitoring-check [role='status'] {
+  overflow-wrap: anywhere;
+}
 
 /* Cards */
 .card {
@@ -843,6 +852,11 @@ ul.bul {
   background: var(--ai-bg);
   border-color: color-mix(in srgb, var(--ai) 35%, transparent);
 }
+.notice-ok {
+  color: #c9f5e2;
+  background: var(--ok-bg);
+  border-color: #245c47;
+}
 .check-ok {
   color: var(--ok);
   font-weight: 700;
@@ -904,4 +918,32 @@ ul.bul {
 }
 .playbook-body h3 {
   margin-top: 6px;
+}
+
+/* Containment actions */
+.action-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  background: var(--bg-3);
+}
+.action-card + .action-card {
+  margin-top: 8px;
+}
+.action-card .tbl th,
+.action-card .tbl td {
+  padding: 3px 8px;
+}
+.action-card .tbl th {
+  position: static;
+  background: transparent;
+}
+.action-unavailable {
+  opacity: 0.72;
+  border-style: dashed;
+}
+a.btn {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
 }

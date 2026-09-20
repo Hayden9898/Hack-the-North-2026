@@ -6,7 +6,7 @@ playbooks:
   - id: review_account_activity
     title: Review account and session activity for the affected account/source pair
     applicability:
-      any_rules: [R1, R4]
+      any_rules: [R1, R4, R6]
       any_fact_kinds: [auth_failures_in_window, source_familiarity]
     uncertainty: Repeated failures and a later success from an unfamiliar source are consistent with credential guessing, a
       shared workstation, or a user travelling; the logs contain no session identity or user agent.

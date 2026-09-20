@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
-from app.ingest.parser import PARSE_VERSION, ParseError, file_event_id, parse_line
+from app.ingest.parser import PARSE_VERSION, ParseError, file_event_id, parse_line, reject_text
 
 LINE = '10.0.8.45 - david_m [15/Mar/2026:11:26:59 -0400] "GET /finance/reports/q1_draft_CONFIDENTIAL.zip HTTP/1.1" 200 8459200'
 
@@ -96,3 +96,37 @@ def test_file_event_ids_are_distinct_for_identical_lines_at_different_offsets():
     assert a != b and len(a) == 64
     assert file_event_id(digest, 10) == a  # deterministic
     assert file_event_id("0" * 64, 10) != a  # dataset identity participates
+
+
+def _line(target: str = "/logout", nbytes: str = "0") -> str:
+    return f'10.0.5.12 - sarah_j [15/Mar/2026:11:07:56 -0400] "GET {target} HTTP/1.1" 302 {nbytes}'
+
+
+def test_invalid_utf8_surrogate_is_rejected_not_stored():
+    # surrogateescape decoding of a stray 0xFF byte yields U+DCFF, which psycopg refuses to encode.
+    text = b"\xff".decode("utf-8", "surrogateescape")
+    with pytest.raises(ParseError) as exc:
+        parse_line(_line(target=f"/x{text}"))
+    assert exc.value.reason == "invalid utf-8"
+
+
+def test_nul_byte_is_rejected():
+    with pytest.raises(ParseError) as exc:
+        parse_line(_line(target="/x\x00y"))
+    assert exc.value.reason == "nul byte"
+
+
+def test_reject_text_is_safe_for_postgres_and_bounded():
+    text = "a" + b"\xff".decode("utf-8", "surrogateescape") + "b\x00c" + "z" * 5000
+    out = reject_text(text)
+    out.encode("utf-8")  # no surrogates left
+    assert "\x00" not in out
+    assert out.startswith("a?b\ufffdc")  # encode-replace yields "?", NUL becomes U+FFFD
+    assert len(out) == 2000
+
+
+def test_response_bytes_out_of_bigint_range_is_rejected():
+    with pytest.raises(ParseError) as exc:
+        parse_line(_line(nbytes=str(2**63)))
+    assert exc.value.reason == "response bytes out of range"
+    assert parse_line(_line(nbytes=str(2**63 - 1))).response_bytes == 2**63 - 1

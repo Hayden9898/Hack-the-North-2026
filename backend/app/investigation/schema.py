@@ -12,11 +12,15 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 SCHEMA_VERSION = "1"
 FACT_ID_RE = re.compile(r"^f_[0-9a-f]{16}$")
 
+# Minimum supporting predicates per hypothesis (any-of). These gates must be discriminating: kinds that every packet
+# carries as context (pair_history, time_delta_seconds, local_hour_typicality, account_history_count) never appear
+# here, otherwise any hypothesis would validate on any packet. source_familiarity is qualified by its value.
 HYPOTHESIS_CODES: dict[str, dict[str, Any]] = {
     "possible_account_misuse": {
         "text": "Possible account misuse (unproven): the recorded account/source activity is consistent with someone other than "
                 "the usual user acting for this account. Session identity is not recorded, so this cannot be confirmed from logs.",
-        "min_fact_kinds": {"auth_failures_in_window", "source_familiarity:unfamiliar", "pair_history"},
+        # Requires auth evidence: a failed-login burst or a source outside (or absent from) the login reference.
+        "min_fact_kinds": {"auth_failures_in_window", "source_familiarity:unfamiliar", "source_familiarity:reference_unknown"},
     },
     "possible_privilege_abuse": {
         "text": "Possible privilege or access change (unproven): a previously denied resource or a privileged endpoint returned success. "
@@ -26,12 +30,14 @@ HYPOTHESIS_CODES: dict[str, dict[str, Any]] = {
     "possible_forum_mediated_request": {
         "text": "Possible forum-mediated request (unproven): a privileged request followed a forum-object view within seconds. "
                 "Request bodies and page content are not logged; the mechanism is not established.",
-        "min_fact_kinds": {"same_object", "time_delta_seconds"},
+        # Requires the shared forum-object link itself; a time delta alone links any two requests.
+        "min_fact_kinds": {"same_object"},
     },
     "legitimate_authorized_activity": {
         "text": "Possibly legitimate, authorised activity: prior history for this account/resource or source is consistent with routine use. "
                 "This does not clear the incident; it identifies what an approval record would need to show.",
-        "min_fact_kinds": {"account_resource_history", "source_familiarity:familiar", "pair_history", "local_hour_typicality"},
+        # Requires a familiar source or prior account/resource success history.
+        "min_fact_kinds": {"account_resource_history", "source_familiarity:familiar", "prior_successes_count"},
     },
     "insufficient_evidence": {
         "text": "Insufficient evidence in the access logs to prefer any explanation; the listed unknowns must be resolved from other systems.",

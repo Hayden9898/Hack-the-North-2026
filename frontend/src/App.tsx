@@ -1,12 +1,23 @@
-import { type ReactNode, useEffect, useState } from 'react'
+import { type FormEvent, type ReactNode, useEffect, useState } from 'react'
 import { ArrowLeft, RefreshCw } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { ThemeToggle } from './components/ThemeToggle'
 import { Toast } from './components/ui/toast'
-import { api, describeError, subscribeDbStatus, type Health } from './api'
+import {
+  api,
+  describeError,
+  setOperatorToken,
+  subscribeDbStatus,
+  subscribeOperatorToken,
+  type Health,
+} from './api'
 import { degradedModeLabel } from './format'
 import { cn } from './lib/cn'
+import { MonitoringCheck } from './MonitoringCheck'
 import { useFetch, useInterval } from './useFetch'
+
+/** Shared chip shell: the header status controls all read as one row of the same object. */
+const CHIP = 'inline-flex items-center gap-2 rounded-md border px-2.5 py-1 font-mono text-caption uppercase transition-colors duration-150'
 
 /**
  * The console shell.
@@ -24,7 +35,10 @@ export default function App() {
 
   const healthErr = health.error ? describeError(health.error) : null
   const notReady = !!health.data && health.data.status !== 'ready'
-  const showDbBanner = dbDown || healthErr?.status === 503 || (health.data ? !health.data.database.ok : false)
+  // /health/ready answers 503 for every not-ready reason; api.health() still returns the health object for those, so
+  // the database banner is driven by the database field itself. A 503 without a health body (proxy, crashed API) or a
+  // 503 from any other endpoint still counts as the database being unavailable.
+  const showDbBanner = health.data ? health.data.database.ok === false : dbDown || healthErr?.status === 503
 
   return (
     <div className="app min-h-dvh bg-bg">
@@ -52,6 +66,8 @@ export default function App() {
           </nav>
 
           <div className="ml-auto flex items-center gap-3">
+            <MonitoringCheck />
+            {health.data ? <OperatorToken required={health.data.auth?.operator_required ?? false} /> : null}
             <HealthChip health={health.data} error={health.error} loading={health.loading} onRetry={() => void health.reload()} />
             <ThemeToggle />
             <NavLink
@@ -82,9 +98,10 @@ export default function App() {
 
         {!showDbBanner && notReady && health.data ? (
           <Banner tone="danger" role="alert">
-            <strong className="font-semibold">API not ready</strong> — status {health.data.status}. database ok:{' '}
-            {String(health.data.database.ok)}; migrations ok: {String(health.data.migrations.ok)} ({health.data.migrations.current ?? '?'} /{' '}
-            {health.data.migrations.head ?? '?'}); config ok: {String(health.data.config.ok)}.
+            <strong className="font-semibold">API not ready</strong> — status {health.data.status}
+            {health.data.not_ready_reasons?.length ? ` (${health.data.not_ready_reasons.map((r) => r.replaceAll('_', ' ')).join(', ')})` : ''}.
+            database ok: {String(health.data.database.ok)}; migrations ok: {String(health.data.migrations.ok)} (
+            {health.data.migrations.current ?? '?'} / {health.data.migrations.head ?? '?'}); config ok: {String(health.data.config.ok)}.
           </Banner>
         ) : null}
 
@@ -149,16 +166,116 @@ function BannerAction({ onClick, children }: { onClick: () => void; children: Re
 }
 
 /**
+ * Shared deployments require an operator bearer token for mutations (creating runs, replay control, feedback,
+ * aggregate refresh). Reads are open. The token stays in this tab and is sent only as an Authorization header.
+ */
+function OperatorToken({ required }: { required: boolean }) {
+  const [present, setPresent] = useState(false)
+  const [open, setOpen] = useState(false)
+  const [value, setValue] = useState('')
+  useEffect(() => subscribeOperatorToken(setPresent), [])
+
+  function save(e: FormEvent) {
+    e.preventDefault()
+    setOperatorToken(value)
+    setValue('')
+    setOpen(false)
+  }
+
+  if (!open) {
+    // Absent-but-required is a real problem (mutations will 401); absent-and-optional is just information,
+    // so it stays neutral rather than borrowing a verdict colour.
+    const tone = present
+      ? 'border-normal/30 bg-normal-wash text-normal'
+      : required
+        ? 'border-high-risk/35 bg-high-risk-wash text-high-risk'
+        : 'border-border bg-chip text-fg-subtle'
+    return (
+      <button
+        type="button"
+        className={cn(CHIP, tone, 'hidden md:inline-flex')}
+        onClick={() => setOpen(true)}
+        title={
+          present
+            ? 'Operator token set for this tab; click to replace or clear it'
+            : required
+              ? 'Mutations need an operator token on this deployment'
+              : 'This deployment accepts local mutations without a token; set one if the API rejects them'
+        }
+      >
+        <Dot className={present ? 'bg-normal-mark' : required ? 'bg-high-risk-mark' : 'bg-pending'} />
+        operator {present ? 'authenticated' : required ? 'token required' : 'no token'}
+      </button>
+    )
+  }
+
+  return (
+    <form onSubmit={save} className="flex items-center gap-1.5">
+      <input
+        type="password"
+        autoFocus
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="APP_AUTH_SECRET"
+        aria-label="operator token"
+        autoComplete="off"
+        spellCheck={false}
+        className="w-44 rounded-md border border-border bg-surface px-2 py-1 font-mono text-caption text-fg placeholder:text-fg-subtle"
+      />
+      <TokenButton type="submit" emphasis>
+        Use
+      </TokenButton>
+      {present ? (
+        <TokenButton
+          onClick={() => {
+            setOperatorToken('')
+            setValue('')
+            setOpen(false)
+          }}
+        >
+          Clear
+        </TokenButton>
+      ) : null}
+      <TokenButton onClick={() => setOpen(false)}>Cancel</TokenButton>
+    </form>
+  )
+}
+
+function TokenButton({
+  children,
+  emphasis,
+  onClick,
+  type = 'button',
+}: {
+  children: ReactNode
+  emphasis?: boolean
+  onClick?: () => void
+  type?: 'button' | 'submit'
+}) {
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      className={cn(
+        'rounded-md border px-2 py-1 font-mono text-caption uppercase transition-colors duration-150',
+        emphasis
+          ? 'border-accent bg-accent text-accent-fg hover:opacity-90'
+          : 'border-border bg-surface text-fg-muted hover:bg-hover hover:text-fg',
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
+/**
  * Live API state. The dot is the fastest read on the page, so it carries the status and the
  * words only qualify it — and it stops pulsing under reduced motion.
  */
 function HealthChip({ health, error, loading, onRetry }: { health: Health | null; error: unknown; loading: boolean; onRetry: () => void }) {
-  const shell =
-    'inline-flex items-center gap-2 rounded-md border px-2.5 py-1 font-mono text-caption uppercase transition-colors duration-150'
-
   if (loading && !health) {
     return (
-      <span className={cn(shell, 'border-border bg-chip text-fg-subtle')}>
+      <span className={cn(CHIP, 'border-border bg-chip text-fg-subtle')}>
         <Dot className="bg-pending" /> checking…
       </span>
     )
@@ -166,7 +283,7 @@ function HealthChip({ health, error, loading, onRetry }: { health: Health | null
   if (error && !health) {
     const e = describeError(error)
     return (
-      <button type="button" onClick={onRetry} title={e.text} className={cn(shell, 'border-high-risk/35 bg-high-risk-wash text-high-risk')}>
+      <button type="button" onClick={onRetry} title={e.text} className={cn(CHIP, 'border-high-risk/35 bg-high-risk-wash text-high-risk')}>
         <Dot className="bg-high-risk-mark" /> {e.status === 503 ? 'db unavailable' : `error ${e.status ?? ''}`}
       </button>
     )
@@ -176,12 +293,16 @@ function HealthChip({ health, error, loading, onRetry }: { health: Health | null
   const ok = health.status === 'ready'
   return (
     <span
-      className={cn(shell, ok ? 'border-normal/30 bg-normal-wash text-normal' : 'border-suspicious/35 bg-suspicious-wash text-suspicious')}
+      className={cn(CHIP, ok ? 'border-normal/30 bg-normal-wash text-normal' : 'border-suspicious/35 bg-suspicious-wash text-suspicious')}
       title={`db: ${health.database.detail ?? '—'}; models: ${health.models.artifacts.join(', ') || 'none'}`}
     >
       <Dot className={ok ? 'bg-normal-mark' : 'bg-suspicious-mark'} />
       API {ok ? 'ready' : health.status}
-      {health.models.artifacts.length === 0 ? <span className="text-fg-subtle">· rules only</span> : null}
+      {health.models.active ? (
+        <span className="text-fg-subtle">· model {health.models.active}</span>
+      ) : (
+        <span className="text-fg-subtle">· rules only</span>
+      )}
     </span>
   )
 }

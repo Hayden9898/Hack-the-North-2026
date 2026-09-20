@@ -13,7 +13,7 @@ from typing import Any
 import psycopg
 
 from app.config import DetectionConfig
-from app.ingest.parser import ParseError, parse_line
+from app.ingest.parser import ParseError, parse_line, reject_text
 from app.ingest.registry import RegistryRow, register_batch
 from app.observability import sentry
 
@@ -81,20 +81,43 @@ def admit_live_batch(conn: psycopg.Connection[Any], run_id: str, source_id: str,
             with conn.cursor() as cur:
                 cur.execute(
                     "INSERT INTO ingestion_rejects (source_id, run_id, request_index, raw_input, reason) VALUES (%s, %s, %s, %s, %s)",
-                    (source_id, run_id, idx, line[:2000], exc.reason),
+                    (source_id, run_id, idx, reject_text(line), exc.reason),
                 )
             sentry.log_event("parse_rejected", "warning", run_id=run_id, request_index=idx, reason=exc.reason)
             continue
         parsed.append((idx, cid, ev))
 
-    rows = [RegistryRow(_event_id(source_id, cid), ev, source_id=source_id, client_event_id=cid) for _, cid, ev in parsed]
+    # Intra-batch identity: the first occurrence of an event_id is the one that goes to the registry; later
+    # occurrences mirror the cross-batch semantics (same payload -> duplicate, different payload -> conflict).
+    # Without this, two accepted rows with one event_id would violate run_events UNIQUE(run_id, event_id).
+    conflict_reason = "same event_id with different payload; original retained"
+    first_seen: dict[str, tuple[str, str | None]] = {}  # cid -> (payload_hash, registry status once known)
+    unique: list[tuple[int, str, Any]] = []
+    repeats: list[tuple[int, str, str]] = []
+    for idx, cid, ev in parsed:
+        if cid in first_seen:
+            repeats.append((idx, cid, ev.payload_hash))
+        else:
+            first_seen[cid] = (ev.payload_hash, None)
+            unique.append((idx, cid, ev))
+
+    rows = [RegistryRow(_event_id(source_id, cid), ev, source_id=source_id, client_event_id=cid) for _, cid, ev in unique]
     statuses = register_batch(conn, rows)
     accepted: list[tuple[int, str, RegistryRow]] = []
-    for (idx, cid, _ev), row, st in zip(parsed, rows, statuses, strict=True):
+    for (idx, cid, _ev), row, st in zip(unique, rows, statuses, strict=True):
+        first_seen[cid] = (first_seen[cid][0], st)
         if st == "accepted":
             accepted.append((idx, cid, row))
         else:
-            outcome.items.append(ItemResult(idx, cid, st, None if st == "duplicate" else "same event_id with different payload; original retained"))
+            outcome.items.append(ItemResult(idx, cid, st, None if st == "duplicate" else conflict_reason))
+    for idx, cid, ph in repeats:
+        first_hash, first_status = first_seen[cid]
+        # If the first occurrence itself conflicted with the registry, the retained original is the registry row,
+        # whose payload differs from the first occurrence; a repeat is reported as conflict too.
+        if ph == first_hash and first_status != "conflict":
+            outcome.items.append(ItemResult(idx, cid, "duplicate", None))
+        else:
+            outcome.items.append(ItemResult(idx, cid, "conflict", conflict_reason))
 
     # Ordered admission: sort by (event_time, client order); enforce the watermark.
     accepted.sort(key=lambda t: (t[2].event.event_time, t[0]))

@@ -1,4 +1,5 @@
-"""M01–M04: train/inference parity with a pinned artifact, familiarity never from failures, degraded mode, cold start."""
+"""M01–M05: train/inference parity with a pinned artifact, familiarity never from failures, degraded mode, cold start,
+and the preprocessing stage (training domain) flagging never-seen feature values with exact parity."""
 from __future__ import annotations
 
 import json
@@ -11,11 +12,18 @@ import pytest
 import sklearn
 from ml.common import sha256_file
 from sklearn.ensemble import IsolationForest
-from tests.fixtures.synth import TZ, baseline_traffic, default_world, scenario_auth_burst
+from tests.fixtures.synth import (
+    TZ,
+    baseline_traffic,
+    default_world,
+    scenario_auth_burst,
+    scenario_forum_admin,
+)
 from tests.helpers import drive, import_world, make_config, q, start_run
 
 from app.db.engine import connect_direct, jsonb
 from app.detection.model import ModelLoadError, load_model
+from app.detection.preprocess import BLIND_SPOT_PENALTY, anomaly_scores, build_pipeline, domain_of
 from app.features.reference import build_reference
 from app.features.vector import FEATURE_NAMES, FEATURE_VERSION
 from app.settings import get_settings
@@ -29,7 +37,8 @@ def _cfg(tmp_path):
                        calibration=(D0 + timedelta(days=16), D0 + timedelta(days=22)), evaluation=(D0 + timedelta(days=22), D0 + timedelta(days=40)))
 
 
-def _write_artifact(model_dir: Path, model_id: str, est, cal_scores, reference_hash, threshold, *, corrupt=False, wrong_schema=False) -> dict:
+def _write_artifact(model_dir: Path, model_id: str, est, cal_scores, reference_hash, threshold, *, corrupt=False, wrong_schema=False,
+                    extra: dict | None = None) -> dict:
     d = model_dir / model_id
     d.mkdir(parents=True)
     art = d / "isolation_forest.joblib"
@@ -40,6 +49,7 @@ def _write_artifact(model_dir: Path, model_id: str, est, cal_scores, reference_h
         "feature_names": list(FEATURE_NAMES) if not wrong_schema else list(FEATURE_NAMES)[:-1],
         "artifact_file": art.name, "artifact_sha256": sha256_file(art), "calibration_scores_file": "calibration_scores.json",
         "threshold": threshold, "reference_hash": reference_hash, "dependencies": {"scikit-learn": sklearn.__version__},
+        **(extra or {}),
     }
     if corrupt:
         art.write_bytes(b"not a model")
@@ -168,3 +178,50 @@ def test_m04_new_account_without_bootstrap_is_unknown_not_high_risk(db, tmp_path
     assert all(r["observed_context"]["familiarity"] == "reference_unknown" and r["observed_context"]["cold_start"] for r in rows)
     assert all(r["threat_class"] != "high_risk" for r in rows)
     assert q(db, "select count(*) n from rule_matches where run_id=%s and rule_id in ('R4','R2')", rid)[0]["n"] == 0
+
+
+def test_m05_preprocessed_artifact_parity_and_blind_spot_flags(db, tmp_path, model_dir):
+    cfg = _cfg(tmp_path)
+    w = default_world(start=datetime(D0.year, D0.month, D0.day, tzinfo=TZ))
+    baseline_traffic(w, 30)
+    day = datetime(D0.year, D0.month, D0.day, tzinfo=TZ)
+    scenario_auth_burst(w, day + timedelta(days=23, hours=23), victim=w.accounts[0], source_ip="192.168.10.200", n=4)
+    t_admin = scenario_forum_admin(w, day + timedelta(days=25, hours=11), viewer=w.accounts[1], obj=w.forum_objects[0])
+    ds = import_world(w, tmp_path, db)
+    r0 = start_run(db, cfg, ds)
+    drive(db, cfg, r0)
+    ref_hash = q(db, "select config->>'reference_hash' h from runs where run_id=%s", r0)[0]["h"]
+    part = lambda name: np.asarray([r["numeric_vector"] for r in q(db, "select numeric_vector from feature_snapshots where run_id=%s and event_time >= %s and event_time < %s order by run_seq", r0, cfg.partitions[name].start, cfg.partitions[name].end_exclusive)])  # noqa: E731
+    train, cal = part("train"), part("calibration")
+
+    pipe = build_pipeline(IsolationForest(n_estimators=50, random_state=42), FEATURE_NAMES).fit(train)
+    dom = domain_of(pipe)
+    # Routine synthetic traffic never contains admin requests or unfamiliar pairs: the forest is blind to both.
+    assert {"is_admin", "pair_unfamiliar"} <= set(dom.blind_names)
+    cal_scores = anomaly_scores(pipe, cal)
+    assert int((dom.violations(cal) > 0).sum()) == 0  # calibration burden is unchanged by the guard
+    threshold = float(np.percentile(cal_scores, 99.5))
+    man = _write_artifact(model_dir, "m_domain", pipe, cal_scores, ref_hash, threshold, extra={"preprocessing": dom.describe()})
+    _register(db, man)
+    r1 = start_run(db, cfg, ds, model_id="m_domain")
+    run1 = drive(db, cfg, r1)
+    assert run1["model_health"] == "active" and run1["state"] == "completed"
+    loaded = load_model(model_dir, "m_domain", expected_reference_hash=ref_hash)
+    rows = q(db, "select d.model_score, d.anomaly_percentile, d.model_flagged, f.numeric_vector, p.path, p.ip_raw from detections d join feature_snapshots f using (run_id, run_seq) join processed_events p using (run_id, run_seq) where d.run_id=%s order by d.run_seq", r1)
+    for r in rows:  # M01 parity holds through the preprocessing stage
+        assert r["model_score"] == pytest.approx(loaded.score(r["numeric_vector"]), abs=1e-9)
+    admin = [r for r in rows if r["path"] == "/api/admin/role_update"]
+    burst = [r for r in rows if r["ip_raw"] == "192.168.10.200"]
+    assert len(admin) == 1 and len(burst) == 4
+    for r in admin + burst:  # never-seen values outrank every calibration score: flagged, rarity percentile 100
+        assert r["model_score"] >= BLIND_SPOT_PENALTY and r["model_flagged"] and r["anomaly_percentile"] == 100.0
+    assert q(db, "select d.threat_class from detections d join processed_events p using (run_id, run_seq) where d.run_id=%s and p.event_time=%s", r1, t_admin)[0]["threat_class"] != "normal"
+
+    # Artifact/manifest disagreement about preprocessing is refused at load, both ways.
+    _write_artifact(model_dir, "m_undeclared", pipe, cal_scores, ref_hash, threshold)
+    with pytest.raises(ModelLoadError):
+        load_model(model_dir, "m_undeclared")
+    plain = IsolationForest(n_estimators=10, random_state=42).fit(train)
+    _write_artifact(model_dir, "m_overdeclared", plain, cal_scores, ref_hash, threshold, extra={"preprocessing": dom.describe()})
+    with pytest.raises(ModelLoadError):
+        load_model(model_dir, "m_overdeclared")

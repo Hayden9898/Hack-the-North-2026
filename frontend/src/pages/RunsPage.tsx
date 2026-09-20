@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { api, describeError, type Dataset, type Run, type RunCreateBody } from '../api'
+import { api, describeError, type Dataset, type Model, type Run, type RunCreateBody } from '../api'
 import { fmtBytes, fmtNum, fmtTime, isFaultRun, runStateLabel, shortId, speedLabel } from '../format'
 import { useFetch, useInterval } from '../useFetch'
 import { Empty, ErrorState, Loading, ModelHealthBadge, PhaseBadge, Section, StateBadge, Tag } from '../ui'
@@ -8,9 +8,11 @@ import { Empty, ErrorState, Loading, ModelHealthBadge, PhaseBadge, Section, Stat
 export function RunsPage() {
   const runs = useFetch<Run[]>(() => api.listRuns(), [])
   const datasets = useFetch<Dataset[]>(() => api.listDatasets(), [])
+  const models = useFetch<Model[]>(() => api.listModels(), [])
   useInterval(() => {
     void runs.reload()
     void datasets.reload()
+    void models.reload()
   }, 5_000)
 
   return (
@@ -91,14 +93,15 @@ export function RunsPage() {
         </Section>
 
         <div className="stack">
-          <NewRunForm datasets={datasets.data ?? []} onCreated={() => void runs.reload()} />
+          <DatasetUploadForm onUploaded={() => void datasets.reload()} />
+          <NewRunForm datasets={datasets.data ?? []} models={models.data ?? []} onCreated={() => void runs.reload()} />
           <Section title="Datasets">
             {datasets.loading ? (
               <Loading what="datasets" />
             ) : datasets.error ? (
               <ErrorState error={datasets.error} onRetry={() => void datasets.reload()} what="datasets" />
             ) : !datasets.data || datasets.data.length === 0 ? (
-              <Empty>No datasets imported. Upload one with the import script; the console does not accept filesystem paths.</Empty>
+            <Empty>No datasets yet. Upload an Apache access-log file above; imports run asynchronously and become selectable when ready.</Empty>
             ) : (
               <ul className="plain stack">
                 {datasets.data.map((d) => (
@@ -110,6 +113,73 @@ export function RunsPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+function DatasetUploadForm({ onUploaded }: { onUploaded: () => void }) {
+  const [file, setFile] = useState<File | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState<Dataset & { job: 'queued' | 'existing' }>()
+  const [err, setErr] = useState<unknown | null>(null)
+
+  async function submit(e: FormEvent) {
+    e.preventDefault()
+    if (!file) return
+    setBusy(true)
+    setErr(null)
+    try {
+      const uploaded = await api.uploadDataset(file)
+      setResult(uploaded)
+      onUploaded()
+    } catch (ex) {
+      setErr(ex)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Section title="Import access logs">
+      <form onSubmit={(e) => void submit(e)} className="stack">
+        <label className="field">
+          Apache access-log file
+          <input
+            type="file"
+            accept=".log,.txt,text/plain"
+            onChange={(e) => {
+              setFile(e.target.files?.[0] ?? null)
+              setResult(undefined)
+              setErr(null)
+            }}
+          />
+        </label>
+        {file ? (
+          <div className="notice">
+            <strong>{file.name}</strong> <span className="muted">· {fmtBytes(file.size)}</span>
+          </div>
+        ) : null}
+        <div className="row">
+          <button type="submit" className="btn btn-primary" disabled={!file || busy}>
+            {busy ? 'Uploading…' : 'Upload and import'}
+          </button>
+          <span className="muted small">Streams to the server; the configured limit is 200 MiB. Raw evidence is never sent to an AI provider.</span>
+        </div>
+        {result ? (
+          <div className="notice notice-info" role="status">
+            {result.job === 'existing' ? 'This exact file was already imported.' : 'Upload queued for import.'} Dataset{' '}
+            <span className="mono">{shortId(result.dataset_id, 18)}</span>; its validation progress and rejected-line samples appear below.
+          </div>
+        ) : null}
+        {err ? (
+          <div className="notice notice-danger" role="alert">
+            {(() => {
+              const d = describeError(err)
+              return `Upload failed (HTTP ${d.status ?? '—'}): ${d.text}`
+            })()}
+          </div>
+        ) : null}
+      </form>
+    </Section>
   )
 }
 
@@ -202,15 +272,15 @@ function DatasetCard({ d }: { d: Dataset }) {
   )
 }
 
-function NewRunForm({ datasets, onCreated }: { datasets: Dataset[]; onCreated: () => void }) {
+function NewRunForm({ datasets, models, onCreated }: { datasets: Dataset[]; models: Model[]; onCreated: () => void }) {
   const nav = useNavigate()
   const ready = datasets.filter((d) => d.import_state === 'ready')
+  const defaultModel = models.find((m) => m.is_default) ?? null
   const [datasetId, setDatasetId] = useState('')
   const [name, setName] = useState('')
   const [visibleStart, setVisibleStart] = useState('')
   const [speed, setSpeed] = useState('')
   const [pauseAtVisible, setPauseAtVisible] = useState(false)
-  const [modelId, setModelId] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<unknown | null>(null)
 
@@ -224,7 +294,6 @@ function NewRunForm({ datasets, onCreated }: { datasets: Dataset[]; onCreated: (
     const body: RunCreateBody = { dataset_id: chosen, mode: 'replay', name: name.trim(), pause_at_visible_start: pauseAtVisible }
     if (visibleStart.trim()) body.visible_start = visibleStart.trim()
     if (speed.trim() !== '') body.speed = Number(speed)
-    if (modelId.trim()) body.model_id = modelId.trim()
     try {
       const run = await api.createRun(body)
       onCreated()
@@ -263,10 +332,14 @@ function NewRunForm({ datasets, onCreated }: { datasets: Dataset[]; onCreated: (
             speed (0 = fast-forward, unbounded)
             <input value={speed} onChange={(e) => setSpeed(e.target.value)} type="number" min={0} step="any" placeholder="config default" />
           </label>
-          <label className="field">
-            model id (optional; blank = rules-only if none)
-            <input value={modelId} onChange={(e) => setModelId(e.target.value)} placeholder="model_id" />
-          </label>
+          <div className="field">
+            model (rules + ML on every run)
+            {defaultModel ? (
+              <span className="mono small">{defaultModel.model_id}</span>
+            ) : (
+              <span className="small">no active model registered yet: rules-only until one is calibrated with --activate</span>
+            )}
+          </div>
           <label className="check">
             <input type="checkbox" checked={pauseAtVisible} onChange={(e) => setPauseAtVisible(e.target.checked)} /> pause at visible start
           </label>

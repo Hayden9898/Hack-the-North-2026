@@ -12,6 +12,11 @@ F_DEN = "f_0000000000000002"
 F_FAM = "f_0000000000000003"
 F_HIST = "f_0000000000000004"
 F_FUTURE = "f_00000000000000ff"
+F_PAIR = "f_0000000000000005"  # context fact present in every packet
+F_DELTA = "f_0000000000000006"  # time delta: present for any linked pair of requests
+F_HOUR = "f_0000000000000007"  # context fact present in every packet
+F_OBJ = "f_0000000000000008"  # shared forum-object link (R3/R5 only)
+F_UNFAM = "f_0000000000000009"  # unfamiliar source (R1/R4/R6 evidence)
 
 PACKET = {
     "packet_hash": "h1",
@@ -28,6 +33,11 @@ PACKET = {
         _fact(F_FAM, "source_familiarity", "familiar", role="context"),
         _fact(F_HIST, "account_resource_history", {"prior_get_200": 0}, role="context"),
         _fact(F_FUTURE, "event_observed", {"path": "/later"}, role="support", cutoff=99),
+        _fact(F_PAIR, "pair_history", {"events": 3, "login_failures": 0}, role="context"),
+        _fact(F_DELTA, "time_delta_seconds", 4.0, role="support"),
+        _fact(F_HOUR, "local_hour_typicality", {"account_events_this_hour": 1, "account_events_total": 9}, role="context"),
+        _fact(F_OBJ, "same_object", "obj-1", role="support"),
+        _fact(F_UNFAM, "source_familiarity", "unfamiliar", role="support"),
     ],
 }
 APPLICABLE = {"sensitive_access_authorization_review"}
@@ -84,6 +94,36 @@ def test_hypothesis_without_required_predicate_rejected():
     hyps = [{"type": "possible_account_misuse", "supporting_fact_ids": [F_DEN], "counterevidence_fact_ids": [], "unknown_codes": []}]
     r = validate(_proposal(hypotheses=hyps), PACKET, APPLICABLE)
     assert not r.ok and any("required kind" in x for x in r.reasons)
+
+
+def _hyp(code, supporting):
+    return [{"type": code, "supporting_fact_ids": supporting, "counterevidence_fact_ids": [], "unknown_codes": []}]
+
+
+def test_always_present_context_facts_do_not_satisfy_any_hypothesis_gate():
+    # pair_history / time_delta_seconds / local_hour_typicality exist in every packet; citing only them must not
+    # validate a hypothesis on an access-change (R2) packet.
+    for code in ("possible_account_misuse", "possible_forum_mediated_request", "legitimate_authorized_activity"):
+        for fid in (F_PAIR, F_DELTA, F_HOUR):
+            r = validate(_proposal(hypotheses=_hyp(code, [fid])), PACKET, APPLICABLE)
+            assert not r.ok and any("required kind" in x for x in r.reasons), (code, fid, r.reasons)
+
+
+def test_misuse_requires_auth_evidence():
+    assert validate(_proposal(hypotheses=_hyp("possible_account_misuse", [F_UNFAM])), PACKET, APPLICABLE).ok
+    # A familiar source is not auth evidence for misuse.
+    assert not validate(_proposal(hypotheses=_hyp("possible_account_misuse", [F_FAM])), PACKET, APPLICABLE).ok
+
+
+def test_forum_mediated_requires_shared_object():
+    assert validate(_proposal(hypotheses=_hyp("possible_forum_mediated_request", [F_OBJ])), PACKET, APPLICABLE).ok
+    assert not validate(_proposal(hypotheses=_hyp("possible_forum_mediated_request", [F_DELTA])), PACKET, APPLICABLE).ok
+
+
+def test_legitimate_requires_familiar_source_or_prior_history():
+    assert validate(_proposal(hypotheses=_hyp("legitimate_authorized_activity", [F_FAM])), PACKET, APPLICABLE).ok
+    assert validate(_proposal(hypotheses=_hyp("legitimate_authorized_activity", [F_HIST])), PACKET, APPLICABLE).ok
+    assert not validate(_proposal(hypotheses=_hyp("legitimate_authorized_activity", [F_UNFAM])), PACKET, APPLICABLE).ok
 
 
 def test_same_fact_supporting_and_counter_rejected():

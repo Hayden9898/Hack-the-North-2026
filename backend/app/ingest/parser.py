@@ -16,6 +16,8 @@ from app.config import RouteConfig, get_config
 
 PARSE_VERSION = "1"
 MAX_LINE_BYTES = 64 * 1024
+MAX_RESPONSE_BYTES = 2**63 - 1  # Postgres bigint
+REJECT_TEXT_CHARS = 2000
 
 _LINE_RE = re.compile(
     r"^(?P<ip>\S+) - (?P<user>\S+) \[(?P<ts>\d{2}/[A-Za-z]{3}/\d{4}:\d{2}:\d{2}:\d{2} [+-]\d{4})\] "
@@ -66,12 +68,27 @@ def file_event_id(dataset_sha256: str, line_number: int) -> str:
     return hashlib.sha256(f"{dataset_sha256}:{line_number}".encode("ascii")).hexdigest()
 
 
+def reject_text(text: str, limit: int = REJECT_TEXT_CHARS) -> str:
+    """Make rejected input safe to store in a Postgres text column.
+
+    Input may carry surrogate escapes (undecodable bytes) or NUL bytes, both of which psycopg/Postgres refuse.
+    Undecodable bytes become '?' and NUL becomes U+FFFD so the reject row is always written (no silent drops, no crashes).
+    """
+    return text.encode("utf-8", "replace").decode("utf-8").replace("\x00", "�")[:limit]
+
+
 def parse_line(line: str, routes: RouteConfig | None = None) -> ParsedEvent:
     if len(line) > MAX_LINE_BYTES:
         raise ParseError(f"oversize line ({len(line)} chars > {MAX_LINE_BYTES})")
     line = line.rstrip("\r\n")
     if not line:
         raise ParseError("empty line")
+    try:
+        line.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise ParseError("invalid utf-8") from exc
+    if "\x00" in line:
+        raise ParseError("nul byte")
     m = _LINE_RE.match(line)
     if not m:
         raise ParseError("does not match access-log format")
@@ -94,6 +111,9 @@ def parse_line(line: str, routes: RouteConfig | None = None) -> ParsedEvent:
     routes = routes or get_config().routes
     family, object_id = routes.classify(path)
     raw_bytes = m.group("bytes")
+    response_bytes = None if raw_bytes == "-" else int(raw_bytes)
+    if response_bytes is not None and response_bytes > MAX_RESPONSE_BYTES:
+        raise ParseError("response bytes out of range")
     return ParsedEvent(
         ip_raw=ip,
         username=m.group("user"),
@@ -110,6 +130,6 @@ def parse_line(line: str, routes: RouteConfig | None = None) -> ParsedEvent:
         object_id=object_id,
         http_version=m.group("ver"),
         status=int(m.group("status")),
-        response_bytes=None if raw_bytes == "-" else int(raw_bytes),
+        response_bytes=response_bytes,
         raw_line=line,
     )

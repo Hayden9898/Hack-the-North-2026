@@ -37,7 +37,7 @@ def main() -> int:
         m = cur.fetchone()
         conn.rollback()
     if m is None:
-        print("no active model; run `python tasks.py train` then `python tasks.py calibrate MODEL_ID=... --activate`, or continue rules-only", file=sys.stderr)
+        print("no active model; run `python tasks.py train` then `python tasks.py calibrate MODEL_ID=... ACTIVATE=1`, or continue rules-only", file=sys.stderr)
         model_args: list[str] = []
     else:
         model_args = ["--model-id", m["model_id"]]

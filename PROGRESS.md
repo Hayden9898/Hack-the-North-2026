@@ -97,3 +97,178 @@ Concise record of milestones, decisions, commands and results. Newest entries at
 - Commands/reports: `reports/{investigation,evaluation,performance,sponsor-evidence,demo-script}.md`.
 - Not done / blocked: real Slack, Sentry, Tiger Cloud and Anthropic calls (no credentials supplied) — adapters tested
   with stubs only; live-mode p95 latency not measured (no live source).
+
+### M8 — ML preprocessing stage (branch `feature/ml-preprocessing`) ✅ candidate, not activated
+- Finding: 8 of 30 v1 features are constant on the Sep–Dec training partition (`pair_unfamiliar`,
+  `first_200_after_denials`, `is_admin`, `unusual_query_key_count`, `status_other`, `bytes_reference_missing`,
+  `reference_unknown`, `cold_start`); an Isolation Forest never splits on a constant column, so the active model was
+  blind to the attack indicators (that is why line 168338 scored 0.618, below threshold).
+- `app/detection/preprocess.py` (`domain_v1`): `TrainingDomain` transformer fitted on training only, first step of a
+  pickled `Pipeline`; prunes blind spots from the forest input (30 → 22) and adds +1.0 per never-seen value so zero
+  training support always outranks any in-domain score. `ml.train` builds it by default (`--no-preprocess` opt-out),
+  manifest carries `preprocessing`; `load_model` verifies schema and manifest agreement; legacy artifacts unchanged.
+- Candidate `if_v1_domain_2026-09-19` (same source run, same params, 99.9): calibration burden identical (44 alerts,
+  0.75/day, 0 departures); March model-only 36 → 50 alerts, rule events flagged 5/7 → 7/7, high-risk 1/2 → 2/2,
+  known sequence flagged 12/20 → 17/20 incl. the pivotal 168338. See `reports/preprocessing.md`.
+- Verified: `tests/unit/test_preprocess.py` 8 passed; `test_model_integration.py` 4 passed (new M05 parity +
+  blind-spot flags + refusal); mypy clean, ruff clean.
+- Not done: the candidate is **not** activated (active model still `if_v1_2026-09-19`, so `reports/evaluation.md`
+  still describes the live demo); activate with
+  `python -m ml.calibrate --model-id if_v1_domain_2026-09-19 --percentile 99.9 --activate`.
+
+### Frontend + observability + acceptance follow-up — September 19, 2026
+
+- AWS-first resource console implemented: flat navigation, URL-preserved filters/details, keyboard commands, responsive
+  tables, Motion drawers, evidence proofs, explicit degraded states and real API contracts. Reference inventory in
+  `docs/design/frontend-direction.md`. Optional `/welcome` adapts the IRL monochrome/lanyard interaction using original
+  CSS/SVG/Motion artwork; no heavy WebGL enters the console.
+- Added React Sentry and upgraded Python Sentry to 2.69.2. Application errors, structured logs, API/navigation/worker
+  traces and distributed context are wired. Allowlist scrubbing removes evidence, prompts, request content, SQL,
+  exception messages/locals and automatic breadcrumbs. No Session Replay. Operator-only diagnostic explicitly distinguishes
+  queued from externally verified events. MCP/CLI authentication is separate; application DSNs still absent.
+- Added `doctor`, `verify`, individual gates, read-only canonical `verify-live`, and `verify-report`; per-run HTML/JSON,
+  browser screenshots/traces and Python JUnit. Added frontend-first CI workflow (not run remotely). No silent skipped/flaky
+  passes; DB-name/identity checks and a session advisory lock protect destructive fixtures from production or concurrent tests.
+- Fixed test portability: import cases depended on absent ignored `.log` files; now generated as explicit synthetic test
+  fixtures, retaining assertions. The full-file test still requires the original SHA-256 and exact dataset counts.
+- Fixed model artifact IDs in readiness, stale/failure UI edges, lazy-route startup state and mobile badge clipping.
+- Verified locally: **100 Python tests (61 non-DB + 39 DB), 23 Chromium checks (22 UI + 1 real SDK/local transport),
+  types/lint/build, dependency checks and diff checks passed**. Details: `docs/design/verification.md`.
+- Local Docker persistent storage was full. Tests passed against isolated RAM-backed TimescaleDB on port 5434; no
+  unrelated Docker data was deleted. Persistent dev/API readiness remains blocked. Original canonical data/model missing
+  locally; historical M7 measurements above have not been re-run here. The canonical live gate refuses to fabricate a pass.
+- Sponsor review: `docs/sponsor-fit.md`; prioritize already-selected CSE/Sentry/Tiger Data evidence. Sentry needs Logs
+  and Tracing plus demonstrated real impact, not SDK installation alone. Sponsor selection cutoff was Sep 19, 2 PM EDT.
+- Remaining external gates: Sentry organization/project choice and DSNs, actual telemetry receipt and diagnostic improvement,
+  original dataset/model, persistent DB capacity, deployed auth/TLS/SSE/storage, private source maps, other real provider calls.
+
+### CSE comparison and evidence workflow follow-up — September 19, 2026
+
+- Reviewed public Minny `eedd030` and htn26 `4ebcbe4` source snapshots without running or incorporating their code.
+  `docs/competitive-review.md` distinguishes implemented strengths, unreproduced benchmark claims, and our release gaps.
+- Added version-pinned investigation briefs: recorded account, trigger/time/source line, measured fact → proof links,
+  explicit unknowns/context, confidential local JSON handoff with source/config/model provenance. No AI proposals or
+  mutable operational state in exports. Kept overview focused; moved AI review alongside analyst review/response.
+- Fixed historical incident leakage from later evidence memberships, same-sequence R5 rule matches, relationships and
+  reviews. Migration 0004 records relationship-creation provenance and backfills legacy R5 links from persisted evidence.
+- Added real-DB regression for version isolation/backfill and three browser checks for export integrity, keyboard focus,
+  accessibility, mobile/reduced motion, missing/truncated evidence and inert untrusted text. Fixed mobile search labeling.
+- Verified: **101 Python tests (61 non-DB + 40 DB), 26 browser checks (25 UI + 1 SDK), types/lint/build and diff checks**.
+  Reports: `20260920T013836.953603Z-backend` and `20260920T013932.252622Z-frontend` under `reports/verification/`.
+- Disposable synthetic test DB removed after verification; no existing application data changed. Apply migration 0004
+  to the intended app database before restarting updated services. Canonical-data/model, persistent DB, real Sentry
+  credentials/receipt and hosting remain unverified; no detection-accuracy superiority or prize outcome is claimed.
+### M9 — Runs always attach the active model (branch `fix-ml-pipeline`) ✅
+- Root cause of the "rules-only mode" banner on UI-created runs: `model_id` was per run, the run form's model field
+  was free text defaulting to blank, and nothing resolved the active model on the operator's behalf. Only
+  `replay-demo` looked it up, so `hybrid-full` scored with ML while every UI-created run was rules-only.
+- `runs.create_run` now attaches the newest active model (`runs.active_model_id`) whenever `model_id` is not
+  pinned. There is no opt-out anywhere (UI, API or CLI): every run is rules + ML. The only rules-only run is one
+  created before any model is active (bootstrap snapshot pass); it degrades visibly, never with a fabricated model.
+- New `GET /api/v1/models` (status, threshold, `is_default`, `artifact_present`); the run form has no model choice,
+  it states which model every run gets; `pending_load` gets a label.
+- `/health/ready` reports `models.active` and a `no_active_model_rules_only` degraded mode; the artifacts list now
+  names model ids (it listed `manifest.json` twice before).
+- Verified: `tests/integration/test_run_default_model.py` 4 passed (default/newest/pinned, API, health);
+  full suite 100 passed (11 min); mypy, ruff, tsc, oxlint, vite build clean. The running API must be restarted to
+  pick this up (`serve_api` runs without reload).
+
+### M9 — hosted deployment (Railway) ✅ image verified, cloud deploy pending credentials
+- One `Dockerfile` (node build → python:3.12-slim runtime, 184 MB) running three roles: `scripts.serve_api`
+  (FastAPI **plus** the built console, mounted last so API routes always win and unknown `/api/*` stays a JSON 404),
+  `scripts.serve_worker` (detector + side-effect loops as two threads, `WORKER_ROLES` to split them, SIGTERM drains),
+  and the existing one-off CLIs. `railway.json` / `railway.worker.json` carry build, start command and healthcheck;
+  `docker compose --profile app` runs the same image locally (opt-in, `db-up` unaffected).
+- D-006 No Redis/object storage: the queues are Postgres tables with `SKIP LOCKED` leases and the model is CPU
+  scikit-learn from the image. Consequence recorded in `docs/DEPLOY.md`: `POST /datasets` (upload → worker import)
+  needs a shared filesystem, so hosted seeding is `scripts.import_dataset` over the network instead.
+- Browser/API auth for shared deployments: `/health/ready` now declares `auth.operator_required`; the console asks
+  for the operator token in its header and sends it only as `Authorization` (sessionStorage, never a URL). Reads stay
+  unauthenticated, as locally.
+- Fix: `scripts.migrate` treated an empty `TEST_DATABASE_URL` as reachable — `ping("")` falls back to the default
+  connection parameters — and then failed the deploy on `create_engine('')`. Empty now means "not configured".
+- Verified in containers against the local TimescaleDB (`docker compose --profile app up --build`): `/health/ready`
+  → `ready`, `timescaledb 2.30.1`, migrations `0004/0004`, `auth.operator_required=true`; SPA served at `/`, deep route
+  `/runs/abc` → 200, `/api/v1/nope` → JSON 404; mutation 401 without/with a wrong bearer, 201 with the right one;
+  3 live events ingested with `X-Ingest-Token` and processed by the *separate* worker container (processed_seq 3).
+  Frontend `tsc`/`oxlint`/`vite build` clean; `ruff`/`mypy` clean on the touched files; `tests/integration/test_health.py`
+  5 passed (the DB-backed case errored on a TRUNCATE deadlock from another pytest process sharing `logorder_test`).
+- Not done: no Railway project created and no Tiger Cloud connection string, so the deployment itself is
+  **unverified**; `ml/artifacts/` is empty in this checkout, so a deploy from git is rules-only until an artifact is
+  force-added; the left-over `deploy-check` live run in the local dev database is a verification artifact.
+
+### M9 — containment actions: the call to action ✅
+- Problem: the console ended at *reading* — playbooks rendered as prose under "nothing here executes". Added the
+  loop that turns a described incident into an approved, verifiable operation without pretending to touch a system
+  that does not exist behind a replayed log.
+- `config/actions.yaml` (7 actions, 6 containment + 1 handoff) maps each playbook step to a typed action. D-008
+  **The AI never supplies a parameter**: `actions/binding.py` reads every value from the incident row or a typed fact
+  (`fact:<kind>.args.<key>`, `fact:<kind>.value`, optional `split` for `account|path` keys) and keeps the fact id as
+  provenance; a missing fact makes the action *unavailable with the reason*, never partially bound. Preconditions
+  (`incident_status_open`, `rule_any`, `fact_present`, `fact_value_in`) are evaluated by code and shown as checks.
+- `actions/service.py` sequences dry run → execute → verify → rollback. Refusals are typed 409s: `dry_run_required`,
+  `already_executed`, `binding_changed` (the `params_hash` pinned at dry run no longer matches a re-binding),
+  `preconditions_unmet` (re-evaluated at execute time, not trusted from the dry run), `not_executed`/`not_reversible`.
+  Every phase appends to `action_log` (operator, adapter, exact request, result) before state moves.
+- D-009 Execution adapters mirror Slack: `PreviewAdapter` (default) records the request and reports
+  `applied_to_external_system: false`; `WebhookAdapter` POSTs the same object when `ACTION_MODE=live` +
+  `ACTION_WEBHOOK_URL`. `incidents.contained_at` + `containment_mode ∈ {preview, applied}` — a preview is stamped as
+  a preview, and `runs.counts.containment` reports `contained/actionable`, `preview`, `applied`, `median_seconds`.
+- `actions/verify.py`: six named SQL identities over `processed_events` under the cutoff (`success_on_path_after`,
+  `events_from_source_after`, `admin_post_2xx_after`, …). In a replay the log is fixed, so `contradicted` means "the
+  recorded activity continued past the approval point" — surfaced as such rather than hidden.
+- `actions/packet.py`: response packet (Markdown) from committed rows only — facts with evidence refs, timeline,
+  unknown codes, playbooks, bound actions, action log, dispositions; `sha256` + fact packet hash; `POST` stores it
+  and queues a `response_packet` message through the existing outbox (same preview/live rules, idempotent key).
+- API `api/actions.py`: `GET …/actions`, `POST …/actions/{id}/{dry-run,execute,verify,rollback}`,
+  `GET|POST …/response-packet` (`?download=true` → `.md` attachment). Migration `0005` (`action_proposals`,
+  `action_log`, `response_packets`, containment columns). Health `integrations.actions`.
+- UI: `pages/ActionsSection.tsx` under the playbooks — bound parameters with "bound from" column, impact /
+  permissions / rollback / verification, dry-run request viewer, confirm-to-execute, verification banner, rollback,
+  append-only log, response packet preview/download/send. Run console gains a **Containment** block.
+- CLI: `scripts/contain_incident.py` (list / dry run / execute / verify / packet) over the same service layer.
+- Verified: `tests/unit/test_action_binding.py` 18 passed; `tests/e2e/test_action_flows.py` 11 passed (273 s) —
+  provenance listing, unavailable reasons, full loop with containment stamp + clear on rollback, append-only log and
+  SSE `action` updates, `binding_changed`, execute-time precondition re-check via a closing disposition, 404 for an
+  inapplicable action, `block_source` binding on an R1 incident, packet render/download, outbox handoff idempotency,
+  run containment counts. `ruff`, `mypy` (68 files), `tsc`, `oxlint` clean.
+- Not done: no real remediation endpoint, so the `live` adapter is **unverified**; the catalog is reviewed content,
+  not a claim about CSE's systems; no Slack Block Kit buttons (would need an interactive app, not a webhook).
+
+### Review pass (2026-09-20) — seven-slice code audit, bugs fixed ✅
+- Method: one reviewer per slice (ingest/schema, features/detection/workers, incidents/investigation, containment
+  actions, API/notifications/ops, frontend, ML) confirmed each finding against the code before it was fixed; one
+  fixer per slice on disjoint files. Static gates before and after: `ruff`, `mypy`, `tsc`, `oxlint`, `vite build`.
+- Containment: a repeat dry run no longer resets an executed proposal (`already_executed`); `verify` reads the
+  approval cutoff from the execute log row instead of comparing replayed event times with wall-clock time (was
+  always `pending` on replays); a `failed` execute needs a fresh dry run; rollback recomputes `containment_mode`;
+  `split` bindings keep separators inside the remainder; every write takes the run row lock before emitting a
+  UI update. The catalog is validated at load (binding sources, precondition args, verification ids and their
+  params) — that caught `force_credential_reset` never binding the `source` its verification query needs.
+- Investigation: the assistant turn now echoes the provider's full content (thinking blocks included), which
+  `claude-opus-5` requires on tool rounds and repair turns; validator rejections are labelled `rejected` rather
+  than `fallback`; the stale-version guard is re-checked under lock when the result is persisted; explanation jobs
+  have an attempt ceiling with a deterministic fallback; hypothesis gates no longer accept always-present context
+  facts; an escalating rule reopens a closed incident and the headline follows the highest-outcome rule.
+- Detector/workers: a poison record is blamed by its own `run_seq` and the healthy prefix of the microbatch commits
+  first; `model_health` is reconciled every batch; the default model must match the run's familiarity reference
+  (otherwise `rules_only`, not `degraded`); naive run timestamps are normalised to UTC; `virtual_time` starts at
+  `max(visible_start, range_start)`; live digests are promoted on idle steps; `ui_updates.update_seq` is allocated
+  under the run row lock everywhere (side-effect worker, jobs, feedback, actions) — the race produced duplicate
+  Slack deliveries in live mode.
+- Ingest: invalid UTF-8, NUL bytes and out-of-range byte counts become rejects instead of aborting the import;
+  duplicate event ids inside one live batch are `duplicate`/`conflict`, not a 500; a `failed` dataset upload is
+  requeued. ML: an unloadable artifact degrades to rules-only instead of blocking the run; `--activate` demotes
+  the previous active model; the manifest is written before the DB commit; `feature_config_hash` (policy
+  `features` + routes) is checked at load; explicit `--source-run` gets the same guards as the default query.
+- API/ops: the API refuses a non-loopback bind without secrets at startup and `/health/ready` reports
+  `auth_secrets_missing`; the SSE run check no longer blocks the event loop; pagination bounds; worker
+  `APP_BASE_URL` in compose; `tasks.py` rejects unknown positional args (the printed `--activate` hint was silently
+  dropped); Makefile gains the verify targets. Frontend: benchmark error response no longer crashes the shell (root
+  `errorElement` added); 503 readiness bodies are shown as diagnostics with the operator-token control kept;
+  replay controls keep run counts; percentiles are not rescaled; failed executes are shown inline; `action` SSE
+  events refresh containment; `?version=abc` falls back to current.
+- Not fixed (recorded): live-mode execute POSTs inside the request transaction, so a crash after the POST leaves
+  no log row; `action_log` append-only is by convention (no trigger); `requirements.lock.txt` is a Windows snapshot
+  the image does not install; the dataset import lock is released after open, so two concurrent imports of the
+  same file still race.

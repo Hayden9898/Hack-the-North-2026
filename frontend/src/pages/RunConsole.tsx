@@ -90,6 +90,7 @@ export function RunConsole() {
         case 'explanation':
         case 'delivery':
         case 'feedback':
+        case 'action': // containment taken in another tab: the run's containment counts and the incident list change
           refreshIncidents()
           refreshRun()
           break
@@ -146,7 +147,18 @@ export function RunConsole() {
       <div className="crumbs">
         <Link to="/app">Runs</Link> / <span className="mono">{shortId(merged.run_id, 18)}</span>
       </div>
-      <RunHeader run={merged} updates={updates} resyncs={resyncs} onRunChanged={(u) => run.set(() => u)} error={run.error} />
+      <RunHeader
+        run={merged}
+        updates={updates}
+        resyncs={resyncs}
+        onRunChanged={(u) => {
+          // The replay-control response carries the run without `counts`; keep the last fetched counts so the
+          // counts table and Containment block do not vanish while paused (no SSE event arrives to restore them).
+          run.set((prev) => ({ ...u, counts: u.counts ?? prev?.counts }))
+          void run.reload()
+        }}
+        error={run.error}
+      />
       <ModelHealthBanner health={merged.model_health} />
       <div className="grid-2">
         <EventsFeed runId={runId} tick={tick} cutoff={merged.processed_seq} />
@@ -296,6 +308,7 @@ function RunHeader({
             {Object.entries(counts.notifications ?? {}).map(([k, v]) => `${k}=${v}`).join(' ') || 'none'} · explanation jobs:{' '}
             {Object.entries(counts.explanation_jobs ?? {}).map(([k, v]) => `${k}=${v}`).join(' ') || 'none'}
           </div>
+          <Containment counts={counts.containment} />
           <h3 style={{ marginTop: 10 }}>Integrations</h3>
           <div className="tags" style={{ marginTop: 4 }}>
             {(['sentry', 'llm', 'slack'] as const).map((k) => {
@@ -776,4 +789,42 @@ function IncidentsPanel({ runId, tick }: { runId: string; tick: number }) {
       )}
     </Section>
   )
+}
+
+
+/** Actionable incidents vs. those an operator contained, and how long that took in console time. */
+function Containment({ counts }: { counts?: { actionable: number; contained: number; preview: number; applied: number; median_seconds: number | null } }) {
+  if (!counts) return null
+  const open = Math.max(0, counts.actionable - counts.contained)
+  const pct = counts.actionable > 0 ? Math.round((counts.contained / counts.actionable) * 100) : 0
+  return (
+    <>
+      <h3 style={{ marginTop: 10 }}>Containment</h3>
+      <div className="row" style={{ gap: 14, flexWrap: 'wrap', marginTop: 4 }}>
+        <span className="small">
+          <strong className="mono">{fmtNum(counts.contained)}</strong> of <span className="mono">{fmtNum(counts.actionable)}</span> actionable incidents
+          contained ({pct}%)
+        </span>
+        <span className="small muted">
+          awaiting action: <span className="mono">{fmtNum(open)}</span>
+        </span>
+        <span className="small muted">
+          median time to containment:{' '}
+          <span className="mono">{counts.median_seconds === null ? '—' : fmtDuration(counts.median_seconds)}</span>
+        </span>
+        {counts.preview > 0 ? <Tag tone="muted">{fmtNum(counts.preview)} preview</Tag> : null}
+        {counts.applied > 0 ? <Tag tone="warn">{fmtNum(counts.applied)} applied</Tag> : null}
+      </div>
+      <div className="small muted" style={{ marginTop: 2 }}>
+        Console time from the incident record being created to an operator approving a containment action. A preview containment records the
+        approval without contacting any external system.
+      </div>
+    </>
+  )
+}
+
+function fmtDuration(seconds: number): string {
+  if (seconds < 60) return `${Math.round(seconds)}s`
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`
+  return `${Math.floor(seconds / 3600)}h ${Math.round((seconds % 3600) / 60)}m`
 }
