@@ -20,7 +20,7 @@ export function SystemStatus() {
 
   return (
     <Section className="pt-16 pb-10">
-      <div className="rounded-doc border border-border bg-surface p-6 sm:p-8">
+      <div className="rounded-doc border border-border bg-surface p-6 shadow-md sm:p-8">
         <Stamp>System state</Stamp>
         <div className="mt-5">
           <p className="max-w-[68ch] text-body text-fg-muted">

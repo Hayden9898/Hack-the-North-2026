@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { StatusChip } from '@/components/ui/status-chip'
 import { CodeBlock } from '@/components/ui/code-block'
+import { Pressable, Stagger, StaggerItem } from './interactive'
 import { DATASET, EXHIBIT, RUN } from './data'
 import { Section, Stamp } from './parts'
 
@@ -35,12 +36,12 @@ export function OpeningStatement() {
           <ProofCapsule />
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-            <Button asChild size="lg" className="w-full sm:w-auto">
+            <Pressable className="w-full sm:w-auto"><Button asChild size="lg" className="w-full shadow-md">
               <Link to="/app">
                 Open the console
                 <ArrowRight className="size-4" />
               </Link>
-            </Button>
+            </Button></Pressable>
             <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
               <a href="#exhibit">See the 77-denial proof</a>
             </Button>
@@ -60,7 +61,7 @@ function ProofCapsule() {
   return (
     <a
       href="#exhibit"
-      className="mt-8 block rounded-doc border border-border bg-surface p-4 transition-colors duration-150 hover:border-border-strong"
+      className="group mt-8 block rounded-doc border border-border bg-surface p-4 shadow-sm transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-glow"
     >
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="font-mono text-caption text-fg-subtle uppercase">Worked example</span>
@@ -97,25 +98,25 @@ function Record() {
     ['scoring mode', `${RUN.modelHealth} — no model in this run`],
   ]
   return (
-    <div className="rounded-doc border border-border bg-surface">
+    <div className="rounded-doc border border-border bg-surface shadow-md">
       <div className="flex items-center justify-between border-border border-b px-5 py-3">
         <span className="font-mono text-caption text-fg-subtle uppercase">Run record</span>
         <span className="font-mono text-caption text-fg-subtle">{RUN.state}</span>
       </div>
 
-      <dl className="divide-y divide-border">
+      <Stagger className="divide-y divide-border">
         {rows.map(([k, v]) => (
-          <div
+          <StaggerItem
             key={k}
-            className="flex flex-col gap-0.5 px-5 py-2.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4"
+            className="flex flex-col gap-0.5 px-5 py-2.5 transition-colors duration-150 hover:bg-hover sm:flex-row sm:items-baseline sm:justify-between sm:gap-4"
           >
             <dt className="text-body text-fg-muted">{k}</dt>
             <dd className="min-w-0 font-mono text-body text-fg tabular-nums [overflow-wrap:anywhere] sm:text-right">
               {v}
             </dd>
-          </div>
+          </StaggerItem>
         ))}
-      </dl>
+      </Stagger>
 
       <div className="border-border border-t px-5 py-4">
         <p className="font-mono text-caption text-fg-subtle uppercase">

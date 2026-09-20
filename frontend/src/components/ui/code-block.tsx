@@ -67,7 +67,8 @@ export function CodeBlock({
   return (
     <figure
       data-slot="code-block"
-      className={cn('group/code relative w-full min-w-0 overflow-hidden rounded-doc border border-border bg-surface', className)}
+      className={cn('group/code relative w-full min-w-0 overflow-hidden rounded-doc border border-border bg-surface shadow-sm',
+        'transition-[border-color,box-shadow] duration-200 hover:border-border-strong hover:shadow-md', className)}
     >
       {label ? (
         <figcaption className="flex items-center justify-between gap-2 border-b border-border bg-surface-raised px-3 py-1.5 font-mono text-caption text-fg-muted uppercase">

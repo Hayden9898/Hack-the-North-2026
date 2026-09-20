@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { CodeBlock } from '@/components/ui/code-block'
 import { EXHIBIT, RUN } from './data'
 import { Section, Stamp } from './parts'
+import { CountUp } from './interactive'
 
 /**
  * The climax, and the one section that breaks the page's own template.
@@ -35,7 +36,7 @@ export function ExhibitA() {
           <div aria-hidden className="ml-6 w-px shrink-0 bg-accent sm:ml-12" />
           <div className="flex flex-wrap items-center gap-x-8 gap-y-3 py-8">
             <span className="font-mono font-medium text-[clamp(4rem,11vw,8rem)] text-fg leading-[0.8] tracking-[-0.055em] tabular-nums">
-              {count}
+              <CountUp to={count} />
             </span>
             <div className="min-w-0">
               <p className="font-mono text-caption text-fg-subtle uppercase">
@@ -70,7 +71,7 @@ export function ExhibitA() {
           </p>
         </div>
 
-        <div className="min-w-0 rounded-doc border border-border bg-surface p-5 sm:p-6 lg:col-span-7">
+        <div className="min-w-0 rounded-doc border border-border bg-surface p-5 shadow-md sm:p-6 lg:col-span-7">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <Check className="size-3.5 text-normal" />
             <span className="font-mono text-caption text-fg uppercase">Recomputed on request</span>

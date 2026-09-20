@@ -4,6 +4,7 @@ import { cn } from '@/lib/cn'
 import { StatusChip } from '@/components/ui/status-chip'
 import { INCIDENTS, RULE_TEXT, RUN } from './data'
 import { RuleTag, Section, Stamp } from './parts'
+import { SpotlightRow } from './interactive'
 
 /**
  * A numbered docket rather than a card grid. High-risk entries get the larger type; the
@@ -31,7 +32,7 @@ export function Docket() {
         {INCIDENTS.map((inc, i) => {
           const major = inc.verdict === 'high_risk'
           return (
-            <li
+            <SpotlightRow
               key={inc.docket}
               className={cn(
                 'grid grid-cols-1 gap-x-8 gap-y-4 border-border border-t py-8',
@@ -87,7 +88,7 @@ export function Docket() {
                   open incident {inc.docket} <ArrowUpRight className="size-3" />
                 </Link>
               </div>
-            </li>
+            </SpotlightRow>
           )
         })}
       </ol>
