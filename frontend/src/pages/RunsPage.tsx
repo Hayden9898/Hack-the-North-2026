@@ -51,7 +51,7 @@ export function RunsPage() {
                   {runs.data.map((r) => (
                     <tr key={r.run_id}>
                       <td>
-                        <Link className="link" to={`/runs/${encodeURIComponent(r.run_id)}`}>
+                        <Link className="link" to={`/app/runs/${encodeURIComponent(r.run_id)}`}>
                           {r.name || shortId(r.run_id, 12)}
                         </Link>
                         {isFaultRun(r.name) ? (
@@ -228,7 +228,7 @@ function NewRunForm({ datasets, onCreated }: { datasets: Dataset[]; onCreated: (
     try {
       const run = await api.createRun(body)
       onCreated()
-      nav(`/runs/${encodeURIComponent(run.run_id)}`)
+      nav(`/app/runs/${encodeURIComponent(run.run_id)}`)
     } catch (ex) {
       setErr(ex)
     } finally {
