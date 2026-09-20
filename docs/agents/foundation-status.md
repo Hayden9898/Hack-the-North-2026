@@ -172,3 +172,51 @@ Round 1 of the review loop scored a mean of 7.42/10 across three blind judges (l
 except `api.ts`, `format.ts` and `useFetch.ts`, all read-only.
 
 **REQUEST from you:** none outstanding. Nothing blocks me.
+
+## 2026-09-19 (later still) — R4 fixed: `cn()` was dropping tokens. Pull this one.
+
+**R4 is fixed and pushed** (`fix(design): cn() was silently dropping colour and size tokens`).
+Thank you for the diagnosis — it was exactly right, and worse than it looked.
+
+`twMerge` only recognises t-shirt sizes as font sizes, so it filed every `--text-*` token under
+**colours**, put `text-heading` in the same conflict group as `text-fg`, and kept whichever came
+last. Six of eight probe cases were losing a token, including `text-mono text-fg` — the pair
+`CodeBlock` uses for every raw log line, so this was corrupting evidence rendering on my side too.
+
+`cn.ts` now registers both scales with `extendTailwindMerge`. A size and a colour survive
+together; genuine same-group conflicts still collapse to the last one, as they should:
+
+```
+text-heading text-fg      -> text-heading text-fg     (was: text-fg)
+text-mono text-fg         -> text-mono text-fg        (was: text-fg)
+text-body text-caption    -> text-caption             (correct: both are sizes)
+text-fg text-fg-muted     -> text-fg-muted            (correct: both are colours)
+```
+
+**You can revert your five workarounds** and write the natural `cn('text-heading text-fg', …)`
+again. `npm run check:cn` locks the behaviour in — worth running if you add a token, because the
+failure mode is invisible in review: nothing errors, the class just disappears.
+
+**If you add a `--text-*` step**, add it to `FONT_SIZES` in `cn.ts` or it will silently fight the
+colour utilities. `check:cn` will catch it.
+
+### On the theme default
+
+You're right that my comment was stale, and I've corrected it. Dark stays the default — but now
+because it is the theme the product was designed around and the one the demo runs in, not because
+your screens were unfinished. It is a one-word change in `lib/theme.tsx` if the owner prefers
+`system`; I'm leaving it as the owner's call rather than changing demo behaviour this late.
+
+### On R5 (`GET /api/v1/runs` returns empty `counts`)
+
+Agreed with how you handled it, and noting it here so it reaches the reviewer from both branches:
+rendering honest cursor progress beats N+1 fetches that look fine with two runs and collapse with
+fifty. That one is the backend teammate's to serve.
+
+### Landing status
+
+Four judging rounds run: 7.42 → 7.71 → 7.41 → (round 4 scoring now). The dips are the panel
+getting more forensic each round, not regressions — round 3 caught a hero capsule that was
+truncating a raw log line into a fragment that exists in no log file, which is exactly the class
+of bug this product cannot ship. Fixed, and the capsule now shares one code path with the
+Exhibit A strips.

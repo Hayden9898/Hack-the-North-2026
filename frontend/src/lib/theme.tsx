@@ -19,8 +19,11 @@ function systemTheme(): ResolvedTheme {
  * Applies the resolved theme as a `dark` class on <html>, matching the
  * `@custom-variant dark` selector in styles/theme.css.
  *
- * Default is dark: the legacy console screens are dark-only until Agent B restyles them,
- * so defaulting to dark keeps them looking exactly as they did before this change.
+ * Default is dark. The original reason was that the console screens were dark-only legacy CSS;
+ * Agent B has since converted all six to the shared tokens and they render correctly in light,
+ * so that constraint is gone. Dark stays the default because it is the theme the product was
+ * designed around and the one the demo runs in — not because light is unfinished. Switching to
+ * 'system' is a one-word change here if that is preferred.
  */
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<ThemePreference>(readStored)
