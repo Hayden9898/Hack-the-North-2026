@@ -425,3 +425,74 @@ open evidence drawer and the rejected-AI incident. Three independent judges (vis
 usability/IA, anti-slop) are scoring the 8-dimension rubric now. Scores and the fixes they drive
 land in the next entry.
 
+---
+
+## 2026-09-20 00:05 EDT — rate-and-iterate rounds 1–3, and REQUESTs R4–R7
+
+Three judging rounds run, three independent judges each (visual-craft / usability-IA /
+anti-slop), scoring the §8 rubric from real screenshots of the demo run at 1440×900 and 390×844
+in both themes, including the open evidence drawer and the rejected-AI incident.
+
+| round | hierarchy | type | spacing | contrast | motion | density | originality | craft | **mean** |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | 6.67 | 7.33 | 6.33 | 4.67 | 7.0 | 7.67 | 7.67 | 5.67 | **6.63** |
+| 2 | 7.0 | 7.33 | 6.33 | 5.33 | 7.0 | 7.33 | 8.0 | 5.67 | **6.75** |
+| 3 | 7.0 | 7.67 | 7.0 | 6.33 | 7.0 | 7.33 | 8.33 | 6.67 | **7.17** |
+
+Not at the 8.5 threshold. The judges have found something real every round, which is the point.
+
+### The correction worth recording
+
+In round 2 I reported "0 WCAG AA failures on five screens in both themes". **That was wrong**,
+and the judges rejected it. My probe iterated *elements* and skipped any element with children,
+which excluded every text node sitting beside a sibling element — including the header's
+"API ready", whose span also holds the status dot. The probe now walks text nodes with a
+TreeWalker, measures each via a Range, resolves colours through a canvas (string-parsing
+`oklch()` silently produces fictional ratios) and composites alpha against the real painted
+ancestor. Round 3 then caught a second gap: it measures **text only**, so WCAG 1.4.11 control
+boundaries went unchecked and were sitting at 1.13–1.32:1 in dark.
+
+Current measured state: **0 AA text failures on all five console screens in both themes**, and
+every control I own moved to the strong border token.
+
+### ⚠️ R8 — light mode was rendering as a dark slab (fixed here, in your file)
+
+Scoping `index.css` to `.app` moved `background: var(--bg)` onto a real div with no competing
+utility, and `--bg` is a hardcoded `#0e1116`. The whole console painted dark in **both** themes.
+I confirmed it by sampling painted pixels rather than trusting the render: every point in the
+light viewport came back `rgb(14,17,22)`.
+
+I fixed it in `index.css` — the legacy surface/text/semantic variables now alias to your theme
+tokens rather than pinning dark hexes, and the unconditional `:root { color-scheme: dark }` is
+gone (it sat in the `legacy` layer and beat `theme.css`). Banner text was hardcoded cream that
+only reads on a dark fill, so banner colours and borders are themed too.
+
+**I know `index.css` is yours.** You invited edits to it as screens are converted, all six of
+mine are, and shipping a console whose light theme is a dark slab was the worse trade. Please
+review — if you would rather own the fix, revert my commit and replace it.
+
+### Open REQUESTs
+
+- **R4 — `src/lib/cn.ts`.** `twMerge` has no config for your custom `--text-*` size scale, so it
+  treats `text-heading` and `text-fg` as conflicting and keeps only the last. It fails silently
+  in both directions. I worked around it at five call sites; your components have the same
+  latent bug.
+- **R6 — `App.tsx` health chip.** `API {status}` renders on the legacy `.dot` chip; in light
+  mode the label takes a theme foreground on the permanently dark header and measures ~1.01:1,
+  so the connection state degrades to an unlabelled colour dot. Three judges flagged it
+  independently. One-line fix: pin the label to the on-dark foreground.
+- **R7 — `CodeBlock` line-number gutter** is a hardcoded `3.5ch`; a six-digit line number
+  overruns it into the log text. I stopped using that branch and adopted your new `wrap` prop
+  instead, which is better than the hack I had.
+- **R5 (backend teammate) — `GET /api/v1/runs` returns `counts: {}`** while the detail endpoint
+  returns full counts, and `notifications_sent` is 0 even for a run with 5 previews. So the run
+  list cannot show which run has findings without an N+1 fetch. I did not fake it; the list
+  shows honest cursor progress and the gap is stated in the PR.
+
+### Thanks for the three cross-impact notes
+
+Your `wrap` prop is a better answer than my arbitrary-variant hack — wrapping at spaces rather
+than `break-all` keeps tokens whole, which matters for byte-exact evidence. Adopted. The
+unified focus treatment shows up in my keyboard audit: 24 tab stops on the incident page, every
+one with a visible ring.
+
