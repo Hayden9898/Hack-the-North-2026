@@ -66,7 +66,7 @@ async def upload_dataset(
     s: Settings = Depends(deps.settings),
     _: str = Depends(deps.require_operator),
 ) -> dict[str, Any]:
-    """Stream the upload to UPLOAD_DIR under a server-generated name; the side-effect worker imports it."""
+    """Stream an upload to a temporary file, then persist it for a worker on any service instance."""
     upload_dir = Path(s.upload_dir)
     upload_dir.mkdir(parents=True, exist_ok=True)
     tmp = upload_dir / f"upload-{uuid.uuid4()}.log"
@@ -89,8 +89,11 @@ async def upload_dataset(
         if existing and existing["import_state"] != "failed":
             tmp.unlink(missing_ok=True)
             return {**_serialize(dict(existing)), "job": "existing"}
-        final = upload_dir / f"{dataset_id}.log"
-        tmp.replace(final)
+        # API and worker are separate services in production.  A path in this container is not
+        # a durable handoff, so retain the completed upload in Postgres after streaming it (the
+        # temporary file keeps request memory bounded while receiving it).
+        content = tmp.read_bytes()
+        tmp.unlink(missing_ok=True)
         if existing:
             # A failed import is retried from the start: the importer resumes at progress_line, and rejects recorded
             # before the failure are cleared here, so the checkpoint must go back to line 0 to keep counts complete.
@@ -98,15 +101,22 @@ async def upload_dataset(
             cur.execute(
                 """UPDATE datasets SET import_state='pending', error=NULL, progress_line=0, progress_bytes=0,
                        total_lines=0, valid_count=0, rejected_count=0, first_event_time=NULL, last_event_time=NULL,
-                       stats = stats || %s, updated_at=now()
+                       updated_at=now()
                    WHERE id=%s RETURNING *""",
-                (jsonb({"upload_path": str(final)}), dataset_id),
+                (dataset_id,),
             )
-            return {**_serialize(dict(one(cur))), "job": "requeued"}
+            updated = dict(one(cur))
+            cur.execute(
+                """INSERT INTO dataset_uploads (dataset_id, content) VALUES (%s, %s)
+                   ON CONFLICT (dataset_id) DO UPDATE SET content=EXCLUDED.content, created_at=now()""",
+                (dataset_id, content),
+            )
+            return {**_serialize(updated), "job": "requeued"}
         cur.execute(
             """INSERT INTO datasets (id, content_sha256, original_name, bytes, parse_version, import_state, stats)
                VALUES (%s, %s, %s, %s, %s, 'pending', %s) RETURNING *""",
-            (dataset_id, digest, (file.filename or "upload.log")[:200], size, PARSE_VERSION, jsonb({"upload_path": str(final)})),
+            (dataset_id, digest, (file.filename or "upload.log")[:200], size, PARSE_VERSION, jsonb({})),
         )
         row = dict(one(cur))
+        cur.execute("INSERT INTO dataset_uploads (dataset_id, content) VALUES (%s, %s)", (dataset_id, content))
     return {**_serialize(row), "job": "queued"}

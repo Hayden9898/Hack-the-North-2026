@@ -65,9 +65,11 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 ## 4. Seed the database (one-off, from your machine)
 
-The 17 MB dataset is not in git. On Railway, import it over the network against the deployed database rather
-than through the console's upload form (see the caveat below). Use the **public** connection string (Tiger Cloud's, or Railway's TCP
-proxy URL from the database service's *Connect* tab):
+The 17 MB dataset is not in git. You can upload it from the console: the API stores a completed upload in the
+database and the worker materialises a short-lived private copy while importing, so this works when API and worker
+are separate Railway services. For a repeatable seeded deployment, import it over the network against the deployed
+database using the **public** connection string (Tiger Cloud's, or Railway's TCP proxy URL from the database
+service's *Connect* tab):
 
 ```bash
 export DATABASE_URL='postgresql://...'           # PowerShell: $env:DATABASE_URL='...'
@@ -84,14 +86,14 @@ python -m scripts.run_replay --name demo --pause-at-visible-start --speed 0 --no
 
 `--no-drive` leaves the processing to the deployed worker, so you can watch the console fill live.
 
-### The console's upload form does not work across two Railway services
+### Upload handoff across two Railway services
 
-The console's *Upload dataset* form and `POST /api/v1/datasets` stream the file to `UPLOAD_DIR` on the **api**
-container and queue the import for the side-effect worker — which runs in the **worker** container with its own
-filesystem. On Railway that import fails visibly with `upload path missing` (the dataset shows as `failed`, nothing
-is half-imported). Until uploads are stored somewhere both services can read (object storage, or the database
-itself), either import over the network as above, or run one combined service (API plus
-`python -m scripts.serve_worker` beside it) with a volume mounted at `UPLOAD_DIR`.
+`POST /api/v1/datasets` streams the request to a temporary API-local file only while it validates the size and
+SHA-256. It then stores the completed payload in `dataset_uploads`; the side-effect worker reads that durable row,
+writes a short-lived private file for the streaming importer, and deletes the file afterwards. Once an import is
+ready, the database payload is removed too; failed imports retain it for diagnosis/retry. This avoids shared
+container filesystems and does not require object storage. Do not use the public deployment for real logs without
+read authentication.
 
 ## 5. The model artifact
 

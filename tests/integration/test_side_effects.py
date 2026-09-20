@@ -1,6 +1,7 @@
 """Q02/Q03: outbox delivery states under Slack 429/500/400/timeout, lease reclaim, preview mode; explanation fallback."""
 from __future__ import annotations
 
+import hashlib
 import json
 from datetime import UTC, datetime, timedelta
 
@@ -9,7 +10,9 @@ from tests.helpers import q
 
 from app.config import load_config
 from app.db.engine import connect_direct, jsonb
+from app.ingest.importer import dataset_id_for
 from app.notifications.slack import DeliveryResult, PreviewAdapter, SlackWebhookAdapter
+from app.settings import Settings
 from app.workers.side_effects import SideEffectWorker
 
 pytestmark = pytest.mark.integration
@@ -139,6 +142,30 @@ def test_replay_run_is_preview_only_even_with_live_adapter(db):
         assert w.deliver_one(conn) == "failed"
     assert stub.calls == 0
     assert "not opted into live delivery" in q(db, "select last_error from notification_outbox")[0]["last_error"]
+
+
+def test_worker_imports_database_backed_upload_without_a_shared_filesystem(db, tmp_path):
+    """The API's disk is not mounted in a separate Railway worker service."""
+    content = b'192.168.10.10 - acct_1 [06/Jan/2025:08:00:00 -0400] "GET /dashboard HTTP/1.1" 200 2048\n'
+    digest = hashlib.sha256(content).hexdigest()
+    dataset_id = dataset_id_for(digest)
+    with connect_direct(db) as conn, conn.cursor() as cur:
+        cur.execute(
+            """INSERT INTO datasets (id, content_sha256, original_name, bytes, parse_version, import_state)
+               VALUES (%s, %s, 'api-only-upload.log', %s, 'apache_combined_v1', 'pending')""",
+            (dataset_id, digest, len(content)),
+        )
+        cur.execute("INSERT INTO dataset_uploads (dataset_id, content) VALUES (%s, %s)", (dataset_id, content))
+        conn.commit()
+    worker_upload_dir = tmp_path / "worker-private-files"
+    settings = Settings(database_url=db, upload_dir=str(worker_upload_dir))
+    worker = SideEffectWorker(db, settings=settings, cfg=load_config(), slack_adapter=PreviewAdapter(), worker_id="worker-other-service")
+    with connect_direct(db) as conn:
+        assert worker.import_one(conn) == "ready"
+    row = q(db, "SELECT import_state, valid_count FROM datasets WHERE id=%s", dataset_id)[0]
+    assert row == {"import_state": "ready", "valid_count": 1}
+    assert q(db, "SELECT count(*) AS n FROM dataset_uploads WHERE dataset_id=%s", dataset_id)[0]["n"] == 0
+    assert list(worker_upload_dir.iterdir()) == []
 
 
 def test_slack_adapter_classifies_http_outcomes(monkeypatch):

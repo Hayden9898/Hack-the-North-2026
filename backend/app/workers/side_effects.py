@@ -11,6 +11,7 @@ import time
 import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 import psycopg
@@ -194,13 +195,30 @@ class SideEffectWorker:
                 return None
             cur.execute("UPDATE datasets SET import_state='importing', updated_at=now() WHERE id=%s", (row["id"],))
         conn.commit()
-        path = (row["stats"] or {}).get("upload_path")
         from app.ingest.importer import import_dataset
 
+        tmp: Path | None = None
         try:
-            if not path:
-                raise FileNotFoundError("upload path missing")
-            res = import_dataset(path, self.database_url)
+            # The payload is deliberately database-backed: Railway's API and worker services
+            # do not share a filesystem.  Materialise it only for the streaming importer, on
+            # the worker that claimed this job, then remove that local copy in all outcomes.
+            with conn.cursor() as cur:
+                cur.execute("SELECT content FROM dataset_uploads WHERE dataset_id=%s", (row["id"],))
+                payload = cur.fetchone()
+            if payload is None:
+                raise FileNotFoundError("uploaded dataset content missing")
+            upload_dir = Path(self.settings.upload_dir)
+            upload_dir.mkdir(parents=True, exist_ok=True)
+            tmp = upload_dir / f"import-{row['id']}-{uuid.uuid4().hex}.log"
+            tmp.write_bytes(bytes(payload["content"]))
+            res = import_dataset(tmp, self.database_url)
+            # A ready dataset is immutable in the evidence tables; retaining its original
+            # upload would only bloat the operational database. Keep failed payloads so a
+            # later retry can still be diagnosed or explicitly re-uploaded.
+            if res.import_state == "ready":
+                with conn.cursor() as cur:
+                    cur.execute("DELETE FROM dataset_uploads WHERE dataset_id=%s", (row["id"],))
+                conn.commit()
             return res.import_state
         except Exception as exc:  # noqa: BLE001
             with conn.cursor() as cur:
@@ -208,6 +226,9 @@ class SideEffectWorker:
             conn.commit()
             sentry.capture_exception(exc, dataset_id=row["id"])
             return "failed"
+        finally:
+            if tmp is not None:
+                tmp.unlink(missing_ok=True)
 
     # ------------------------------------------------------------------------------------------------ aggregate refresh
 
