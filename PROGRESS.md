@@ -158,3 +158,17 @@ Concise record of milestones, decisions, commands and results. Newest entries at
 - Disposable synthetic test DB removed after verification; no existing application data changed. Apply migration 0004
   to the intended app database before restarting updated services. Canonical-data/model, persistent DB, real Sentry
   credentials/receipt and hosting remain unverified; no detection-accuracy superiority or prize outcome is claimed.
+### M9 — Runs always attach the active model (branch `fix-ml-pipeline`) ✅
+- Root cause of the "rules-only mode" banner on UI-created runs: `model_id` was per run, the run form's model field
+  was free text defaulting to blank, and nothing resolved the active model on the operator's behalf. Only
+  `replay-demo` looked it up, so `hybrid-full` scored with ML while every UI-created run was rules-only.
+- `runs.create_run` now attaches the newest active model (`runs.active_model_id`) whenever `model_id` is not
+  pinned. There is no opt-out anywhere (UI, API or CLI): every run is rules + ML. The only rules-only run is one
+  created before any model is active (bootstrap snapshot pass); it degrades visibly, never with a fabricated model.
+- New `GET /api/v1/models` (status, threshold, `is_default`, `artifact_present`); the run form has no model choice,
+  it states which model every run gets; `pending_load` gets a label.
+- `/health/ready` reports `models.active` and a `no_active_model_rules_only` degraded mode; the artifacts list now
+  names model ids (it listed `manifest.json` twice before).
+- Verified: `tests/integration/test_run_default_model.py` 4 passed (default/newest/pinned, API, health);
+  full suite 100 passed (11 min); mypy, ruff, tsc, oxlint, vite build clean. The running API must be restarted to
+  pick this up (`serve_api` runs without reload).

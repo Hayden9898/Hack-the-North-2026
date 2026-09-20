@@ -25,7 +25,7 @@ class RunCreate(BaseModel):
     visible_start: datetime | None = None
     range_start: datetime | None = None
     range_end: datetime | None = None
-    model_id: str | None = None
+    model_id: str | None = None  # pin a registered model; default: the newest active model
     speed: float | None = Field(default=None, ge=0)
     pause_at_visible_start: bool = False
     source_id: str | None = None

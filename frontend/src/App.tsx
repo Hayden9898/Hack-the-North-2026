@@ -92,7 +92,7 @@ function HealthChip({ health, error, loading, onRetry }: { health: Health | null
   return (
     <span className={`conn ${ok ? 'conn-live' : 'conn-disconnected'}`} title={`db: ${health.database.detail ?? '—'}; models: ${health.models.artifacts.join(', ') || 'none'}`}>
       <span className="dot" /> API {ok ? 'ready' : health.status}
-      {health.models.artifacts.length === 0 ? <span className="muted"> · no model artifacts</span> : null}
+      {health.models.active ? <span className="muted"> · model {health.models.active}</span> : <span className="muted"> · no active model</span>}
     </span>
   )
 }

@@ -70,7 +70,7 @@ See [the brief contract and migration notes](docs/case-brief.md); existing insta
 ### Model (optional but recommended)
 
 ```bash
-python -m scripts.run_replay --name rules-only-full          # causal feature snapshots for Aug–Mar (~14 min)
+python -m scripts.run_replay --name snapshots-full            # causal feature snapshots for Aug–Mar (~14 min); rules-only only until a model is active
 python tasks.py train                                        # training-domain stage + forest on Sep–Dec, calibrates Jan–Feb, writes ml/artifacts/<id>/
                                                              # (--no-preprocess fits a plain forest; see reports/preprocessing.md)
 python -m ml.calibrate --model-id <id> --percentile 99.9 --activate   # review burden + samples, freeze threshold

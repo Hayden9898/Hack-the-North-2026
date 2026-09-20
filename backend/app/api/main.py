@@ -49,7 +49,7 @@ def create_app() -> FastAPI:
 
 def _include_optional_routers(app: FastAPI) -> None:
     """Routers are added as milestones land; missing modules are not an error during early development."""
-    for module_name in ("datasets", "runs", "incidents", "updates", "analytics", "observability"):
+    for module_name in ("datasets", "runs", "models", "incidents", "updates", "analytics", "observability"):
         try:
             module = __import__(f"app.api.{module_name}", fromlist=["router"])
         except ImportError:
