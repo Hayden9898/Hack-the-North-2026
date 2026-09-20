@@ -414,11 +414,11 @@ export function DeliveryPanel({ deliveries }: { deliveries: Delivery[] }) {
     <ul className="grid gap-2">
       {deliveries.map((d) => (
         <li key={d.idempotency_key} className="rounded-lg border border-border bg-surface px-3 py-2.5">
-          <div className="flex flex-wrap items-center gap-2">
-            <Send className="size-3.5 shrink-0 text-fg-muted" aria-hidden />
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <Send className="size-3.5 shrink-0 translate-y-0.5 text-fg-muted" aria-hidden />
             <span className="text-body text-fg">{d.notification_kind.replaceAll('_', ' ')}</span>
-            <span className="ms-auto text-caption text-fg-muted normal-case tracking-normal">
-              {DELIVERY_STATE_LABEL[d.state] ?? d.state}
+            <span className="text-caption text-fg-muted normal-case tracking-normal">
+              — {DELIVERY_STATE_LABEL[d.state] ?? d.state}
             </span>
           </div>
           {d.delivery_ambiguous ? (
@@ -428,8 +428,9 @@ export function DeliveryPanel({ deliveries }: { deliveries: Delivery[] }) {
           ) : null}
           {d.preview_text ? (
             <details className="mt-2">
-              <summary className="cursor-pointer list-none text-caption text-fg-muted normal-case tracking-normal hover:text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none">
-                Show the message that would have been sent
+              <summary className="group/msg flex cursor-pointer list-none items-center gap-1 text-caption text-accent normal-case tracking-normal underline underline-offset-2 hover:text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none">
+                <ChevronRight className="size-3 shrink-0 transition-transform group-open/msg:rotate-90 motion-reduce:transition-none" aria-hidden />
+                view message
               </summary>
               <p className="mt-2 max-h-64 overflow-y-auto border-s-2 border-border ps-2.5 font-mono text-mono whitespace-pre-wrap text-fg-muted">
                 {d.preview_text}

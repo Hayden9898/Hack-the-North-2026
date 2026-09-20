@@ -227,3 +227,51 @@ export function factValueText(kind: string, value: unknown, args: Record<string,
 export function factKindLabel(kind: string): string {
   return kind.replaceAll('_', ' ')
 }
+
+/**
+ * Rule reference, transcribed from `config/policy.yaml` (the versioned detection policy) so a
+ * reader never has to decode a bare "rule:R2:suspicious" reason code.
+ *
+ * Thresholds are quoted from that file rather than restated from memory. If the policy version
+ * changes, this is the one place to reconcile — the UI must never describe a rule the detector
+ * is not actually running.
+ */
+export const RULE_REFERENCE: Record<string, { name: string; outcome: ThreatClass; what: string }> = {
+  R1: {
+    name: 'auth_burst',
+    outcome: 'suspicious',
+    what: 'At least 4 login failures for the same account/source pair inside 60 seconds, where the pair is unfamiliar or unknown against the frozen reference.',
+  },
+  R2: {
+    name: 'access_change',
+    outcome: 'suspicious',
+    what: 'An account is served a resource it was previously refused: at least 5 prior 403s and no prior 200s for that exact account and path.',
+  },
+  R3: {
+    name: 'admin_transition',
+    outcome: 'suspicious',
+    what: 'An account’s first successful admin request within 60 seconds of viewing a forum object.',
+  },
+  R4: {
+    name: 'account_use_sequence',
+    outcome: 'high_risk',
+    what: 'A sensitive GET within 30 minutes of a successful login for the same pair, where that pair also had an R1 episode in the preceding 72 hours.',
+  },
+  R5: {
+    name: 'linked_access_change_sequence',
+    outcome: 'high_risk',
+    what: 'An access change linked to another account’s forum-object view and admin request inside a 60 minute window.',
+  },
+}
+
+export function ruleReference(id: string) {
+  return RULE_REFERENCE[id] ?? null
+}
+
+/** `rule:R2:suspicious` is the verdict restating itself. Render what the rule actually tests. */
+export function reasonCodeText(code: string): { rule: string | null; text: string } {
+  const m = /^rule:([A-Z0-9]+):(\w+)$/.exec(code)
+  if (!m) return { rule: null, text: code.replaceAll('_', ' ') }
+  const ref = ruleReference(m[1])
+  return { rule: m[1], text: ref ? ref.what : `matched rule ${m[1]}` }
+}

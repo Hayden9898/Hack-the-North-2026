@@ -1,7 +1,7 @@
 import { ChevronRight } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { api, describeError, type EventDetail } from '../api'
-import { fmtBytes, fmtNum, fmtPercentile, fmtTime, shortId } from '../format'
+import { fmtBytes, fmtNum, fmtPercentile, fmtTime, reasonCodeText, ruleReference, shortId } from '../format'
 import { useFetch } from '../useFetch'
 import { CodeBlock } from '@/components/ui/code-block'
 import { ErrorState } from '@/components/ui/error-state'
@@ -72,10 +72,13 @@ export function EventPage() {
           ))}
         </div>
 
+        {/* Not using CodeBlock's lineNumbers branch: its gutter is a hardcoded 3.5ch and a
+            six-digit line number overruns it into the log text (filed to Agent A as R7). The
+            line number is already in the label, so wrap the <pre> directly instead — the raw
+            line must never be clipped on the screen whose job is showing it. */}
         <CodeBlock
+          className="[&_pre]:break-all [&_pre]:whitespace-pre-wrap"
           code={e.raw_line}
-          lineNumbers
-          startLine={e.line_number ?? e.run_seq}
           label={
             <span className="font-mono normal-case">
               line {e.line_number ?? '—'} · run_seq {e.run_seq} · {fmtTime(e.event_time)}
@@ -105,18 +108,51 @@ export function EventPage() {
           Why it was classified this way
         </h2>
         {e.reason_codes.length > 0 ? (
-          <ul className="mb-3 grid gap-1.5">
-            {e.reason_codes.map((c) => (
-              <li key={c} className="font-mono text-mono text-fg">
-                {c}
-              </li>
-            ))}
+          <ul className="mb-3 grid gap-2.5">
+            {e.reason_codes.map((c) => {
+              const r = reasonCodeText(c)
+              const ref = r.rule ? ruleReference(r.rule) : null
+              return (
+                <li key={c} className="border-s-2 border-border ps-3">
+                  <p className="flex flex-wrap items-baseline gap-2">
+                    {r.rule ? (
+                      <span className="rounded-sm border border-accent/35 px-1.5 py-0.5 font-mono text-[0.6875rem] text-accent">
+                        {r.rule}
+                      </span>
+                    ) : null}
+                    {ref ? <span className="font-mono text-mono text-fg-muted">{ref.name}</span> : null}
+                    {ref ? <StatusChip verdict={ref.outcome} size="sm" /> : null}
+                  </p>
+                  <p className="mt-1 max-w-[74ch] text-body text-fg-muted">{r.text}</p>
+                  <p className="mt-0.5 font-mono text-mono text-fg-muted">{c}</p>
+                </li>
+              )
+            })}
           </ul>
         ) : (
           <p className="mb-3 text-body text-fg-muted">
             {flagged ? 'No reason codes were recorded.' : 'No configured detector flagged this event.'}
           </p>
         )}
+
+        {e.top_deviations.length > 0 ? (
+          <div className="mb-3 border-t border-border pt-3">
+            <h3 className="mb-2 text-caption text-fg-muted uppercase">What stood out</h3>
+            <ul className="grid gap-1.5">
+              {e.top_deviations.map((d, i) => {
+                const rec = d as Record<string, unknown>
+                const code = String(rec.code ?? '')
+                const detail = rec.detail === undefined || rec.detail === null ? '' : String(rec.detail)
+                return (
+                  <li key={`${code}-${i}`} className="text-body text-fg">
+                    {code.replaceAll('_', ' ')}
+                    {detail ? <span className="font-mono text-mono text-fg-muted"> — {detail}</span> : null}
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        ) : null}
 
         <dl className="grid gap-x-8 gap-y-3 border-t border-border pt-3 sm:grid-cols-3">
           <Pair

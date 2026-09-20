@@ -1,7 +1,7 @@
 import { ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { IncidentRow } from '../../api'
-import { fmtNum, fmtTime, shortId } from '../../format'
+import { fmtNum, fmtTime, ruleReference, shortId } from '../../format'
 import { cn } from '@/lib/cn'
 import { StatusChip } from '@/components/ui/status-chip'
 import { PhaseChip } from './PhaseChip'
@@ -50,11 +50,18 @@ function FindingCard({ incident: i, runId }: { incident: IncidentRow; runId: str
       <div className="flex flex-wrap items-center gap-2">
         <StatusChip verdict={i.current_class} size={high ? 'md' : 'sm'} />
         {i.phase === 'warmup' ? <PhaseChip phase="warmup" /> : null}
-        {i.rule_ids.map((r) => (
-          <span key={r} className="rounded-sm border border-border px-1.5 py-0.5 font-mono text-[0.6875rem] text-fg-muted">
-            {r}
-          </span>
-        ))}
+        {i.rule_ids.map((r) => {
+          const ref = ruleReference(r)
+          return (
+            <span
+              key={r}
+              title={ref ? `${ref.name} — ${ref.what}` : undefined}
+              className="rounded-sm border border-border px-1.5 py-0.5 font-mono text-[0.6875rem] text-fg-muted"
+            >
+              {r}
+            </span>
+          )
+        })}
         {i.evidence_strength?.evaluation_incomplete ? (
           <span className="rounded-sm border border-late/45 px-1.5 py-0.5 text-[0.6875rem] font-medium text-late">
             evaluation incomplete

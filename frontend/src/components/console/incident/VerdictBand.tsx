@@ -1,6 +1,6 @@
 import { ChevronDown } from 'lucide-react'
 import type { IncidentCore, IncidentVersion, IncidentVersionFull } from '../../../api'
-import { fmtNum, fmtTime } from '../../../format'
+import { fmtNum, fmtTime, ruleReference } from '../../../format'
 import { StatusChip } from '@/components/ui/status-chip'
 import { PhaseChip } from '../PhaseChip'
 
@@ -37,11 +37,19 @@ export function VerdictBand({
         <PhaseChip phase={incident.phase} />
         <Dot />
         <span className="flex gap-1">
-          {version.rule_ids.map((r) => (
-            <span key={r} className="rounded-sm border border-border px-1.5 py-0.5 font-mono text-[0.6875rem] text-fg-muted">
-              {r}
-            </span>
-          ))}
+          {version.rule_ids.map((r) => {
+            const ref = ruleReference(r)
+            return (
+              <span
+                key={r}
+                title={ref ? `${ref.name} — ${ref.what}` : undefined}
+                className="rounded-sm border border-border px-1.5 py-0.5 font-mono text-[0.6875rem] text-fg-muted"
+              >
+                {r}
+                {ref ? <span className="ms-1 text-fg-muted">{ref.name}</span> : null}
+              </span>
+            )
+          })}
         </span>
         {escalated ? (
           <span className="text-caption text-fg-muted normal-case tracking-normal">
