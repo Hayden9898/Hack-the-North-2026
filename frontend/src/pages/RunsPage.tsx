@@ -91,6 +91,7 @@ export function RunsPage() {
         </Section>
 
         <div className="stack">
+          <DatasetUploadForm onUploaded={() => void datasets.reload()} />
           <NewRunForm datasets={datasets.data ?? []} onCreated={() => void runs.reload()} />
           <Section title="Datasets">
             {datasets.loading ? (
@@ -98,7 +99,7 @@ export function RunsPage() {
             ) : datasets.error ? (
               <ErrorState error={datasets.error} onRetry={() => void datasets.reload()} what="datasets" />
             ) : !datasets.data || datasets.data.length === 0 ? (
-              <Empty>No datasets imported. Upload one with the import script; the console does not accept filesystem paths.</Empty>
+            <Empty>No datasets yet. Upload an Apache access-log file above; imports run asynchronously and become selectable when ready.</Empty>
             ) : (
               <ul className="plain stack">
                 {datasets.data.map((d) => (
@@ -110,6 +111,73 @@ export function RunsPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+function DatasetUploadForm({ onUploaded }: { onUploaded: () => void }) {
+  const [file, setFile] = useState<File | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState<Dataset & { job: 'queued' | 'existing' }>()
+  const [err, setErr] = useState<unknown | null>(null)
+
+  async function submit(e: FormEvent) {
+    e.preventDefault()
+    if (!file) return
+    setBusy(true)
+    setErr(null)
+    try {
+      const uploaded = await api.uploadDataset(file)
+      setResult(uploaded)
+      onUploaded()
+    } catch (ex) {
+      setErr(ex)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Section title="Import access logs">
+      <form onSubmit={(e) => void submit(e)} className="stack">
+        <label className="field">
+          Apache access-log file
+          <input
+            type="file"
+            accept=".log,.txt,text/plain"
+            onChange={(e) => {
+              setFile(e.target.files?.[0] ?? null)
+              setResult(undefined)
+              setErr(null)
+            }}
+          />
+        </label>
+        {file ? (
+          <div className="notice">
+            <strong>{file.name}</strong> <span className="muted">· {fmtBytes(file.size)}</span>
+          </div>
+        ) : null}
+        <div className="row">
+          <button type="submit" className="btn btn-primary" disabled={!file || busy}>
+            {busy ? 'Uploading…' : 'Upload and import'}
+          </button>
+          <span className="muted small">Streams to the server; the configured limit is 200 MiB. Raw evidence is never sent to an AI provider.</span>
+        </div>
+        {result ? (
+          <div className="notice notice-info" role="status">
+            {result.job === 'existing' ? 'This exact file was already imported.' : 'Upload queued for import.'} Dataset{' '}
+            <span className="mono">{shortId(result.dataset_id, 18)}</span>; its validation progress and rejected-line samples appear below.
+          </div>
+        ) : null}
+        {err ? (
+          <div className="notice notice-danger" role="alert">
+            {(() => {
+              const d = describeError(err)
+              return `Upload failed (HTTP ${d.status ?? '—'}): ${d.text}`
+            })()}
+          </div>
+        ) : null}
+      </form>
+    </Section>
   )
 }
 

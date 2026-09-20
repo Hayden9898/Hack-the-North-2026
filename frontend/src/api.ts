@@ -639,7 +639,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       ...init,
       headers: {
         Accept: 'application/json',
-        ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+        // Let the browser provide the multipart boundary for streamed file uploads.
+        ...(init?.body && !(init.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
         ...((init?.headers as Record<string, string>) ?? {}),
       },
     })
@@ -688,6 +689,11 @@ export const api = {
 
   listDatasets: () => request<Dataset[]>(`${API}/datasets`),
   getDataset: (id: string) => request<DatasetDetail>(`${API}/datasets/${enc(id)}`),
+  uploadDataset: (file: File) => {
+    const body = new FormData()
+    body.append('file', file)
+    return request<Dataset & { job: 'queued' | 'existing' }>(`${API}/datasets`, { method: 'POST', body })
+  },
 
   listEvents: (runId: string, q: EventsQuery) => request<EventsPage>(`${API}/runs/${enc(runId)}/events${qs({ ...q })}`),
   getEvent: (runId: string, seq: number | string) => request<EventDetail>(`${API}/runs/${enc(runId)}/events/${enc(String(seq))}`),
