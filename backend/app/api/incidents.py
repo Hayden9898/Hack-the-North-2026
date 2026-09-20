@@ -84,6 +84,9 @@ def get_incident(
         ver = next((x for x in versions if x["version"] == v), None)
         if ver is None:
             raise HTTPException(status_code=404, detail="version not found")
+        evidence_cutoff = int(ver["trigger_seq"])
+        # A single event can produce R2/v1 and R5/v2. Sequence alone does not
+        # identify a version: evidence memberships and rule sets must agree too.
         cur.execute("SELECT * FROM fact_packets WHERE run_id=%s AND incident_id=%s AND version=%s", (run_id, incident_id, v))
         packet_row = cur.fetchone()
         cur.execute(
@@ -93,17 +96,24 @@ def get_incident(
                FROM incident_evidence e
                JOIN processed_events p ON p.run_id=e.run_id AND p.run_seq=e.run_seq AND p.event_time=e.event_time
                LEFT JOIN event_registry reg ON reg.event_id = e.event_id
-               WHERE e.run_id=%s AND e.incident_id=%s AND e.run_seq <= %s
+               WHERE e.run_id=%s AND e.incident_id=%s AND e.run_seq <= %s AND e.added_version <= %s
                GROUP BY e.event_id, e.run_seq, e.event_time, p.username, p.ip_raw, p.method, p.path, p.status, p.response_bytes, p.object_id, p.threat_class, reg.line_number
                ORDER BY e.run_seq""",
-            (run_id, incident_id, ver["trigger_seq"] if version else int(run["processed_seq"])),
+            (run_id, incident_id, evidence_cutoff, v),
         )
         timeline = [dict(r) for r in cur.fetchall()]
         cur.execute(
-            """SELECT rel.related_incident_id, rel.relation_type, rel.link_key, rel.created_version, o.primary_rule_id, o.current_class, o.account, o.key_value
+            """SELECT rel.related_incident_id, rel.relation_type, rel.link_key, rel.created_version,
+                      o.primary_rule_id, ov.threat_class AS current_class, ov.version AS related_version, o.account, o.key_value
                FROM incident_relations rel JOIN incidents o ON o.run_id=rel.run_id AND o.incident_id=rel.related_incident_id
-               WHERE rel.run_id=%s AND rel.incident_id=%s""",
-            (run_id, incident_id),
+               JOIN LATERAL (
+                   SELECT version, threat_class FROM incident_versions
+                   WHERE run_id=o.run_id AND incident_id=o.incident_id AND trigger_seq <= %s
+                   ORDER BY version DESC LIMIT 1
+               ) ov ON true
+               WHERE rel.run_id=%s AND rel.incident_id=%s AND rel.created_seq <= %s
+                 AND (rel.origin_incident_id <> rel.incident_id OR rel.created_version <= %s)""",
+            (evidence_cutoff, run_id, incident_id, evidence_cutoff, v),
         )
         relations = [dict(r) for r in cur.fetchall()]
         cur.execute("SELECT * FROM explanations WHERE run_id=%s AND incident_id=%s AND version=%s", (run_id, incident_id, v))
@@ -113,14 +123,16 @@ def get_incident(
         cur.execute(
             """SELECT idempotency_key, notification_kind, version, state, attempts, next_attempt_at, last_error, delivery_ambiguous, sent_at, created_at,
                       payload->>'text' AS preview_text
-               FROM notification_outbox WHERE run_id=%s AND incident_id=%s ORDER BY created_at""",
-            (run_id, incident_id),
+               FROM notification_outbox WHERE run_id=%s AND incident_id=%s AND version <= %s ORDER BY created_at""",
+            (run_id, incident_id, v),
         )
         deliveries = [dict(r) for r in cur.fetchall()]
-        cur.execute("SELECT id, version, reviewer, disposition, reason, created_at FROM analyst_feedback WHERE run_id=%s AND incident_id=%s ORDER BY created_at", (run_id, incident_id))
+        cur.execute("SELECT id, version, reviewer, disposition, reason, created_at FROM analyst_feedback WHERE run_id=%s AND incident_id=%s AND version <= %s ORDER BY created_at", (run_id, incident_id, v))
         feedback = [dict(r) for r in cur.fetchall()]
-        cur.execute("SELECT run_seq, rule_id, event_id, event_time, outcome, key_type, key_value, legs, params FROM rule_matches WHERE run_id=%s AND incident_id=%s ORDER BY run_seq", (run_id, incident_id))
+        cur.execute("SELECT run_seq, rule_id, event_id, event_time, outcome, key_type, key_value, legs, params FROM rule_matches WHERE run_id=%s AND incident_id=%s AND run_seq <= %s AND rule_id = ANY(%s) ORDER BY run_seq, rule_id", (run_id, incident_id, evidence_cutoff, ver["rule_ids"]))
         matches = [dict(r) for r in cur.fetchall()]
+        cur.execute("SELECT content_sha256, original_name FROM datasets WHERE id=%s", (run["dataset_id"],))
+        dataset = cur.fetchone()
         # Baseline comparison for the incident's account: prior counts at trigger cutoff vs. account totals under cutoff.
         acct = inc.get("account")
         baseline: dict[str, Any] | None = None
@@ -162,6 +174,17 @@ def get_incident(
         "feedback": feedback,
         "baseline": baseline,
         "cutoff_seq": int(run["processed_seq"]),
+        "evidence_cutoff_seq": evidence_cutoff,
+        "provenance": {
+            "dataset_id": run["dataset_id"],
+            "dataset_sha256": dataset["content_sha256"] if dataset else None,
+            "dataset_name": dataset["original_name"] if dataset else None,
+            "source_id": run["source_id"],
+            "config_hash": run["config_hash"],
+            "reference_hash": (run["config"] or {}).get("reference_hash"),
+            "feature_version": run["feature_version"],
+            "model_id": run["model_id"],
+        },
     }
 
 

@@ -13,6 +13,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
 sys.path.insert(0, str(ROOT))
 
+from scripts.test_database import TEST_LOCK_ID, validate_test_database  # noqa: E402
+
 from app.db import migrate  # noqa: E402
 from app.db.engine import close_pools, connect_direct, ping  # noqa: E402
 from app.settings import get_settings  # noqa: E402
@@ -51,15 +53,28 @@ def _needs_db(request: pytest.FixtureRequest) -> bool:
 
 
 @pytest.fixture(scope="session")
-def test_db_url() -> str:
+def test_db_url() -> Iterator[str]:
     url = os.environ.get("TEST_DATABASE_URL") or get_settings().test_database_url
+    try:
+        validate_test_database(url, get_settings().database_url,
+                               allow_remote=os.environ.get("LOGORDER_ALLOW_REMOTE_TEST_DB") == "1")
+    except ValueError as exc:
+        pytest.fail(str(exc))
     ok, detail = ping(url)
     if not ok:
         if os.environ.get("LOGORDER_ALLOW_SKIP_DB") == "1":
             pytest.skip(f"test database unavailable ({detail}); skipped explicitly via LOGORDER_ALLOW_SKIP_DB=1")
         pytest.fail(f"test database unavailable at TEST_DATABASE_URL ({detail}). Start it with `docker compose up -d db`.")
-    migrate.upgrade(url)
-    return url
+    # Hold one session-level lock across migrations AND every truncate in this pytest process.
+    # A second process fails clearly instead of racing a test against another test's cleanup.
+    with connect_direct(url) as lease:
+        lease.autocommit = True
+        with lease.cursor() as cur:
+            cur.execute("SELECT pg_try_advisory_lock(%s) AS acquired", (TEST_LOCK_ID,))
+            if not cur.fetchone()["acquired"]:
+                pytest.fail("Another test process owns this database. Run the backend suite serially.")
+        migrate.upgrade(url)
+        yield url
 
 
 @pytest.fixture

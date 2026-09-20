@@ -33,7 +33,7 @@ def create_app() -> FastAPI:
         allow_origins=[o.strip() for o in settings.cors_origins.split(",") if o.strip()],
         allow_credentials=False,
         allow_methods=["GET", "POST"],
-        allow_headers=["Content-Type", "Authorization", "X-Ingest-Token", "Last-Event-ID"],
+        allow_headers=["Content-Type", "Authorization", "X-Ingest-Token", "Last-Event-ID", "sentry-trace", "baggage"],
     )
     app.include_router(health.router)
     _include_optional_routers(app)
@@ -49,7 +49,7 @@ def create_app() -> FastAPI:
 
 def _include_optional_routers(app: FastAPI) -> None:
     """Routers are added as milestones land; missing modules are not an error during early development."""
-    for module_name in ("datasets", "runs", "incidents", "updates", "analytics"):
+    for module_name in ("datasets", "runs", "incidents", "updates", "analytics", "observability"):
         try:
             module = __import__(f"app.api.{module_name}", fromlist=["router"])
         except ImportError:

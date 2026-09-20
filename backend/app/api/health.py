@@ -32,7 +32,7 @@ def ready(response: Response) -> dict[str, Any]:
         except Exception as exc:  # noqa: BLE001
             migrations = {"current": None, "head": None, "ok": False, "error": type(exc).__name__}
     model_dir = Path(settings.model_dir)
-    manifests = sorted(p.name for p in model_dir.glob("*/manifest.json")) if model_dir.exists() else []
+    manifests = sorted(p.parent.name for p in model_dir.glob("*/manifest.json")) if model_dir.exists() else []
     config_ok = True
     config_hash = None
     try:

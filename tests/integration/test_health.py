@@ -33,3 +33,15 @@ def test_ready_is_503_when_database_missing(monkeypatch):
     assert resp.status_code == 503
     assert resp.json()["database"]["ok"] is False
     assert "nothing" not in resp.text  # password never returned
+
+
+def test_model_artifacts_report_resource_ids_not_manifest_filenames(tmp_path, monkeypatch):
+    artifact = tmp_path / "reviewed-model-v1"
+    artifact.mkdir()
+    (artifact / "manifest.json").write_text("{}")
+    settings = get_settings()
+    monkeypatch.setattr(settings, "model_dir", str(tmp_path))
+    monkeypatch.setattr(settings, "database_url", "postgresql://nobody:nothing@127.0.0.1:1/none")
+    with TestClient(create_app()) as client:
+        body = client.get("/health/ready").json()
+    assert body["models"]["artifacts"] == ["reviewed-model-v1"]

@@ -115,3 +115,46 @@ Concise record of milestones, decisions, commands and results. Newest entries at
 - Not done: the candidate is **not** activated (active model still `if_v1_2026-09-19`, so `reports/evaluation.md`
   still describes the live demo); activate with
   `python -m ml.calibrate --model-id if_v1_domain_2026-09-19 --percentile 99.9 --activate`.
+
+### Frontend + observability + acceptance follow-up — September 19, 2026
+
+- AWS-first resource console implemented: flat navigation, URL-preserved filters/details, keyboard commands, responsive
+  tables, Motion drawers, evidence proofs, explicit degraded states and real API contracts. Reference inventory in
+  `docs/design/frontend-direction.md`. Optional `/welcome` adapts the IRL monochrome/lanyard interaction using original
+  CSS/SVG/Motion artwork; no heavy WebGL enters the console.
+- Added React Sentry and upgraded Python Sentry to 2.69.2. Application errors, structured logs, API/navigation/worker
+  traces and distributed context are wired. Allowlist scrubbing removes evidence, prompts, request content, SQL,
+  exception messages/locals and automatic breadcrumbs. No Session Replay. Operator-only diagnostic explicitly distinguishes
+  queued from externally verified events. MCP/CLI authentication is separate; application DSNs still absent.
+- Added `doctor`, `verify`, individual gates, read-only canonical `verify-live`, and `verify-report`; per-run HTML/JSON,
+  browser screenshots/traces and Python JUnit. Added frontend-first CI workflow (not run remotely). No silent skipped/flaky
+  passes; DB-name/identity checks and a session advisory lock protect destructive fixtures from production or concurrent tests.
+- Fixed test portability: import cases depended on absent ignored `.log` files; now generated as explicit synthetic test
+  fixtures, retaining assertions. The full-file test still requires the original SHA-256 and exact dataset counts.
+- Fixed model artifact IDs in readiness, stale/failure UI edges, lazy-route startup state and mobile badge clipping.
+- Verified locally: **100 Python tests (61 non-DB + 39 DB), 23 Chromium checks (22 UI + 1 real SDK/local transport),
+  types/lint/build, dependency checks and diff checks passed**. Details: `docs/design/verification.md`.
+- Local Docker persistent storage was full. Tests passed against isolated RAM-backed TimescaleDB on port 5434; no
+  unrelated Docker data was deleted. Persistent dev/API readiness remains blocked. Original canonical data/model missing
+  locally; historical M7 measurements above have not been re-run here. The canonical live gate refuses to fabricate a pass.
+- Sponsor review: `docs/sponsor-fit.md`; prioritize already-selected CSE/Sentry/Tiger Data evidence. Sentry needs Logs
+  and Tracing plus demonstrated real impact, not SDK installation alone. Sponsor selection cutoff was Sep 19, 2 PM EDT.
+- Remaining external gates: Sentry organization/project choice and DSNs, actual telemetry receipt and diagnostic improvement,
+  original dataset/model, persistent DB capacity, deployed auth/TLS/SSE/storage, private source maps, other real provider calls.
+
+### CSE comparison and evidence workflow follow-up — September 19, 2026
+
+- Reviewed public Minny `eedd030` and htn26 `4ebcbe4` source snapshots without running or incorporating their code.
+  `docs/competitive-review.md` distinguishes implemented strengths, unreproduced benchmark claims, and our release gaps.
+- Added version-pinned investigation briefs: recorded account, trigger/time/source line, measured fact → proof links,
+  explicit unknowns/context, confidential local JSON handoff with source/config/model provenance. No AI proposals or
+  mutable operational state in exports. Kept overview focused; moved AI review alongside analyst review/response.
+- Fixed historical incident leakage from later evidence memberships, same-sequence R5 rule matches, relationships and
+  reviews. Migration 0004 records relationship-creation provenance and backfills legacy R5 links from persisted evidence.
+- Added real-DB regression for version isolation/backfill and three browser checks for export integrity, keyboard focus,
+  accessibility, mobile/reduced motion, missing/truncated evidence and inert untrusted text. Fixed mobile search labeling.
+- Verified: **101 Python tests (61 non-DB + 40 DB), 26 browser checks (25 UI + 1 SDK), types/lint/build and diff checks**.
+  Reports: `20260920T013836.953603Z-backend` and `20260920T013932.252622Z-frontend` under `reports/verification/`.
+- Disposable synthetic test DB removed after verification; no existing application data changed. Apply migration 0004
+  to the intended app database before restarting updated services. Canonical-data/model, persistent DB, real Sentry
+  credentials/receipt and hosting remain unverified; no detection-accuracy superiority or prize outcome is claimed.

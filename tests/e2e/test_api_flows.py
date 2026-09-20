@@ -7,8 +7,14 @@ from datetime import date, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
-from tests.fixtures.synth import TZ, baseline_traffic, default_world, scenario_access_change
-from tests.helpers import drive, import_world, make_config, q
+from tests.fixtures.synth import (
+    TZ,
+    baseline_traffic,
+    default_world,
+    scenario_access_change,
+    scenario_linked_sequence,
+)
+from tests.helpers import drive, import_world, make_config, q, start_run
 
 from app.api.main import create_app
 from app.db.engine import connect_direct
@@ -145,6 +151,63 @@ def test_run_lifecycle_cutoff_scoping_facts_and_feedback(client, db, tmp_path):
         conn.commit()
     resp = client.get(f"/api/v1/runs/{rid}/updates", params={"once": "true", "after": 0})
     assert "event: resync_required" in resp.text
+
+
+def test_incident_versions_isolate_same_event_escalations_and_later_relationships(client, db, tmp_path, monkeypatch):
+    """R2 and R5 share a sequence but are distinct immutable versions; R3 predates the link."""
+    cfg = _cfg(tmp_path)
+    w = default_world(start=datetime(D0.year, D0.month, D0.day, tzinfo=TZ))
+    baseline_traffic(w, 30)
+    actor, victim = w.accounts[3], w.accounts[1]
+    scenario_linked_sequence(w, w.start + timedelta(days=26), actor, victim, w.forum_objects[5], w.sensitive_paths[0])
+    ds = import_world(w, tmp_path, db)
+    rid = start_run(db, cfg, ds)
+    drive(db, cfg, rid)
+    cases = {i["primary_rule_id"]: i for i in q(db, "SELECT * FROM incidents WHERE run_id=%s", rid)}
+    r2, r3 = cases["R2"]["incident_id"], cases["R3"]["incident_id"]
+    url = f"/api/v1/runs/{rid}/incidents/{r2}"
+    first = client.get(url, params={"version": 1}).json()
+    current = client.get(url).json()
+    assert first["version"]["trigger_seq"] == current["version"]["trigger_seq"]
+    assert first["version"]["rule_ids"] == ["R2"]
+    assert {m["rule_id"] for m in first["rule_matches"]} == {"R2"}
+    assert {m["rule_id"] for m in current["rule_matches"]} == {"R2", "R5"}
+    assert first["relations"] == []
+    assert current["relations"][0]["related_incident_id"] == r3
+    assert all(e["added_version"] <= 1 for e in first["timeline"])
+    assert len(first["timeline"]) < len(current["timeline"])
+    assert all(d["version"] <= 1 for d in first["deliveries"])
+    assert first["evidence_cutoff_seq"] == first["packet"]["cutoff_seq"] < first["cutoff_seq"]
+    assert first["provenance"]["dataset_id"] == ds
+    assert len(first["provenance"]["dataset_sha256"]) == 64
+    assert first["provenance"]["config_hash"] == cfg.config_hash
+    # A relationship created by a later R5 request cannot retroactively appear in R3's snapshot.
+    admin = client.get(f"/api/v1/runs/{rid}/incidents/{r3}").json()
+    assert admin["relations"] == []
+    # Nor can the later R4 rule appear in the first R1 episode version.
+    login = client.get(f"/api/v1/runs/{rid}/incidents/{cases['R1']['incident_id']}", params={"version": 1}).json()
+    assert {m["rule_id"] for m in login["rule_matches"]} == {"R1"}
+    assert all(e["run_seq"] <= login["evidence_cutoff_seq"] for e in login["timeline"])
+
+    # Exercise the real migration on pre-0004 table shape; rollback keeps the test schema intact.
+    import importlib
+
+    migration = importlib.import_module("app.db.migrations.versions.0004_relation_provenance")
+    with connect_direct(db) as conn, conn.cursor() as cur:
+        cur.execute("ALTER TABLE incident_relations DROP COLUMN created_seq, DROP COLUMN origin_incident_id")
+        monkeypatch.setattr(migration.op, "execute", cur.execute)
+        migration.upgrade()
+        cur.execute("SELECT created_seq, origin_incident_id, created_version FROM incident_relations WHERE run_id=%s", (rid,))
+        links = cur.fetchall()
+        assert len(links) == 2
+        assert all(link["origin_incident_id"] == r2 and link["created_version"] == 2 for link in links)
+        assert all(link["created_seq"] == current["evidence_cutoff_seq"] for link in links)
+        conn.rollback()
+    # A review belongs to the version reviewed, not every previous evidence snapshot.
+    response = client.post(url + "/feedback", json={"reviewer": "local-test", "disposition": "needs_more_evidence", "reason": "Check authorization record"})
+    assert response.status_code == 201
+    assert client.get(url, params={"version": 1}).json()["feedback"] == []
+    assert len(client.get(url).json()["feedback"]) == 1
 
 
 def test_live_ingestion_late_and_conflict(client, db, tmp_path):

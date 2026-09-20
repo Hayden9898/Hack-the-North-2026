@@ -8,6 +8,9 @@ import { IncidentPage } from './pages/IncidentPage.tsx'
 import { NotFound } from './pages/NotFound.tsx'
 import { RunConsole } from './pages/RunConsole.tsx'
 import { RunsPage } from './pages/RunsPage.tsx'
+import { initObservability } from './observability.ts'
+
+initObservability()
 
 const router = createBrowserRouter([
   {

@@ -30,7 +30,8 @@ class Settings(BaseSettings):
 
     sentry_dsn: str = ""
     sentry_environment: str = "development"
-    sentry_traces_sample_rate: float = 1.0
+    sentry_release: str = ""
+    sentry_traces_sample_rate: float = Field(default=0.1, ge=0, le=1)
 
     llm_provider: str = "anthropic"
     llm_model: str = "claude-opus-5"

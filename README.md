@@ -17,10 +17,23 @@ Reports: `reports/investigation.md`, `reports/evaluation.md`, `reports/performan
 | TimescaleDB (local Docker, PG 17.11 / TimescaleDB 2.30.1) incl. continuous aggregate | real, benchmarked |
 | Tiger Cloud | **unverified** — no connection string was available; the code uses only standard TimescaleDB features |
 | Slack | **preview mode** (messages rendered + stored, nothing sent). Live adapter + retry semantics unit-tested with stubs; real webhook **unverified** |
-| Sentry Tracing + Logs | wired (spans, structured events, trace context on jobs) and reported as disabled when `SENTRY_DSN` is empty; real project **unverified** |
+| Sentry errors, Tracing + Logs | Python/React SDKs, worker trace context, privacy filtering and diagnostic implemented/tested locally; real project receipt **unverified** without DSNs |
 | AI review (Anthropic `claude-opus-5` via the official SDK 1.7.0) | adapter + validator + pipeline tested with a scripted provider; **deterministic-only mode** without `LLM_API_KEY`; real calls **unverified** |
 
 ## Requirements
+
+For the current reproducible acceptance workflow, see [the operator verification guide](docs/verification-guide.md).
+Historical results below require the original dataset/model; they are not fresh evidence of this checkout's local environment.
+Application Sentry setup and its evidence/privacy boundary are documented in [Sentry observability](docs/sentry-observability.md).
+Sponsor requirements and remaining demo evidence are mapped in [sponsor fit](docs/sponsor-fit.md).
+
+### Dataset fidelity gate
+
+`dataset.txt` in this checkout is a short transfer sample, not the canonical 180,800-line challenge file. Its final
+line is an explicit truncation marker and is correctly rejected by the strict parser; the preceding 529 log lines parse.
+It is useful for parser and UI smoke checks only. Do not train, calibrate, evaluate, or quote detector results from it.
+Use the original file (its expected digest/counts are in `tests/integration/test_import.py`) for canonical import and
+replay acceptance.
 
 Python 3.12, Node 20+ (tested with 24), Docker Desktop. `make` is optional: every target also runs as `python tasks.py <target>`.
 
@@ -37,6 +50,17 @@ python tasks.py dev                  # API :8000, detector worker, side-effect w
 ```
 
 Then open http://127.0.0.1:5173, create a run (or use `python tasks.py replay-demo`, below), press **Start**.
+
+### Frontend console
+
+The console uses AWS-inspired resource navigation, searchable source/execution tables, an event explorer with
+resizable evidence drawers, versioned incident investigation and Cmd/Ctrl+K navigation. Motion provides restrained
+transitions; all operational data comes from the real API. Frontend setup, browser tests and the shared-hosting
+authentication/SSE requirements are documented in [frontend/README.md](frontend/README.md).
+The research inventory is in [docs/design/frontend-direction.md](docs/design/frontend-direction.md).
+Incident overviews now include a versioned investigation brief with direct proof links and a local JSON export.
+See [the brief contract and migration notes](docs/case-brief.md); existing installations must run migrations through
+`0004` before starting the updated API and detector.
 
 ### Model (optional but recommended)
 
@@ -66,6 +90,11 @@ for a real incident and shows the validator rejecting it (`explanation.state = r
 | make target / `python tasks.py …` | What it does |
 |---|---|
 | `dev` | start DB, migrate, run API + detector + side-effect worker + Vite dev server |
+| `doctor` | report prerequisites, API/UI readiness, missing dataset/model; no data mutations |
+| `verify` | frontend first, then protected serial backend tests; saves a human-readable report |
+| `verify-frontend` / `verify-backend` | run one acceptance gate |
+| `verify-live RUN_ID=…` | read-only canonical replay/evidence acceptance against the running app |
+| `verify-report` | serve only verification reports on loopback port 8765 |
 | `migrate` | apply Alembic migrations (dev and, if reachable, test DB) |
 | `import DATASET_PATH=…` | idempotent, checkpointed import with explicit rejects |
 | `train` / `calibrate` / `evaluate` | ML lifecycle (see above; `calibrate`/`evaluate` need `MODEL_ID=…`) |

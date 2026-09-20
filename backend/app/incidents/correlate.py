@@ -99,14 +99,14 @@ def apply_matches(
                 other = link.get("incident_id")
                 if other and other != incident_id:
                     cur.execute(
-                        """INSERT INTO incident_relations (run_id, incident_id, related_incident_id, relation_type, link_key, created_version)
-                           VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING""",
-                        (run_id, incident_id, other, link["link_type"], str(link["link_key"]), new_version),
+                        """INSERT INTO incident_relations (run_id, incident_id, related_incident_id, relation_type, link_key, created_version, created_seq, origin_incident_id)
+                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING""",
+                        (run_id, incident_id, other, link["link_type"], str(link["link_key"]), new_version, ev.run_seq, incident_id),
                     )
                     cur.execute(
-                        """INSERT INTO incident_relations (run_id, incident_id, related_incident_id, relation_type, link_key, created_version)
-                           VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING""",
-                        (run_id, other, incident_id, link["link_type"], str(link["link_key"]), new_version),
+                        """INSERT INTO incident_relations (run_id, incident_id, related_incident_id, relation_type, link_key, created_version, created_seq, origin_incident_id)
+                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING""",
+                        (run_id, other, incident_id, link["link_type"], str(link["link_key"]), new_version, ev.run_seq, incident_id),
                     )
             # All matches of this incident so far (for the packet).
             cur.execute(
