@@ -19,7 +19,7 @@ import { cn } from '@/lib/cn'
 import { DUR, EASE, useReducedMotion } from '@/lib/motion'
 import { DATASET, EXHIBIT, RUN } from './data'
 import { CountUp, Magnetic } from './interactive'
-import { Band, Section, Stamp } from './parts'
+import { Section, Stamp } from './parts'
 import { C403, SERIES_START } from './series'
 
 const { AnimatePresence, motion } = motionReact
@@ -73,192 +73,190 @@ export function ExhibitA() {
   }
 
   return (
-    <Band tone="raised">
-      <Section id="exhibit" className="scroll-mt-16 py-20 sm:py-28">
-        <Stamp>Exhibit A · fact {factId}</Stamp>
+    <Section id="exhibit" className="scroll-mt-16 py-20 sm:py-28">
+      <Stamp>Exhibit A · fact {factId}</Stamp>
 
-        {/* ---- The evidence, first. Two byte-exact lines with the same account and path. ---- */}
-        <div className="mt-8">
-          <CodeBlock
-            label={`before · ${denial.when} · first of the ${count}`}
-            code={denial.raw}
-            lineNumber={denial.line}
-            emphasize={['403 245']}
-          />
+      {/* ---- The evidence, first. Two byte-exact lines with the same account and path. ---- */}
+      <div className="mt-8">
+        <CodeBlock
+          label={`before · ${denial.when} · first of the ${count}`}
+          code={denial.raw}
+          lineNumber={denial.line}
+          emphasize={['403 245']}
+        />
 
-          <div className="grid gap-x-10 gap-y-2 lg:grid-cols-12">
-            <div className="flex items-stretch gap-5 sm:gap-8 lg:col-span-5">
-              {/* The accent rule is the only thing asserting a relation between the two
-                  strips — not a verdict colour on either of them. */}
-              <div aria-hidden className="ml-1 w-0.5 shrink-0 rounded-full bg-accent sm:ml-4" />
+        <div className="grid gap-x-10 gap-y-2 lg:grid-cols-12">
+          <div className="flex items-stretch gap-5 sm:gap-8 lg:col-span-5">
+            {/* The accent rule is the only thing asserting a relation between the two
+                strips — not a verdict colour on either of them. */}
+            <div aria-hidden className="ml-1 w-0.5 shrink-0 rounded-full bg-accent sm:ml-4" />
 
-              <Magnetic tilt={5} className="group flex min-w-0 flex-col justify-center py-8">
+            <Magnetic tilt={5} className="group flex min-w-0 flex-col justify-center py-8">
+              <span className="font-mono text-caption text-fg-subtle uppercase tracking-[0.08em]">
+                Recorded count · prior 403 responses
+              </span>
+              <span className="mt-2 block font-mono font-medium text-[clamp(4.5rem,13vw,9rem)] text-fg leading-[0.78] tracking-[-0.055em] tabular-nums">
+                <CountUp to={count} />
+              </span>
+              <p className="mt-4 font-mono text-caption text-fg-subtle uppercase">
+                The same request, refused {count} times
+              </p>
+              <p className="mt-2 max-w-[34ch] text-body text-fg-muted">
+                prior <span className="font-mono text-fg">403</span> responses for this exact account
+                and resource, counted under the same cutoff.
+              </p>
+            </Magnetic>
+          </div>
+
+          {/* ---- The 403 series that genuinely exists, labelled as exactly that. ---- */}
+          <figure className="min-w-0 pb-8 lg:col-span-7 lg:pt-8">
+            <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+              <figcaption className="min-w-0">
                 <span className="font-mono text-caption text-fg-subtle uppercase tracking-[0.08em]">
-                  Recorded count · prior 403 responses
+                  403 responses · all {DATASET.accounts} accounts · per month
                 </span>
-                <span className="mt-2 block font-mono font-medium text-[clamp(4.5rem,13vw,9rem)] text-fg leading-[0.78] tracking-[-0.055em] tabular-nums">
-                  <CountUp to={count} />
-                </span>
-                <p className="mt-4 font-mono text-caption text-fg-subtle uppercase">
-                  The same request, refused {count} times
-                </p>
-                <p className="mt-2 max-w-[34ch] text-body text-fg-muted">
-                  prior <span className="font-mono text-fg">403</span> responses for this exact account
-                  and resource, counted under the same cutoff.
-                </p>
-              </Magnetic>
+                <p className="mt-1 font-mono text-caption text-fg-muted">{windowLabel}</p>
+              </figcaption>
+              <ScopeFilter value={scope} onChange={setScope} />
             </div>
 
-            {/* ---- The 403 series that genuinely exists, labelled as exactly that. ---- */}
-            <figure className="min-w-0 pb-8 lg:col-span-7 lg:pt-8">
-              <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-                <figcaption className="min-w-0">
-                  <span className="font-mono text-caption text-fg-subtle uppercase tracking-[0.08em]">
-                    403 responses · all {DATASET.accounts} accounts · per month
-                  </span>
-                  <p className="mt-1 font-mono text-caption text-fg-muted">{windowLabel}</p>
-                </figcaption>
-                <ScopeFilter value={scope} onChange={setScope} />
-              </div>
-
-              <div className="mt-3 rounded-lg border border-border bg-bg p-3 shadow-sm sm:p-4">
-                <BarChart
-                  data={buckets as unknown as Record<string, unknown>[]}
-                  xDataKey="label"
-                  aspectRatio="16 / 9"
-                  /* scaleBand padding RATIO (0-1), not pixels: at 1 the bandwidth collapses
-                     to 0 and every bar silently disappears. */
-                  barGap={0.3}
-                  animationDuration={reduced ? 0 : 700}
-                  revealSignature={scope}
-                >
-                  <Grid horizontal numTicksRows={4} stroke="var(--chart-grid)" />
-                  {/* The 3D glass surfaces: side face + lid behind, gloss in front. */}
-                  <BarDepthBack dataKey="denials" color="var(--chart-2)" />
-                  <Bar dataKey="denials" fill="var(--chart-2)" lineCap="round" perspective minBarHeight={2} />
-                  <BarDepthFront dataKey="denials" />
-                  {/* Marks the month the grant landed in. A position, not a verdict. */}
-                  <BarPulse dataKey="denials" activeIndex={buckets.length - 1} pulsePaused={!!reduced} />
-                  <YAxis numTicks={4} />
-                  <BarXAxis maxLabels={8} />
-                  <ChartTooltip
-                    rows={(point) => [
-                      {
-                        color: 'var(--chart-2)',
-                        label: '403 · all accounts',
-                        value: Number(point.denials ?? 0).toLocaleString(),
-                      },
-                      {
-                        color: 'var(--chart-label)',
-                        label: String(point.span ?? ''),
-                        value: `${String(point.days ?? '')} days`,
-                      },
-                    ]}
-                  />
-                </BarChart>
-              </div>
-
-              <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[0.6875rem] text-fg-subtle uppercase">
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-[2px] bg-chart-2" /> 403 responses
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 animate-pulse rounded-[2px] border border-chart-2/60 bg-chart-2-wash motion-reduce:animate-none" />{' '}
-                  month of line {grant.line}
-                </span>
-                <span className="ml-auto normal-case">
-                  {total.toLocaleString()} total · peak {peak.denials} in {peak.label}
-                </span>
-              </div>
-
-              <p className="mt-3 max-w-[52ch] text-body text-fg-muted">
-                <span className="font-mono text-caption text-fg uppercase">What this chart is:</span>{' '}
-                the daily series records one 403 total per day for the whole dataset, with no
-                per-account split. This chart is therefore every account, not the {count}. The{' '}
-                {count} is this one account and this one path, and it comes from the query below.
-              </p>
-            </figure>
-          </div>
-
-          <CodeBlock
-            label={`after · ${grant.when} · same account, same path`}
-            code={grant.raw}
-            lineNumber={grant.line}
-            emphasize={['200 8459200']}
-          />
-        </div>
-
-        {/* ---- What the exhibit does and does not claim, and the proof that it recomputes. ---- */}
-        <div className="mt-12 grid gap-x-12 gap-y-8 lg:grid-cols-12">
-          <div className="min-w-0 lg:col-span-5">
-            <p className="max-w-[48ch] text-body text-fg-muted">
-              One account. One file. One source address. For seven months the server answered{' '}
-              <span className="font-mono text-fg">403</span>. Then it answered{' '}
-              <span className="font-mono text-fg">200</span> and sent 8.46 MB.
-            </p>
-            <p className="mt-4 max-w-[48ch] text-body text-fg-muted">
-              That is a measured change in observed behaviour. An approved access grant looks exactly
-              the same from the log, so the count is shown with the query that produced it, rather than
-              as a conclusion.
-            </p>
-          </div>
-
-          <div className="relative min-w-0 lg:col-span-7">
-            {/* Something for the glass to refract. Token washes only — no literal colours. */}
-            <div
-              aria-hidden
-              className="pointer-events-none absolute -inset-6 rounded-[2rem] opacity-80 blur-2xl"
-              style={{
-                background:
-                  'radial-gradient(60% 60% at 15% 0%, var(--color-accent-wash), transparent 70%), radial-gradient(55% 60% at 95% 100%, var(--color-chart-2-wash), transparent 70%)',
-              }}
-            />
-
-            <LiquidGlassCard
-              className="rounded-xl border-border bg-surface/70 p-5 shadow-md backdrop-blur-xl sm:p-6"
-              glassSize="default"
-            >
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-normal/25 bg-normal-wash px-3 py-2">
-                <Check className="size-3.5 shrink-0 text-normal" />
-                <span className="font-mono text-caption text-fg uppercase">Recomputed on request</span>
-                <span className="font-mono text-caption text-fg-subtle">
-                  recorded {proof.recorded} · recomputed {proof.recomputed} ·{' '}
-                  <span className="text-normal">{proof.matches ? 'match' : 'MISMATCH'}</span>
-                </span>
-              </div>
-
-              <p className="mt-3 max-w-[62ch] text-body text-fg-muted">
-                The console re-runs this query against the original lines under the same cutoff and
-                compares the result to what was recorded.
-              </p>
-
-              <Link
-                to={`/app/runs/${RUN.id}/incidents/${incidentId}`}
-                className="mt-3 inline-flex items-center gap-1.5 rounded-sm font-mono text-caption text-accent uppercase transition-opacity duration-150 hover:opacity-80"
+            <div className="mt-3 rounded-lg border border-border bg-bg p-3 shadow-sm sm:p-4">
+              <BarChart
+                data={buckets as unknown as Record<string, unknown>[]}
+                xDataKey="label"
+                aspectRatio="16 / 9"
+                /* scaleBand padding RATIO (0-1), not pixels: at 1 the bandwidth collapses
+                   to 0 and every bar silently disappears. */
+                barGap={0.3}
+                animationDuration={reduced ? 0 : 700}
+                revealSignature={scope}
               >
-                Page all {count} denials <ArrowUpRight className="size-3" />
-              </Link>
+                <Grid horizontal numTicksRows={4} stroke="var(--chart-grid)" />
+                {/* The 3D glass surfaces: side face + lid behind, gloss in front. */}
+                <BarDepthBack dataKey="denials" color="var(--chart-2)" />
+                <Bar dataKey="denials" fill="var(--chart-2)" lineCap="round" perspective minBarHeight={2} />
+                <BarDepthFront dataKey="denials" />
+                {/* Marks the month the grant landed in. A position, not a verdict. */}
+                <BarPulse dataKey="denials" activeIndex={buckets.length - 1} pulsePaused={!!reduced} />
+                <YAxis numTicks={4} />
+                <BarXAxis maxLabels={8} />
+                <ChartTooltip
+                  rows={(point) => [
+                    {
+                      color: 'var(--chart-2)',
+                      label: '403 · all accounts',
+                      value: Number(point.denials ?? 0).toLocaleString(),
+                    },
+                    {
+                      color: 'var(--chart-label)',
+                      label: String(point.span ?? ''),
+                      value: `${String(point.days ?? '')} days`,
+                    },
+                  ]}
+                />
+              </BarChart>
+            </div>
 
-              <div className="mt-4 overflow-hidden rounded-md border border-border bg-sunken">
-                <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-1.5">
-                  <span className="font-mono text-[0.6875rem] text-fg-subtle uppercase tracking-[0.08em]">
-                    Query parameters · {PARAMS.length} fields
-                  </span>
-                  <span className="font-mono text-[0.6875rem] text-fg-subtle uppercase">
-                    press + for what a field does
-                  </span>
-                </div>
-                <dl className="divide-y divide-border">
-                  {PARAMS.map(({ k, note }) => (
-                    <ParamRow key={k} name={k} value={paramValues[k]} note={note} />
-                  ))}
-                </dl>
-              </div>
-            </LiquidGlassCard>
-          </div>
+            <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[0.6875rem] text-fg-subtle uppercase">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-[2px] bg-chart-2" /> 403 responses
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 animate-pulse rounded-[2px] border border-chart-2/60 bg-chart-2-wash motion-reduce:animate-none" />{' '}
+                month of line {grant.line}
+              </span>
+              <span className="ml-auto normal-case">
+                {total.toLocaleString()} total · peak {peak.denials} in {peak.label}
+              </span>
+            </div>
+
+            <p className="mt-3 max-w-[52ch] text-body text-fg-muted">
+              <span className="font-mono text-caption text-fg uppercase">What this chart is:</span>{' '}
+              the daily series records one 403 total per day for the whole dataset, with no
+              per-account split. This chart is therefore every account, not the {count}. The{' '}
+              {count} is this one account and this one path, and it comes from the query below.
+            </p>
+          </figure>
         </div>
-      </Section>
-    </Band>
+
+        <CodeBlock
+          label={`after · ${grant.when} · same account, same path`}
+          code={grant.raw}
+          lineNumber={grant.line}
+          emphasize={['200 8459200']}
+        />
+      </div>
+
+      {/* ---- What the exhibit does and does not claim, and the proof that it recomputes. ---- */}
+      <div className="mt-12 grid gap-x-12 gap-y-8 lg:grid-cols-12">
+        <div className="min-w-0 lg:col-span-5">
+          <p className="max-w-[48ch] text-body text-fg-muted">
+            One account. One file. One source address. For seven months the server answered{' '}
+            <span className="font-mono text-fg">403</span>. Then it answered{' '}
+            <span className="font-mono text-fg">200</span> and sent 8.46 MB.
+          </p>
+          <p className="mt-4 max-w-[48ch] text-body text-fg-muted">
+            That is a measured change in observed behaviour. An approved access grant looks exactly
+            the same from the log, so the count is shown with the query that produced it, rather than
+            as a conclusion.
+          </p>
+        </div>
+
+        <div className="relative min-w-0 lg:col-span-7">
+          {/* Something for the glass to refract. Token washes only — no literal colours. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -inset-6 rounded-[2rem] opacity-80 blur-2xl"
+            style={{
+              background:
+                'radial-gradient(60% 60% at 15% 0%, var(--color-accent-wash), transparent 70%), radial-gradient(55% 60% at 95% 100%, var(--color-chart-2-wash), transparent 70%)',
+            }}
+          />
+
+          <LiquidGlassCard
+            className="rounded-xl border-border bg-surface/70 p-5 shadow-md backdrop-blur-xl sm:p-6"
+            glassSize="default"
+          >
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-normal/25 bg-normal-wash px-3 py-2">
+              <Check className="size-3.5 shrink-0 text-normal" />
+              <span className="font-mono text-caption text-fg uppercase">Recomputed on request</span>
+              <span className="font-mono text-caption text-fg-subtle">
+                recorded {proof.recorded} · recomputed {proof.recomputed} ·{' '}
+                <span className="text-normal">{proof.matches ? 'match' : 'MISMATCH'}</span>
+              </span>
+            </div>
+
+            <p className="mt-3 max-w-[62ch] text-body text-fg-muted">
+              The console re-runs this query against the original lines under the same cutoff and
+              compares the result to what was recorded.
+            </p>
+
+            <Link
+              to={`/app/runs/${RUN.id}/incidents/${incidentId}`}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-sm font-mono text-caption text-accent uppercase transition-opacity duration-150 hover:opacity-80"
+            >
+              Page all {count} denials <ArrowUpRight className="size-3" />
+            </Link>
+
+            <div className="mt-4 overflow-hidden rounded-md border border-border bg-sunken">
+              <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-1.5">
+                <span className="font-mono text-[0.6875rem] text-fg-subtle uppercase tracking-[0.08em]">
+                  Query parameters · {PARAMS.length} fields
+                </span>
+                <span className="font-mono text-[0.6875rem] text-fg-subtle uppercase">
+                  press + for what a field does
+                </span>
+              </div>
+              <dl className="divide-y divide-border">
+                {PARAMS.map(({ k, note }) => (
+                  <ParamRow key={k} name={k} value={paramValues[k]} note={note} />
+                ))}
+              </dl>
+            </div>
+          </LiquidGlassCard>
+        </div>
+      </div>
+    </Section>
   )
 }
 

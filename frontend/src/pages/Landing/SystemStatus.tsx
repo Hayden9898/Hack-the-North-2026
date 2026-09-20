@@ -32,7 +32,7 @@ import { DUR, EASE, useReducedMotion } from '@/lib/motion'
 import { useFetch } from '@/useFetch'
 import { DATASET, EXHIBIT, INCIDENTS, RULES, RUN, UNKNOWNS } from './data'
 import { Pressable } from './interactive'
-import { Band, Section, Stamp } from './parts'
+import { Section, Stamp } from './parts'
 
 const { AnimatePresence, motion } = motionReact
 
@@ -145,55 +145,53 @@ export function SystemStatus() {
           : { tone: 'pending', word: 'idle' }
 
   return (
-    <Band tone="raised">
-      <Section className="py-20 sm:py-28">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
-          <Stamp className="w-auto min-w-40 flex-1">System state</Stamp>
-          <div className="flex shrink-0 items-center gap-2">
-            <LivePill tone={live.tone} word={live.word} />
-            <Button
-              variant="outline"
-              size="xs"
-              onClick={() => void health.reload()}
-              disabled={health.loading || health.refreshing}
-              aria-label="Re-check system state"
-            >
-              <RefreshCw
-                aria-hidden
-                className={cn('size-3', health.refreshing && 'animate-spin motion-reduce:animate-none')}
-              />
-              Re-check
-            </Button>
-          </div>
+    <Section className="py-20 sm:py-28">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
+        <Stamp className="w-auto min-w-40 flex-1">System state</Stamp>
+        <div className="flex shrink-0 items-center gap-2">
+          <LivePill tone={live.tone} word={live.word} />
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={() => void health.reload()}
+            disabled={health.loading || health.refreshing}
+            aria-label="Re-check system state"
+          >
+            <RefreshCw
+              aria-hidden
+              className={cn('size-3', health.refreshing && 'animate-spin motion-reduce:animate-none')}
+            />
+            Re-check
+          </Button>
         </div>
+      </div>
 
-        <p className="mt-5 max-w-[68ch] text-body text-fg-muted">
-          Read live from <span className="font-mono text-fg">/health/ready</span> when this page
-          loaded. Degraded modes are declared. The console tells you when it is running with
-          something switched off.
-        </p>
+      <p className="mt-5 max-w-[68ch] text-body text-fg-muted">
+        Read live from <span className="font-mono text-fg">/health/ready</span> when this page
+        loaded. Degraded modes are declared. The console tells you when it is running with
+        something switched off.
+      </p>
 
-        {/*
-          The glass reads only if there is something behind it to refract, so the board sits on
-          a tinted wash and the card itself stays translucent.
-        */}
-        <div className="relative mt-8">
-          <AmbientWash className="rounded-xl" />
-          <LiquidGlassCard className="relative rounded-xl border-border/80 bg-surface/55 p-0 shadow-lg backdrop-blur-xl hover:shadow-lg">
-            {health.loading && !health.data ? (
-              <LoadingBoard />
-            ) : health.error ? (
-              <p className="p-5 font-mono text-mono text-blocked sm:p-6">
-                health check unreachable — {describeError(health.error).text || 'no response'}. Nothing
-                on this page depends on it; the figures above come from the recorded dataset.
-              </p>
-            ) : health.data ? (
-              <ReadyBoard h={health.data} />
-            ) : null}
-          </LiquidGlassCard>
-        </div>
-      </Section>
-    </Band>
+      {/*
+        The glass reads only if there is something behind it to refract, so the board sits on
+        a tinted wash and the card itself stays translucent.
+      */}
+      <div className="relative mt-8">
+        <AmbientWash className="rounded-xl" />
+        <LiquidGlassCard className="relative rounded-xl border-border/80 bg-surface/55 p-0 shadow-lg backdrop-blur-xl hover:shadow-lg">
+          {health.loading && !health.data ? (
+            <LoadingBoard />
+          ) : health.error ? (
+            <p className="p-5 font-mono text-mono text-blocked sm:p-6">
+              health check unreachable — {describeError(health.error).text || 'no response'}. Nothing
+              on this page depends on it; the figures above come from the recorded dataset.
+            </p>
+          ) : health.data ? (
+            <ReadyBoard h={health.data} />
+          ) : null}
+        </LiquidGlassCard>
+      </div>
+    </Section>
   )
 }
 
@@ -575,7 +573,8 @@ const CLOSING_STATS: { label: string; value: string }[] = [
 
 export function Closing() {
   return (
-    <Band tone="paper" className="relative overflow-hidden">
+    // Positioning context + clip for AmbientWash. The band itself is the shell's job.
+    <div className="relative overflow-hidden">
       <AmbientWash />
       <Section className="relative py-20 sm:py-28">
         <div className="grid gap-10 lg:grid-cols-[1.5fr_auto] lg:items-end">
@@ -616,7 +615,7 @@ export function Closing() {
           </div>
         </div>
       </Section>
-    </Band>
+    </div>
   )
 }
 

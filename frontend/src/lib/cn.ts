@@ -82,6 +82,17 @@ const COLORS = [
 ] as const
 
 const twMerge = extendTailwindMerge({
+  override: {
+    /*
+     * tailwind-merge ships `conflictingClassGroups: { 'font-size': ['leading'] }`, which is
+     * correct for Tailwind v3 where `text-lg` also set a line-height. In v4 the two are
+     * separate utilities, and registering the `--text-*` steps under `font-size` above made
+     * every one of them eat a preceding `leading-*` — `cn('leading-none', 'text-title')`
+     * returned just `text-title`. Declaring no conflict keeps both, which is what the call
+     * sites mean when they pair them.
+     */
+    conflictingClassGroups: { 'font-size': [] },
+  },
   extend: {
     classGroups: {
       'font-size': [{ text: [...FONT_SIZES] }],

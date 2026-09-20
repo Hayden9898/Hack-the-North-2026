@@ -101,7 +101,10 @@ export function ActivityStrip({ className }: { className?: string }) {
   const flagged = useMemo(() => {
     const idx = data.map((b, i) => (b.verdict ? i : -1)).filter((i) => i >= 0)
     if (!idx.length) return null
-    return { start: Math.min(...idx), end: Math.max(...idx), worst: data[idx[idx.length - 1]].verdict }
+    // `worst` is the most severe verdict in the run, not the last one encountered — the band
+    // is coloured by the strongest signal it covers.
+    const worst = idx.some((i) => data[i].verdict === 'high_risk') ? 'high_risk' : 'suspicious'
+    return { start: Math.min(...idx), end: Math.max(...idx), worst } as const
   }, [data])
 
   const total = useMemo(() => data.reduce((a, b) => a + b.events, 0), [data])

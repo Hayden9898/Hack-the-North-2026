@@ -8,7 +8,7 @@ import { StatusChip } from '@/components/ui/status-chip'
 import { cn } from '@/lib/cn'
 import { DUR, EASE, useReducedMotion } from '@/lib/motion'
 import { INCIDENTS, RULE_TEXT, RUN, UNKNOWNS } from './data'
-import { Band, type RuleTone, RuleTag, Section, Stamp } from './parts'
+import { type RuleTone, RuleTag, Section, Stamp } from './parts'
 
 const { AnimatePresence, motion, useMotionTemplate, useMotionValue, useSpring, useTransform } = motionReact
 
@@ -83,43 +83,41 @@ export function Docket() {
   }
 
   return (
-    <Band className="border-y">
-      <Section id="docket" className="py-20 sm:py-28">
-        <div className="grid items-end gap-x-10 gap-y-8 lg:grid-cols-[minmax(0,1fr)_auto]">
-          <div className="min-w-0">
-            <Stamp>
-              Docket · {RUN.incidentsTotal} incidents · March 2026 · rules only
-            </Stamp>
+    <Section id="docket" className="scroll-mt-16 py-20 sm:py-28">
+      <div className="grid items-end gap-x-10 gap-y-8 lg:grid-cols-[minmax(0,1fr)_auto]">
+        <div className="min-w-0">
+          <Stamp>
+            Docket · {RUN.incidentsTotal} incidents · March 2026 · rules only
+          </Stamp>
 
-            <h2 className="mt-7 max-w-[22ch] font-serif text-[clamp(1.875rem,3.6vw,2.75rem)] leading-[1.05] tracking-[-0.02em]">
-              Three things in eight months looked wrong.
-            </h2>
-            <p className="mt-5 max-w-[58ch] text-body text-fg-muted">
-              Everything below is the detector&rsquo;s own wording, including the parts where it
-              declines to conclude anything. Those qualifiers are part of the record.
-            </p>
-          </div>
-
-          <VerdictFilter value={filter} onChange={selectFilter} />
+          <h2 className="mt-7 max-w-[22ch] font-serif text-[clamp(1.875rem,3.6vw,2.75rem)] leading-[1.05] tracking-[-0.02em]">
+            Three things in eight months looked wrong.
+          </h2>
+          <p className="mt-5 max-w-[58ch] text-body text-fg-muted">
+            Everything below is the detector&rsquo;s own wording, including the parts where it
+            declines to conclude anything. Those qualifiers are part of the record.
+          </p>
         </div>
 
-        <ol className="mt-12 flex list-none flex-col gap-4">
-          {rows.map((inc) => (
-            <IncidentRow
-              key={inc.docket}
-              inc={inc}
-              open={openDocket === inc.docket}
-              onToggle={() => setOpenDocket((cur) => (cur === inc.docket ? '' : inc.docket))}
-            />
-          ))}
-        </ol>
+        <VerdictFilter value={filter} onChange={selectFilter} />
+      </div>
 
-        <p className="mt-6 font-mono text-caption text-fg-subtle uppercase tracking-[0.08em]">
-          Showing {rows.length} of {INCIDENTS.length} records · one open at a time · select a row
-          for its qualifier and unknowns
-        </p>
-      </Section>
-    </Band>
+      <ol className="mt-12 flex list-none flex-col gap-4">
+        {rows.map((inc) => (
+          <IncidentRow
+            key={inc.docket}
+            inc={inc}
+            open={openDocket === inc.docket}
+            onToggle={() => setOpenDocket((cur) => (cur === inc.docket ? '' : inc.docket))}
+          />
+        ))}
+      </ol>
+
+      <p className="mt-6 font-mono text-caption text-fg-subtle uppercase tracking-[0.08em]">
+        Showing {rows.length} of {INCIDENTS.length} records · one open at a time · select a row
+        for its qualifier and unknowns
+      </p>
+    </Section>
   )
 }
 

@@ -659,7 +659,7 @@ label.check {
   border-radius: var(--radius);
 }
 .state-error.state-db {
-  border: 1px solid #7a3030;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent);
 }
 .spinner {
   width: 12px;
@@ -786,7 +786,7 @@ ul.bul {
   margin-bottom: 4px;
 }
 .hyp {
-  border: 1px solid #4a3a6a;
+  border: 1px solid color-mix(in srgb, var(--ai) 45%, transparent);
   border-radius: var(--radius);
   padding: 8px 10px;
   margin-bottom: 8px;
@@ -871,9 +871,9 @@ ul.bul {
   border-color: color-mix(in srgb, var(--ai) 35%, transparent);
 }
 .notice-ok {
-  color: #c9f5e2;
+  color: var(--ok);
   background: var(--ok-bg);
-  border-color: #245c47;
+  border-color: color-mix(in srgb, var(--ok) 45%, transparent);
 }
 .check-ok {
   color: var(--ok);

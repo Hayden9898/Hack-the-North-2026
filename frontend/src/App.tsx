@@ -44,7 +44,7 @@ export default function App() {
     <div className="app min-h-dvh bg-bg">
       <header className="sticky top-0 z-40 border-border border-b bg-bg/85 backdrop-blur-md">
         <div className="flex items-center gap-5 px-5 py-2.5 sm:px-8">
-          <NavLink to="/" className="group flex items-baseline gap-2.5 rounded-sm no-underline">
+          <NavLink to="/app" className="group flex items-baseline gap-2.5 rounded-sm no-underline">
             <span aria-hidden className="h-4 w-0.5 shrink-0 self-center rounded-full bg-accent" />
             <span className="font-serif text-[1.25rem] text-fg leading-none tracking-tight">Log &amp; Order</span>
             <span className="hidden font-mono text-caption text-fg-subtle uppercase sm:inline">console</span>

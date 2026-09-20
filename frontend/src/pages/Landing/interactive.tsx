@@ -3,7 +3,7 @@ import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/cn'
 import { DUR, EASE, useReducedMotion } from '@/lib/motion'
 
-const { motion, useInView, useMotionValue, useSpring, useTransform } = motionReact
+const { motion, useInView, useMotionTemplate, useMotionValue, useSpring, useTransform } = motionReact
 
 /**
  * Counts up to a target when it scrolls into view.
@@ -71,6 +71,10 @@ export function Magnetic({
   const rotY = useTransform(sx, [0, 1], [-tilt, tilt])
   const glowX = useTransform(sx, (v) => `${v * 100}%`)
   const glowY = useTransform(sy, (v) => `${v * 100}%`)
+  // useMotionTemplate, not `.get()` in a template literal: MotionValue updates do not
+  // re-render, so a string built during render freezes the glow at its initial 50%/50%
+  // (and `${glowX.get()}%` emitted an invalid `50%%`, which dropped the declaration).
+  const glow = useMotionTemplate`radial-gradient(420px circle at ${glowX} ${glowY}, color-mix(in oklch, var(--color-accent) 10%, transparent), transparent 70%)`
 
   if (reduced) return <div className={className}>{children}</div>
 
@@ -93,9 +97,7 @@ export function Magnetic({
       <motion.span
         aria-hidden
         className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-        style={{
-          background: `radial-gradient(420px circle at ${glowX.get()}% ${glowY.get()}%, color-mix(in oklch, var(--color-accent) 10%, transparent), transparent 70%)`,
-        }}
+        style={{ background: glow }}
       />
       {children}
     </motion.div>

@@ -19,7 +19,7 @@ initObservability()
 
 const router = createBrowserRouter([
   // The judge-facing landing page owns `/` and renders outside the console shell.
-  { path: '/', element: <Landing /> },
+  { path: '/', element: <Landing />, errorElement: <RouteError shell /> },
   {
     path: '/app',
     element: <App />,
@@ -40,8 +40,8 @@ const router = createBrowserRouter([
     ],
   },
   // Pre-migration deep links.
-  { path: '/runs/*', element: <LegacyRunsRedirect /> },
-  { path: '*', element: <NotFound /> },
+  { path: '/runs/*', element: <LegacyRunsRedirect />, errorElement: <RouteError shell /> },
+  { path: '*', element: <NotFound />, errorElement: <RouteError shell /> },
 ])
 
 createRoot(document.getElementById('root')!).render(

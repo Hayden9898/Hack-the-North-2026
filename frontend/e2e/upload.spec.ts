@@ -52,7 +52,7 @@ test('uploads an access-log file as multipart data and shows its queued import s
     await route.fulfill({ json: uploaded ? [] : [] })
   })
 
-  await page.goto('/')
+  await page.goto('/app')
   await expect(page.getByText('Start here')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'New replay run' })).not.toBeVisible()
   await page.getByLabel('Apache access-log file').setInputFiles({

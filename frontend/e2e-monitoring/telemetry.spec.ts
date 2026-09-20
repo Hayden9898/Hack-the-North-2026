@@ -29,7 +29,7 @@ test('queues only a synthetic browser Sentry diagnostic', async ({ page }) => {
     route.fulfill({ json: { status: 'queued', event_id: 'server-event', check_id: 'check-id', delivery_verified: false } }),
   )
 
-  await page.goto('/')
+  await page.goto('/app')
   await page.getByRole('button', { name: 'Send Sentry diagnostic' }).click()
   await expect(page.getByRole('status')).toContainText('queued is not delivery verified')
   await expect.poll(() => envelopes.join('\n')).toContain('logorder.observability_check')

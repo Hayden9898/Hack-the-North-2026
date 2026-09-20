@@ -19,9 +19,13 @@
       (function () {
         try {
           var v = localStorage.getItem('logorder.theme')
+          // Must match systemTheme() in src/lib/theme.tsx exactly, which probes
+          // `light` and falls back to dark. Probing `dark` here instead is NOT the
+          // complement: when a UA reports no-preference both queries are false, and
+          // the two disagreed — the light-to-dark flash this script exists to prevent.
           var dark =
             v === 'dark' ||
-            (v === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+            (v === 'system' && !window.matchMedia('(prefers-color-scheme: light)').matches)
           if (dark) {
             document.documentElement.classList.add('dark')
             document.documentElement.style.colorScheme = 'dark'
