@@ -15,8 +15,10 @@ import numpy as np
 
 from app.config import get_config
 from app.db.engine import connect_direct
+from app.detection.novelty import SupportEnvelope
 from app.features.vector import FEATURE_NAMES
 from app.settings import REPO_ROOT, get_settings
+from ml import metrics as M
 from ml.common import anomaly_scores, load_manifest, load_matrix, rarity_baseline
 
 
@@ -103,8 +105,94 @@ def main() -> int:
         bf = {int(m.run_seqs[i]) for i in np.where(base > bt)[0]}
         out["baseline_rarity"][p] = {"event_alerts": len(bf), "overlap_with_rule_events": len(bf & rule_seqs), "overlap_with_model": len(bf & fl_seqs)}
 
-    # Known provisional sequence: which detector says what, and how fast.
     known = json.loads(Path(args.known).read_text(encoding="utf-8"))
+
+    # ---- Detection quality against the provisional inventory -------------------------------------
+    # These are ranking metrics against a label set this team wrote by hand. They are not organizer
+    # ground truth and they do not become ground truth by being divided into. Every number below ships
+    # with the provenance record that says so.
+    known_lines = {int(k["line"]) for k in known["events"]}
+    rule_expected = {int(k["line"]) for k in known["events"] if k.get("expect_rule")}
+    y = np.zeros(len(scores), dtype=int)
+    line_of_row: dict[int, int] = {}
+    for s, d in det.items():
+        i = seq_index.get(int(s))
+        ln = d.get("line_number")
+        if i is None or ln is None:
+            continue
+        line_of_row[i] = int(ln)
+        if int(ln) in known_lines:
+            y[i] = 1
+    matched = int(y.sum())
+
+    env_path = model_dir / args.model_id / manifest.get("support_envelope_file", "support_envelope.json")
+    envelope = SupportEnvelope.from_dict(json.loads(env_path.read_text(encoding="utf-8"))) if env_path.exists() else None
+    nov = envelope.score_matrix(m.X) if envelope else np.zeros(len(scores))
+    combined = scores + nov
+
+    out["ground_truth"] = {
+        "source": str(Path(args.known).relative_to(REPO_ROOT)) if Path(args.known).is_relative_to(REPO_ROOT) else str(args.known),
+        "positives_defined": len(known_lines),
+        "positives_matched_in_partition": matched,
+        "negatives": int(len(y) - matched),
+        "derived_by": "the implementing team, by forensic reading of the March sequence, before the rules were written",
+        "organizer_labels_exist": False,
+        "negatives_are": "presumed benign, not independently verified",
+        "blind_holdout": False,
+        "why_not_blind": out["not_blind"],
+        "warning": "The same team authored these labels and the detector. Treat every figure below as a self-graded exam and read the paired comparisons, not the marginal values.",
+    }
+
+    if matched:
+        scorers = {"density_isolation_forest": scores, "support_novelty": nov,
+                   "two_channel_sum": combined, "naive_rarity_baseline": base}
+        out["detection_quality"] = {k: M.summarise(v, y) for k, v in scorers.items()}
+        # Only a paired interval on identical resamples licenses a "beats" claim.
+        out["paired_comparisons"] = {
+            "two_channel_minus_density__average_precision":
+                M.paired_bootstrap_diff(M.average_precision, combined, scores, y),
+            "density_minus_baseline__average_precision":
+                M.paired_bootstrap_diff(M.average_precision, scores, base, y),
+            "density_minus_baseline__rank_auc":
+                M.paired_bootstrap_diff(M.rank_auc, scores, base, y),
+        }
+        # Operating point: the two channels are thresholded independently and never veto each other.
+        nov_flag = nov > 0.0
+        dens_flag = scores > float(manifest["threshold"])
+        out["operating_point"] = {
+            "density_threshold": float(manifest["threshold"]),
+            "density_threshold_percentile": manifest["threshold_percentile"],
+            "novelty_rule": "any bounded feature takes a value absent from the train partition",
+            "channels": {
+                "density_only": M.confusion(dens_flag, y),
+                "novelty_only": M.confusion(nov_flag, y),
+                "either_channel": M.confusion(dens_flag | nov_flag, y),
+            },
+            "novelty_calibration_alerts": manifest.get("novelty", {}).get("calibration_alerts"),
+            "novelty_calibration_alerts_per_day": manifest.get("novelty", {}).get("calibration_alerts_per_day"),
+        }
+        # Label sensitivity: the same metric under narrower definitions of "positive", so the reader can
+        # see how much the headline depends on which lines we chose to call an attack.
+        alt: dict[str, dict] = {}
+        for name, keep in (("rule_bearing_lines_only", rule_expected),):
+            ya = np.array([1 if (y[i] and line_of_row.get(i) in keep) else 0 for i in range(len(y))])
+            if ya.sum():
+                alt[name] = {"positives": int(ya.sum()), **M.summarise(combined, ya)}
+        out["label_sensitivity"] = {
+            "scorer": "two_channel_sum",
+            "primary": {"positives": matched, **out["detection_quality"]["two_channel_sum"]},
+            "alternatives": alt,
+        }
+        fp_rows = sorted(int(line_of_row[i]) for i in np.where(nov_flag & (y == 0))[0] if i in line_of_row)
+        out["novelty_non_inventory_alerts"] = {
+            "count": len(fp_rows), "line_numbers": fp_rows,
+            "note": "Counted as false positives in every figure above. They are reported here so the reader can "
+                    "check them rather than take the inventory as complete; the inventory is frozen and was NOT "
+                    "widened after seeing these, because selecting labels from detector output is how a self-graded "
+                    "exam becomes a fabricated one.",
+        }
+
+    # Known provisional sequence: which detector says what, and how fast.
     by_line = {d["line_number"]: (s, d) for s, d in det.items() if d.get("line_number")}
     chosen_t = float(manifest["threshold"])
     rows = []
@@ -187,6 +275,11 @@ def main() -> int:
     summary["rules_only"] = {k: v for k, v in summary["rules_only"].items() if k != "incidents"}
     summary["known_sequence_expectations_met"] = out["known_sequence"]["expectations_met"]
     summary["known_sequence_delays"] = out["known_sequence"]["event_time_delay_seconds"]
+    if "detection_quality" in out:
+        summary["ground_truth"] = out["ground_truth"]
+        summary["detection_quality"] = out["detection_quality"]
+        summary["paired_comparisons"] = out["paired_comparisons"]
+        summary["operating_point"] = out["operating_point"]
     print(json.dumps(summary, indent=2, default=str))
     return 0
 

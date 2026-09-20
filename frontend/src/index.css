@@ -31,49 +31,54 @@
 * {
   box-sizing: border-box;
 }
-html,
-body {
-  margin: 0;
-  padding: 0;
+/*
+ * Scoped to `.app` (the console shell in App.tsx) rather than to bare elements.
+ *
+ * These rules used to target h1/h2/h3/a/p/code globally, which leaked out of the console and
+ * restyled the landing page — h2 in particular forced uppercase and a muted colour onto every
+ * section heading on `/`. The visual result inside the console is identical: `.app` carries
+ * the font stack and the 14px base the console screens are sized against.
+ */
+.app {
   background: var(--bg);
   color: var(--fg);
   font-family: var(--sans);
   font-size: 14px;
   line-height: 1.45;
 }
-a {
+.app a {
   color: var(--accent);
 }
-h1,
-h2,
-h3 {
+.app h1,
+.app h2,
+.app h3 {
   margin: 0;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
-h1 {
+.app h1 {
   font-size: 18px;
 }
-h2 {
+.app h2 {
   font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--fg-2);
 }
-h3 {
+.app h3 {
   font-size: 13px;
   color: var(--fg-2);
 }
-p {
+.app p {
   margin: 0 0 8px;
 }
-code,
-pre,
+.app code,
+.app pre,
 .mono {
   font-family: var(--mono);
   font-size: 12.5px;
 }
-pre {
+.app pre {
   margin: 0;
 }
 .code-block {
@@ -549,9 +554,9 @@ table.tbl {
   padding: 2px 8px;
   font-size: 12px;
 }
-input,
-select,
-textarea {
+.app input,
+.app select,
+.app textarea {
   background: var(--bg);
   color: var(--fg);
   border: 1px solid var(--line-strong);
@@ -559,9 +564,9 @@ textarea {
   padding: 5px 8px;
   font: inherit;
 }
-input:focus,
-select:focus,
-textarea:focus,
+.app input:focus,
+.app select:focus,
+.app textarea:focus,
 .btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;

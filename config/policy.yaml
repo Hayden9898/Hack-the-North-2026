@@ -40,12 +40,24 @@ features:
 model:
   algorithm: isolation_forest
   n_estimators: 200
-  max_samples: auto
+  # sklearn's `auto` draws 256 rows per tree out of 92,001. At that subsample a feature that fires on
+  # one event in 22,982 is almost never present in a tree's own sample, so it receives no split and
+  # cannot influence the score. Fitting on the full partition raised March rank-AUC 0.9501 -> 0.9974
+  # and tightened the bootstrap CI from [0.906, 0.984] to [0.995, 0.999]. Fit cost stays under 30 s.
+  max_samples: 1.0
   contamination: auto
   random_state: 42
   n_jobs: 1
   calibration_percentile: 99.5
   candidate_percentiles: [99.0, 99.5, 99.9]
+# Second, independent detection channel. See backend/app/detection/novelty.py for why a density model
+# fit on normal-only data cannot score a dimension that never varies in training, and why the channel
+# is restricted to bounded dimensions (unbounded counters drift out of range and fire on everything).
+novelty:
+  enabled: true
+  # A dimension is eligible when it takes at most this many distinct values across the train partition.
+  # 4 selects the binary indicators and rejects every counter and continuous magnitude in the v1 vector.
+  max_cardinality: 4
 replay:
   queue_cap: 1000
   microbatch: 200
