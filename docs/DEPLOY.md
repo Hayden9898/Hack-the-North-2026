@@ -28,13 +28,15 @@ Either way, `GET /health/ready` reports the detected extension version in `datab
 
 ## 2. Create the two application services
 
-Both services deploy **the same repo and the same `Dockerfile`**. The root `railway.json` calls a role launcher;
-it selects the API by default, while `SERVICE_ROLE=worker` starts the worker role on the same image.
+Both services deploy **the same repo and the same `Dockerfile`**. Configure their service start commands explicitly:
+the API runs migrations then `scripts.serve_api`, and the worker waits for the database then runs
+`scripts.serve_worker`.
 
 1. *New Project -> Deploy from GitHub repo* -> this repository. Name the service `api`.
    Settings -> *Config-as-code path*: `railway.json` (already holds the build, the start command and the
    `/health/live` healthcheck). Networking -> *Generate Domain*.
-2. *New -> GitHub Repo* (same repo) again. Name it `worker`. Set `SERVICE_ROLE=worker`; do **not** give it a domain.
+2. *New -> GitHub Repo* (same repo) again. Name it `worker`, set its start command to
+   `python -m scripts.wait_for_db && python -m scripts.serve_worker`, and do **not** give it a domain.
 
 Keep `numReplicas = 1` on the worker. More replicas are safe (run ownership is a row lock) but pointless.
 
