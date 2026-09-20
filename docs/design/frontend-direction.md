@@ -1,10 +1,10 @@
-# Log & Order — product design inventory
+# WatchTower — product design inventory
 
 Research and implementation brief, September 19, 2026. AWS is the primary structural reference. This inventory was established before rewriting the interface. Sources below are public product documentation and design-system examples, not authenticated product sessions. The design-inspiration MCP was queried for AWS references but returned no results. We do not claim to have inspected a paid Mobbin catalog.
 
 ## Reference inventory
 
-| Reference | Observed interaction / visual principle | Log & Order application |
+| Reference | Observed interaction / visual principle | WatchTower application |
 | --- | --- | --- |
 | [AWS Cloudscape resource management](https://cloudscape.design/patterns/resource-management/) | Resource collections, creation, inspection | Single-level navigation for sources and executions |
 | [AWS table view](https://cloudscape.design/patterns/resource-management/view/table-view/) | Resource title, count, primary action, search, stable columns | Sources and execution lists |
@@ -67,7 +67,7 @@ Additional references: [PolyYield](https://polyyield.vercel.app/) (hero hierarch
 [Nexus](https://v0.app/templates/nexus-saas-ai-platform-C8lIjeSzBZr) (product-entry composition).
 These do not replace AWS as the operational structure. `/` remains the console; the welcome page is optional and linked from Help.
 
-![Log & Order welcome implementation](references/logorder-welcome-desktop.png)
+![WatchTower welcome implementation](references/logorder-welcome-desktop.png)
 
 React 19 + TypeScript + Vite remain the application foundation. Motion is installed. Kokonut's action-search pattern is adapted to this product, with cmdk/Radix providing accessible interaction. Charts follow Bklit's Visx + Motion approach in a deliberately small local component; the entire upstream registry is not vendored. These are adaptations, not claims of unmodified library installation.
 

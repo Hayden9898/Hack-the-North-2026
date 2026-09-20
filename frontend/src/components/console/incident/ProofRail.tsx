@@ -58,7 +58,7 @@ export function ProofRail({
 
 function RailLabel({ children, id }: { children: React.ReactNode; id?: string }) {
   return (
-    <h3 id={id} className="mb-2.5 text-caption text-fg-muted uppercase">
+    <h3 id={id} className="mb-2.5 text-caption text-fg-muted">
       {children}
     </h3>
   )
@@ -116,7 +116,7 @@ function ClaimCard({ fact, onShowEvidence }: { fact: Fact; onShowEvidence: (f: F
       </span>
 
       {hasEvidence ? (
-        <span className="flex shrink-0 items-center gap-1.5 text-caption text-accent normal-case tracking-normal underline decoration-transparent underline-offset-2 group-hover/claim:decoration-current">
+        <span className="flex shrink-0 items-center gap-1.5 text-caption text-accent underline decoration-transparent underline-offset-2 group-hover/claim:decoration-current">
           {evidenceLabel(fact)}
           <ArrowRight className="size-3.5" aria-hidden />
         </span>
@@ -247,8 +247,8 @@ function ObservedEvents({ facts, onShowEvidence }: { facts: Fact[]; onShowEviden
           <span className="font-medium text-fg">{fmtNum(facts.length)} observed events</span> recorded as evidence for
           this incident
         </span>
-        <span className="shrink-0 text-caption normal-case tracking-normal group-open/obs:hidden">show</span>
-        <span className="hidden shrink-0 text-caption normal-case tracking-normal group-open/obs:inline">hide</span>
+        <span className="shrink-0 text-caption group-open/obs:hidden">show</span>
+        <span className="hidden shrink-0 text-caption group-open/obs:inline">hide</span>
       </summary>
       <ul className="max-h-96 overflow-y-auto border-t border-border">
         {facts.map((f) => {

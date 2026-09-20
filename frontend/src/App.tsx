@@ -1,7 +1,8 @@
 import { type FormEvent, type ReactNode, useEffect, useState } from 'react'
-import { ArrowLeft, RefreshCw } from 'lucide-react'
-import { NavLink, Outlet } from 'react-router-dom'
-import { ThemeToggle } from './components/ThemeToggle'
+import { Activity, RefreshCw } from 'lucide-react'
+import { Outlet } from 'react-router-dom'
+import { Popover as PopoverPrimitive } from 'radix-ui'
+import { SiteNav } from './components/SiteNav'
 import { Toast } from './components/ui/toast'
 import {
   api,
@@ -11,21 +12,17 @@ import {
   subscribeOperatorToken,
   type Health,
 } from './api'
-import { degradedModeLabel } from './format'
 import { cn } from './lib/cn'
 import { MonitoringCheck } from './MonitoringCheck'
 import { useFetch, useInterval } from './useFetch'
 
-/** Shared chip shell: the header status controls all read as one row of the same object. */
-const CHIP = 'inline-flex items-center gap-2 rounded-md border px-2.5 py-1 font-mono text-caption uppercase transition-colors duration-150'
-
 /**
  * The console shell.
  *
- * The chrome here is on the shared tokens (same masthead language as the landing page), while
- * the screens inside `<main className="page">` are still the hand-rolled console stylesheet in
- * src/index.css — whose palette is now aliased onto those same tokens, so the two halves match
- * and both follow the light/dark toggle.
+ * One bar: the wordmark, the one place to go, and — on the right — a single status control
+ * that opens everything operational (API health, operator token, Sentry diagnostic). The old
+ * bar showed all of that permanently and read as a cockpit; the status is still one glance
+ * away, the controls are one click away.
  */
 export default function App() {
   const health = useFetch<Health>(() => api.health(), [])
@@ -39,89 +36,43 @@ export default function App() {
 
   return (
     <div className="app min-h-dvh bg-bg">
-      <header className="sticky top-0 z-40 border-border border-b bg-bg/85 backdrop-blur-md">
-        <div className="flex items-center gap-5 px-5 py-2.5 sm:px-8">
-          <NavLink to="/app" className="group flex items-baseline gap-2.5 rounded-sm no-underline">
-            <span aria-hidden className="h-4 w-0.5 shrink-0 self-center rounded-full bg-accent" />
-            <span className="font-sans text-[1.25rem] text-fg leading-none tracking-tight">Log &amp; Order</span>
-            <span className="hidden font-mono text-caption text-fg-subtle uppercase sm:inline">console</span>
-          </NavLink>
+      <SiteNav />
 
-          <nav className="flex items-center gap-1">
-            <NavLink
-              to="/app"
-              end
-              className={({ isActive }) =>
-                cn(
-                  'rounded-md px-2.5 py-1 font-mono text-caption uppercase no-underline transition-colors duration-150',
-                  isActive ? 'bg-chip text-fg' : 'text-fg-muted hover:bg-hover hover:text-fg',
-                )
-              }
-            >
-              Runs
-            </NavLink>
-          </nav>
-
-          <div className="ml-auto flex items-center gap-3">
-            <MonitoringCheck />
-            {health.data ? <OperatorToken required={health.data.auth?.operator_required ?? false} /> : null}
-            <HealthChip health={health.data} error={health.error} loading={health.loading} onRetry={() => void health.reload()} />
-            <ThemeToggle />
-            <NavLink
-              to="/"
-              className="hidden items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1.5 font-mono text-caption text-fg-muted uppercase no-underline transition-colors duration-150 hover:border-border-strong hover:text-fg sm:inline-flex"
-            >
-              <ArrowLeft className="size-3" /> Overview
-            </NavLink>
-          </div>
-        </div>
-      </header>
-
-      <div className="flex flex-col gap-px">
+      <div className="flex flex-col">
         {showDbBanner ? (
           <Banner tone="danger" role="alert">
-            <strong className="font-semibold">Database unavailable.</strong> The API returned 503 or reported the database as down. Nothing shown
-            below is being refreshed; this console never fabricates a healthy feed.
-            <BannerAction onClick={() => void health.reload()}>Re-check</BannerAction>
+            <strong>Database unavailable.</strong> The API returned 503 or reported the database as down. Nothing below is
+            being refreshed; WatchTower never fabricates a healthy feed.
+            <BannerAction onClick={() => void health.reload()}>Check again</BannerAction>
           </Banner>
         ) : null}
 
         {!showDbBanner && healthErr && healthErr.status !== 503 ? (
           <Banner tone="warn" role="alert">
-            <strong className="font-semibold">Health check failed</strong> ({healthErr.status ?? 'no response'}: {healthErr.text}).
+            <strong>Health check failed</strong> ({healthErr.status ?? 'no response'}: {healthErr.text}).
             <BannerAction onClick={() => void health.reload()}>Retry</BannerAction>
           </Banner>
         ) : null}
 
         {!showDbBanner && notReady && health.data ? (
           <Banner tone="danger" role="alert">
-            <strong className="font-semibold">API not ready</strong> — status {health.data.status}
+            <strong>API not ready</strong> — status {health.data.status}
             {health.data.not_ready_reasons?.length ? ` (${health.data.not_ready_reasons.map((r) => r.replaceAll('_', ' ')).join(', ')})` : ''}.
-            database ok: {String(health.data.database.ok)}; migrations ok: {String(health.data.migrations.ok)} (
+            Database ok: {String(health.data.database.ok)}; migrations ok: {String(health.data.migrations.ok)} (
             {health.data.migrations.current ?? '?'} / {health.data.migrations.head ?? '?'}); config ok: {String(health.data.config.ok)}.
-          </Banner>
-        ) : null}
-
-        {health.data && health.data.degraded_modes.length > 0 ? (
-          <Banner tone="pending" role="status">
-            <span className="font-mono text-caption uppercase">Degraded modes declared by the API</span>
-            <span className="flex flex-wrap gap-1.5">
-              {health.data.degraded_modes.map((m) => (
-                <span
-                  key={m}
-                  className="state-hatch rounded-sm border border-pending/45 px-1.5 py-0.5 font-mono text-[0.6875rem] text-pending uppercase"
-                >
-                  {degradedModeLabel(m)}
-                </span>
-              ))}
-            </span>
           </Banner>
         ) : null}
       </div>
 
-      <main className="page">
+      <main>
         <Outlet />
       </main>
+      <footer className="mt-16 border-t border-border">
+        <div className="mx-auto flex w-full max-w-[84rem] items-center justify-between gap-4 px-4 py-5 text-caption text-fg-subtle sm:px-6 lg:px-8">
+          <span>WatchTower</span>
+          <SystemMenu health={health.data} error={health.error} loading={health.loading} onRetry={() => void health.reload()} />
+        </div>
+      </footer>
       <Toast />
     </div>
   )
@@ -133,18 +84,12 @@ const BANNER_TONE = {
   pending: 'border-border bg-chip text-fg-muted',
 } as const
 
-function Banner({
-  tone,
-  role,
-  children,
-}: {
-  tone: keyof typeof BANNER_TONE
-  role: 'alert' | 'status'
-  children: ReactNode
-}) {
+function Banner({ tone, role, children }: { tone: keyof typeof BANNER_TONE; role: 'alert' | 'status'; children: ReactNode }) {
   return (
-    <div role={role} className={cn('flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-5 py-2.5 text-body sm:px-8', BANNER_TONE[tone])}>
-      {children}
+    <div role={role} className={cn('border-b', BANNER_TONE[tone])}>
+      <div className="mx-auto flex w-full max-w-[84rem] flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 text-body sm:px-6 lg:px-8">
+        {children}
+      </div>
     </div>
   )
 }
@@ -154,7 +99,7 @@ function BannerAction({ onClick, children }: { onClick: () => void; children: Re
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-1.5 rounded-md border border-border-strong bg-surface px-2 py-1 font-mono text-caption text-fg uppercase transition-colors duration-150 hover:bg-hover"
+      className="inline-flex items-center gap-1.5 rounded-md border border-border-strong bg-surface px-2.5 py-1 text-caption text-fg transition-colors duration-150 hover:bg-hover"
     >
       <RefreshCw className="size-3" />
       {children}
@@ -162,13 +107,120 @@ function BannerAction({ onClick, children }: { onClick: () => void; children: Re
   )
 }
 
+/* ------------------------------------------------------------------ system menu */
+
 /**
- * Shared deployments require an operator bearer token for mutations (creating runs, replay control, feedback,
- * aggregate refresh). Reads are open. The token stays in this tab and is sent only as an Authorization header.
+ * Live API state plus every operator control, behind one button.
+ *
+ * The dot is the fastest read on the page. Green means the API is ready; amber means it
+ * answered but is not ready; red means it did not answer or the database is down.
+ */
+function SystemMenu({ health, error, loading, onRetry }: { health: Health | null; error: unknown; loading: boolean; onRetry: () => void }) {
+  const e = error && !health ? describeError(error) : null
+  const ready = health?.status === 'ready'
+  const tone: 'ok' | 'warn' | 'bad' | 'wait' = e ? 'bad' : health ? (ready ? 'ok' : 'warn') : loading ? 'wait' : 'bad'
+  const label = e ? (e.status === 503 ? 'Database down' : 'API unreachable') : health ? (ready ? 'API ready' : `API ${health.status.replaceAll('_', ' ')}`) : 'Checking'
+
+  return (
+    <PopoverPrimitive.Root>
+      <PopoverPrimitive.Trigger asChild>
+        <button
+          type="button"
+          className="inline-flex h-8 items-center gap-2 rounded-md border border-border bg-surface px-2.5 text-caption font-medium text-fg-muted transition-colors duration-150 hover:border-border-strong hover:text-fg"
+          aria-label={`${label}. Open system menu`}
+        >
+          <Dot tone={tone} />
+          <span className="hidden sm:inline">{label}</span>
+        </button>
+      </PopoverPrimitive.Trigger>
+      <PopoverPrimitive.Portal>
+        <PopoverPrimitive.Content
+          align="end"
+          side="top"
+          sideOffset={8}
+          className="z-50 w-[22rem] max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-surface-raised p-4 text-fg shadow-lg outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
+        >
+          <section className="space-y-2">
+            <h2 className="flex items-center gap-2 text-heading">
+              <Activity className="size-4 text-fg-muted" aria-hidden />
+              System
+            </h2>
+            {health ? (
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-caption">
+                <Row k="API" v={ready ? 'ready' : health.status.replaceAll('_', ' ')} tone={ready ? 'ok' : 'warn'} />
+                <Row k="Database" v={health.database.ok ? 'ok' : (health.database.detail ?? 'down')} tone={health.database.ok ? 'ok' : 'bad'} />
+                <Row
+                  k="Migrations"
+                  v={health.migrations.ok ? (health.migrations.current ?? 'current') : `${health.migrations.current ?? '?'} of ${health.migrations.head ?? '?'}`}
+                  tone={health.migrations.ok ? 'ok' : 'warn'}
+                />
+                <Row k="Model" v={health.models.active ?? 'none, rules only'} tone={health.models.active ? 'ok' : 'warn'} />
+              </dl>
+            ) : e ? (
+              <p className="text-caption text-high-risk">
+                {e.status === 503 ? 'Database unavailable.' : `Health check failed (${e.status ?? 'no response'}).`} {e.text}
+              </p>
+            ) : (
+              <p className="text-caption text-fg-muted">Checking the API…</p>
+            )}
+            <button type="button" onClick={onRetry} className="inline-flex items-center gap-1.5 text-caption text-fg-muted hover:text-fg">
+              <RefreshCw className="size-3" aria-hidden /> Check again
+            </button>
+          </section>
+
+          <div className="my-4 h-px bg-border" />
+
+          <OperatorToken required={health?.auth?.operator_required ?? false} />
+
+          <div className="my-4 h-px bg-border" />
+
+          <MonitoringCheck />
+        </PopoverPrimitive.Content>
+      </PopoverPrimitive.Portal>
+    </PopoverPrimitive.Root>
+  )
+}
+
+function Row({ k, v, tone }: { k: string; v: string; tone: 'ok' | 'warn' | 'bad' }) {
+  return (
+    <>
+      <dt className="text-fg-muted">{k}</dt>
+      <dd className="flex min-w-0 items-center gap-1.5 truncate text-fg">
+        <Dot tone={tone} still />
+        <span className="truncate font-mono">{v}</span>
+      </dd>
+    </>
+  )
+}
+
+const DOT = {
+  ok: 'bg-normal-mark',
+  warn: 'bg-suspicious-mark',
+  bad: 'bg-high-risk-mark',
+  wait: 'bg-pending',
+} as const
+
+function Dot({ tone, still = false }: { tone: keyof typeof DOT; still?: boolean }) {
+  return (
+    <span className="relative flex size-2 shrink-0">
+      {!still && tone !== 'ok' ? (
+        <span className={cn('absolute inline-flex size-full animate-ping rounded-full opacity-60 motion-reduce:hidden', DOT[tone])} />
+      ) : null}
+      <span className={cn('relative inline-flex size-2 rounded-full', DOT[tone])} />
+    </span>
+  )
+}
+
+/* ------------------------------------------------------------------ operator token */
+
+/**
+ * Shared deployments require an operator bearer token for mutations (creating runs, replay
+ * control, feedback, aggregate refresh). Reads are open. The token stays in this tab and is
+ * sent only as an Authorization header.
  */
 function OperatorToken({ required }: { required: boolean }) {
   const [present, setPresent] = useState(false)
-  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState(false)
   const [value, setValue] = useState('')
   useEffect(() => subscribeOperatorToken(setPresent), [])
 
@@ -176,69 +228,56 @@ function OperatorToken({ required }: { required: boolean }) {
     e.preventDefault()
     setOperatorToken(value)
     setValue('')
-    setOpen(false)
+    setEditing(false)
   }
 
-  if (!open) {
-    // Absent-but-required is a real problem (mutations will 401); absent-and-optional is just information,
-    // so it stays neutral rather than borrowing a verdict colour.
-    const tone = present
-      ? 'border-normal/30 bg-normal-wash text-normal'
-      : required
-        ? 'border-high-risk/35 bg-high-risk-wash text-high-risk'
-        : 'border-border bg-chip text-fg-subtle'
-    return (
-      <button
-        type="button"
-        className={cn(CHIP, tone, 'hidden md:inline-flex')}
-        onClick={() => setOpen(true)}
-        title={
-          present
-            ? 'Operator token set for this tab; click to replace or clear it'
-            : required
-              ? 'Mutations need an operator token on this deployment'
-              : 'This deployment accepts local mutations without a token; set one if the API rejects them'
-        }
-      >
-        <Dot className={present ? 'bg-normal-mark' : required ? 'bg-high-risk-mark' : 'bg-pending'} />
-        operator {present ? 'authenticated' : required ? 'token required' : 'no token'}
-      </button>
-    )
-  }
+  const status = present ? 'Token set for this tab.' : required ? 'This deployment needs a token for any change.' : 'No token. Local deployments accept changes without one.'
 
   return (
-    <form onSubmit={save} className="flex items-center gap-1.5">
-      <input
-        type="password"
-        autoFocus
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder="APP_AUTH_SECRET"
-        aria-label="operator token"
-        autoComplete="off"
-        spellCheck={false}
-        className="w-44 rounded-md border border-border bg-surface px-2 py-1 font-mono text-caption text-fg placeholder:text-fg-subtle"
-      />
-      <TokenButton type="submit" emphasis>
-        Use
-      </TokenButton>
-      {present ? (
-        <TokenButton
-          onClick={() => {
-            setOperatorToken('')
-            setValue('')
-            setOpen(false)
-          }}
-        >
-          Clear
-        </TokenButton>
-      ) : null}
-      <TokenButton onClick={() => setOpen(false)}>Cancel</TokenButton>
-    </form>
+    <section className="space-y-2">
+      <h3 className="text-body font-medium text-fg">Operator token</h3>
+      <p className={cn('flex items-center gap-2 text-caption', present ? 'text-fg-muted' : required ? 'text-high-risk' : 'text-fg-muted')}>
+        <Dot tone={present ? 'ok' : required ? 'bad' : 'wait'} still />
+        {status}
+      </p>
+      {editing ? (
+        <form onSubmit={save} className="flex flex-wrap items-center gap-1.5">
+          <input
+            type="password"
+            autoFocus
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="APP_AUTH_SECRET"
+            aria-label="Operator token"
+            autoComplete="off"
+            spellCheck={false}
+            className="min-w-0 flex-1 rounded-md border border-border bg-surface px-2.5 py-1.5 font-mono text-mono text-fg placeholder:text-fg-subtle"
+          />
+          <SmallButton type="submit" emphasis>
+            Use
+          </SmallButton>
+          <SmallButton onClick={() => setEditing(false)}>Cancel</SmallButton>
+        </form>
+      ) : (
+        <div className="flex gap-1.5">
+          <SmallButton onClick={() => setEditing(true)}>{present ? 'Replace token' : 'Set token'}</SmallButton>
+          {present ? (
+            <SmallButton
+              onClick={() => {
+                setOperatorToken('')
+                setValue('')
+              }}
+            >
+              Clear
+            </SmallButton>
+          ) : null}
+        </div>
+      )}
+    </section>
   )
 }
 
-function TokenButton({
+function SmallButton({
   children,
   emphasis,
   onClick,
@@ -254,61 +293,13 @@ function TokenButton({
       type={type}
       onClick={onClick}
       className={cn(
-        'rounded-md border px-2 py-1 font-mono text-caption uppercase transition-colors duration-150',
+        'rounded-md border px-2.5 py-1 text-caption font-medium transition-colors duration-150',
         emphasis
-          ? 'border-accent bg-accent text-accent-fg hover:opacity-90'
-          : 'border-border bg-surface text-fg-muted hover:bg-hover hover:text-fg',
+          ? 'border-accent bg-accent text-accent-fg hover:bg-accent-hover'
+          : 'border-border bg-surface text-fg-muted hover:border-border-strong hover:text-fg',
       )}
     >
       {children}
     </button>
-  )
-}
-
-/**
- * Live API state. The dot is the fastest read on the page, so it carries the status and the
- * words only qualify it — and it stops pulsing under reduced motion.
- */
-function HealthChip({ health, error, loading, onRetry }: { health: Health | null; error: unknown; loading: boolean; onRetry: () => void }) {
-  if (loading && !health) {
-    return (
-      <span className={cn(CHIP, 'border-border bg-chip text-fg-subtle')}>
-        <Dot className="bg-pending" /> checking…
-      </span>
-    )
-  }
-  if (error && !health) {
-    const e = describeError(error)
-    return (
-      <button type="button" onClick={onRetry} title={e.text} className={cn(CHIP, 'border-high-risk/35 bg-high-risk-wash text-high-risk')}>
-        <Dot className="bg-high-risk-mark" /> {e.status === 503 ? 'db unavailable' : `error ${e.status ?? ''}`}
-      </button>
-    )
-  }
-  if (!health) return null
-
-  const ok = health.status === 'ready'
-  return (
-    <span
-      className={cn(CHIP, ok ? 'border-normal/30 bg-normal-wash text-normal' : 'border-suspicious/35 bg-suspicious-wash text-suspicious')}
-      title={`db: ${health.database.detail ?? '—'}; models: ${health.models.artifacts.join(', ') || 'none'}`}
-    >
-      <Dot className={ok ? 'bg-normal-mark' : 'bg-suspicious-mark'} />
-      API {ok ? 'ready' : health.status}
-      {health.models.active ? (
-        <span className="text-fg-subtle">· model {health.models.active}</span>
-      ) : (
-        <span className="text-fg-subtle">· rules only</span>
-      )}
-    </span>
-  )
-}
-
-function Dot({ className }: { className?: string }) {
-  return (
-    <span className="relative flex size-2">
-      <span className={cn('absolute inline-flex size-full animate-ping rounded-full opacity-60 motion-reduce:hidden', className)} />
-      <span className={cn('relative inline-flex size-2 rounded-full', className)} />
-    </span>
   )
 }

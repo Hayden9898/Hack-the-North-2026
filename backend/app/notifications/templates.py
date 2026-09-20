@@ -30,7 +30,7 @@ def build_payload(
     text_lines = [title, summary.get("headline", ""), f"account={account} source={ip} first={first_time} last={last_time} events={event_count}"]
     text_lines += [f"- {f}" for f in facts]
     text_lines.append(f"Qualifier: {summary.get('qualifier', '')}")
-    text_lines.append(f"Open in Log & Order: {link}")
+    text_lines.append(f"Open in WatchTower: {link}")
     return {
         "kind": kind,
         "text": "\n".join(text_lines),

@@ -106,7 +106,7 @@ export function RunActivityChart({
   return (
     <figure className={cn('min-w-0', className)}>
       <figcaption className="mb-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-        <span className="text-caption text-fg-muted normal-case tracking-normal">
+        <span className="text-caption text-fg-muted">
           Events per {unitLabel} bucket{cutoffLabel ? ` · ${cutoffLabel}` : ''}
         </span>
         <Legend onToggleTable={() => setShowTable((v) => !v)} showTable={showTable} hasWarmup={hasWarmup} />
@@ -305,12 +305,12 @@ export function RunActivityChart({
           <table className="w-full border-collapse font-mono text-mono" id={`${uid}-table`}>
             <thead className="sticky top-0 bg-surface-raised">
               <tr className="border-b border-border text-left">
-                <th className="px-3 py-1.5 font-sans text-caption font-medium text-fg-muted uppercase">bucket (UTC)</th>
-                <th className="px-3 py-1.5 text-right font-sans text-caption font-medium text-fg-muted uppercase">events</th>
-                <th className="px-3 py-1.5 text-right font-sans text-caption font-medium text-fg-muted uppercase">401</th>
-                <th className="px-3 py-1.5 text-right font-sans text-caption font-medium text-fg-muted uppercase">403</th>
-                <th className="px-3 py-1.5 text-right font-sans text-caption font-medium text-fg-muted uppercase">susp.</th>
-                <th className="px-3 py-1.5 text-right font-sans text-caption font-medium text-fg-muted uppercase">high risk</th>
+                <th className="px-3 py-1.5 font-sans text-caption font-medium text-fg-muted">bucket (UTC)</th>
+                <th className="px-3 py-1.5 text-right font-sans text-caption font-medium text-fg-muted">events</th>
+                <th className="px-3 py-1.5 text-right font-sans text-caption font-medium text-fg-muted">401</th>
+                <th className="px-3 py-1.5 text-right font-sans text-caption font-medium text-fg-muted">403</th>
+                <th className="px-3 py-1.5 text-right font-sans text-caption font-medium text-fg-muted">susp.</th>
+                <th className="px-3 py-1.5 text-right font-sans text-caption font-medium text-fg-muted">high risk</th>
               </tr>
             </thead>
             <tbody>
@@ -334,7 +334,7 @@ export function RunActivityChart({
 
 function Legend({ showTable, onToggleTable, hasWarmup }: { showTable: boolean; onToggleTable: () => void; hasWarmup: boolean }) {
   return (
-    <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption normal-case tracking-normal">
+    <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption">
       {hasWarmup ? <Key color="var(--color-fg-subtle)" label="historical warmup" muted /> : null}
       <Key color="var(--color-fg-subtle)" label="all events" muted />
       <Key color="var(--color-suspicious)" label="suspicious" />

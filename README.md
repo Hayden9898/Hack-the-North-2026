@@ -1,4 +1,4 @@
-# Log & Order
+# WatchTower
 
 A behavioral security investigation console for HTTP access logs. It replays or ingests events in causal order,
 computes history-relative features, runs independent deterministic rules (R1–R6) and a frozen Isolation Forest,

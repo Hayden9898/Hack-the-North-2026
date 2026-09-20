@@ -29,7 +29,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    app = FastAPI(title="Log & Order", version="0.1.0", lifespan=_lifespan, openapi_url="/api/v1/openapi.json")
+    app = FastAPI(title="WatchTower", version="0.1.0", lifespan=_lifespan, openapi_url="/api/v1/openapi.json")
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[o.strip() for o in settings.cors_origins.split(",") if o.strip()],

@@ -50,15 +50,15 @@ export function EventPage() {
   return (
     <div className="mx-auto w-full max-w-[84rem] space-y-6 px-4 py-6 sm:px-6 lg:px-8">
       <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5">
-        <Link to="/app" className="text-caption text-fg-muted normal-case tracking-normal hover:text-fg">
+        <Link to="/app" className="text-caption text-fg-muted hover:text-fg">
           Runs
         </Link>
         <ChevronRight className="size-3 text-fg-muted" aria-hidden />
-        <Link to={`/app/runs/${encodeURIComponent(runId)}`} className="font-mono text-caption text-fg-muted normal-case tracking-normal hover:text-fg">
+        <Link to={`/app/runs/${encodeURIComponent(runId)}`} className="font-mono text-caption text-fg-muted hover:text-fg">
           {shortId(runId, 14)}
         </Link>
         <ChevronRight className="size-3 text-fg-muted" aria-hidden />
-        <span className="font-mono text-caption text-fg-muted normal-case tracking-normal">event {e.run_seq}</span>
+        <span className="font-mono text-caption text-fg-muted">event {e.run_seq}</span>
       </nav>
 
       <header className="space-y-3">
@@ -89,7 +89,7 @@ export function EventPage() {
       </header>
 
       <section aria-labelledby="parsed" className="rounded-lg border border-border bg-surface px-4 py-4">
-        <h2 id="parsed" className="mb-3 text-caption text-fg-muted uppercase">
+        <h2 id="parsed" className="mb-3 text-caption text-fg-muted">
           As parsed
         </h2>
         <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -105,7 +105,7 @@ export function EventPage() {
       </section>
 
       <section aria-labelledby="outcome" className="rounded-lg border border-border bg-surface px-4 py-4">
-        <h2 id="outcome" className="mb-3 text-caption text-fg-muted uppercase">
+        <h2 id="outcome" className="mb-3 text-caption text-fg-muted">
           Why it was classified this way
         </h2>
         {e.reason_codes.length > 0 ? (
@@ -138,7 +138,7 @@ export function EventPage() {
 
         {e.top_deviations.length > 0 ? (
           <div className="mb-3 border-t border-border pt-3">
-            <h3 className="mb-2 text-caption text-fg-muted uppercase">What stood out</h3>
+            <h3 className="mb-2 text-caption text-fg-muted">What stood out</h3>
             <ul className="grid gap-1.5">
               {e.top_deviations.map((d, i) => {
                 const rec = d as Record<string, unknown>
@@ -168,7 +168,7 @@ export function EventPage() {
 
         {e.incident_memberships.length > 0 ? (
           <div className="mt-4 border-t border-border pt-3">
-            <h3 className="mb-2 text-caption text-fg-muted uppercase">Part of</h3>
+            <h3 className="mb-2 text-caption text-fg-muted">Part of</h3>
             <ul className="grid gap-1.5">
               {e.incident_memberships.map((m) => (
                 <li key={`${m.incident_id}-${m.relation_type}`}>
@@ -189,7 +189,7 @@ export function EventPage() {
 
       {e.features || e.observed_context ? (
         <details className="rounded-lg border border-border bg-surface">
-          <summary className="group/sum flex cursor-pointer list-none items-center gap-1.5 px-4 py-3 text-caption text-fg-muted uppercase hover:text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none">
+          <summary className="group/sum flex cursor-pointer list-none items-center gap-1.5 px-4 py-3 text-caption text-fg-muted hover:text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none">
             <ChevronRight className="size-3.5 shrink-0 transition-transform group-open/sum:rotate-90 motion-reduce:transition-none" aria-hidden />
             Model inputs at processing time ({e.feature_version ?? 'no snapshot'})
           </summary>
@@ -242,7 +242,7 @@ function KeyNumbers({ title, data }: { title: string; data: Record<string, unkno
   if (entries.length === 0) return null
   return (
     <div>
-      <h3 className="mb-2 text-caption text-fg-muted uppercase">{title}</h3>
+      <h3 className="mb-2 text-caption text-fg-muted">{title}</h3>
       <dl className="grid gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
         {entries.map(([k, v]) => (
           <div key={k} className="flex items-baseline justify-between gap-3 border-b border-border/40 py-1">
@@ -262,11 +262,11 @@ function KeyNumbers({ title, data }: { title: string; data: Record<string, unkno
 function Pair({ k, v, mono, hint }: { k: string; v: string; mono?: boolean; hint?: string }) {
   return (
     <div className="min-w-0">
-      <dt className="text-caption text-fg-muted uppercase" title={hint}>
+      <dt className="text-caption text-fg-muted" title={hint}>
         {k}
       </dt>
       <dd className={mono ? 'break-words font-mono text-mono text-fg' : 'break-words text-body text-fg'}>{v}</dd>
-      {hint ? <p className="mt-0.5 text-caption text-fg-muted normal-case tracking-normal">{hint}</p> : null}
+      {hint ? <p className="mt-0.5 text-caption text-fg-muted">{hint}</p> : null}
     </div>
   )
 }

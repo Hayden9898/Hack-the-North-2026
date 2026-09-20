@@ -1,63 +1,61 @@
 /*
- * Log & Order — design tokens.
+ * WatchTower — design tokens.
  *
- * Palette source: embeddable.com's own published token set, read off their shipped CSS
- * (see the hex values named below). The brief was "clear divisions, labels, good colour
- * index, not dull dark", so the base is their warm paper #fafaf7 with #242635 ink, and the
- * page gets colour from a real categorical chart ramp rather than from one tinted accent.
+ * A cool, quiet canvas with white surfaces and one signal-blue accent. Everything that carries
+ * product meaning (verdicts, processing states) keeps its own hue so the accent is the only
+ * "brand" colour on screen and red/amber/green are never spent on decoration.
  *
  * Light is the default. Dark is a selected second theme — its steps are chosen against the
  * dark surface, not flipped from the light ones.
  *
  * Structure:
- *   surfaces/ink   warm paper ramp        (embeddable --bg / --card / --core-color-neutral)
- *   accent         orange #ff5400         (embeddable --bw-orange) — the seal/stamp colour
- *   chart-1..6     categorical index      (embeddable primary indigo + teal/amber/rose/violet)
- *   verdicts       red / amber / green    — these carry product meaning, never decorative
- *   processing     cool + hatched         — invariant #6: never reads as a clean verdict
+ *   surfaces/ink   cool canvas ramp
+ *   accent         signal blue — primary actions, wordmark, focus
+ *   chart-1..6     categorical index (fixed order, assigned per entity)
+ *   verdicts       red / amber / green — these carry product meaning, never decorative
+ *   processing     cool + hatched — invariant #6: never reads as a clean verdict
  */
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  /* Elevation. Soft and close — embeddable's cards sit on the paper, they don't float. */
-  --lo-shadow-sm: 0 1px 2px rgb(36 38 53 / 0.05), 0 1px 3px rgb(36 38 53 / 0.04);
-  --lo-shadow-md: 0 1px 2px rgb(36 38 53 / 0.04), 0 4px 12px rgb(36 38 53 / 0.07);
-  --lo-shadow-lg: 0 2px 4px rgb(36 38 53 / 0.05), 0 12px 32px rgb(36 38 53 / 0.1);
-  --lo-glow-accent: 0 0 0 1px rgb(255 84 0 / 0.3), 0 6px 20px rgb(255 84 0 / 0.16);
+  /* Elevation. Soft and close — cards sit on the canvas, they don't float. */
+  --lo-shadow-sm: 0 1px 2px rgb(22 24 29 / 0.05), 0 1px 3px rgb(22 24 29 / 0.04);
+  --lo-shadow-md: 0 1px 2px rgb(22 24 29 / 0.04), 0 4px 12px rgb(22 24 29 / 0.07);
+  --lo-shadow-lg: 0 2px 4px rgb(22 24 29 / 0.05), 0 12px 32px rgb(22 24 29 / 0.1);
+  --lo-glow-accent: 0 0 0 1px rgb(45 86 213 / 0.3), 0 6px 20px rgb(45 86 213 / 0.16);
   /* SVG charts can't take a box-shadow; feDropShadow needs colour and opacity apart. */
-  --lo-chart-shadow: #242635;
+  --lo-chart-shadow: #16181d;
   --lo-chart-shadow-opacity: 0.18;
 
-  /* Surfaces & ink — embeddable's warm paper ramp */
-  --lo-bg: #fafaf7;          /* --bg */
-  --lo-surface: #ffffff;     /* --card */
+  /* Surfaces & ink — cool canvas ramp */
+  --lo-bg: #f5f6f8;
+  --lo-surface: #ffffff;
   --lo-surface-raised: #ffffff;
-  --lo-sunken: #f1f1ee;      /* --bubble — inset wells, code strips */
-  --lo-chip: #f3f3f0;        /* --chip */
-  --lo-border: #e4e3dd;      /* warm hairline against #fafaf7 */
-  --lo-border-strong: #b4b2a8;
-  --lo-fg: #242635;          /* --core-color-neutral--1300 */
-  --lo-fg-muted: #565b70;
-  --lo-fg-subtle: #6b6f80;   /* --bw-muted */
+  --lo-sunken: #f0f2f5;      /* inset wells, code strips */
+  --lo-chip: #eef0f4;
+  --lo-border: #e3e6eb;
+  --lo-border-strong: #848c9a;
+  --lo-fg: #16181d;
+  --lo-fg-muted: #555b68;
+  --lo-fg-subtle: #666c7a;
 
-  /* The seal: embeddable's brand orange. Primary actions, wordmark rule, stamps. */
-  --lo-accent: #ff5400;      /* --bw-orange */
-  --lo-accent-hover: #e04800;
-  --lo-accent-soft: #ffaa81; /* --bw-orange-soft */
-  --lo-accent-wash: rgb(255 84 0 / 0.08);
+  /* The signal: one blue. Primary actions, wordmark, focus, links. */
+  --lo-accent: #2d56d5;
+  --lo-accent-hover: #2446b8;
+  --lo-accent-soft: #4463c9;
+  --lo-accent-wash: rgb(45 86 213 / 0.08);
   --lo-accent-fg: #ffffff;
 
   /*
    * Categorical chart index. Fixed order, never cycled, never reassigned by rank.
-   * chart-1 is embeddable's own product primary (--core-color-primary--0700).
    */
   --lo-chart-1: #5566d6;  /* indigo  */
   --lo-chart-2: #0e8f8c;  /* teal    */
   --lo-chart-3: #d9822b;  /* amber   */
   --lo-chart-4: #d2445f;  /* rose    */
   --lo-chart-5: #7c4ddb;  /* violet  */
-  --lo-chart-6: #2e66e8;  /* blue    — embeddable --blue */
+  --lo-chart-6: #2e66e8;  /* blue    */
 
   /* Low-alpha washes of the same hues, for area fills and tinted panels. */
   --lo-chart-1-wash: rgb(85 102 214 / 0.12);
@@ -68,8 +66,8 @@
   --lo-chart-6-wash: rgb(46 102 232 / 0.12);
 
   /* Recessive plot furniture. */
-  --lo-grid: #e8e7e1;
-  --lo-axis: #c9c7bf;
+  --lo-grid: #e7e9ee;
+  --lo-axis: #c6cbd4;
 
   /* Verdict colours — the three threat classes. These carry product meaning. */
   --lo-normal: #0f7a5a;
@@ -78,7 +76,7 @@
 
   /* Marks (fills/bars) may be brighter than text — they are not read as glyphs. */
   --lo-normal-mark: #16a34a;
-  --lo-suspicious-mark: #ff9d2e;  /* --amber */
+  --lo-suspicious-mark: #ff9d2e;
   --lo-high-risk-mark: #e04450;
 
   /* Processing states. Invariant #6: NOT a fourth threat class. Cool + desaturated by hue,
@@ -93,11 +91,11 @@
   --lo-high-risk-wash: rgb(194 49 60 / 0.1);
 
   /* Neutral hover/active wash. Named `hover` (not shadcn's `accent`) because in this
-     design system `accent` is the brand orange and must never fill a hover state. */
-  --lo-hover: #efefe9;
+     design system `accent` is the brand blue and must never fill a hover state. */
+  --lo-hover: #eceef2;
 
-  /* ---- Bklit chart bridge ------------------------------------------------------------
-   * The bklit chart components (src/components/charts/) read these names directly in
+  /* ---- Chart bridge ------------------------------------------------------------
+   * The chart components (src/components/charts/) read these names directly in
    * fill/stroke attributes, so they must be real custom properties, not @theme entries.
    * Every one points at a token above — a chart can never drift from the page palette.
    */
@@ -143,29 +141,29 @@
   --lo-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.5);
   --lo-shadow-md: 0 2px 4px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.45);
   --lo-shadow-lg: 0 4px 8px rgb(0 0 0 / 0.45), 0 20px 56px rgb(0 0 0 / 0.55);
-  --lo-glow-accent: 0 0 0 1px rgb(255 122 61 / 0.35), 0 8px 32px rgb(255 122 61 / 0.2);
-  --lo-chart-shadow: #07111f;
+  --lo-glow-accent: 0 0 0 1px rgb(143 164 255 / 0.35), 0 8px 32px rgb(143 164 255 / 0.2);
+  --lo-chart-shadow: #05070b;
   --lo-chart-shadow-opacity: 0.75;
 
-  --lo-bg: #0b0d11;          /* --bg dark */
-  --lo-surface: #14181f;     /* --card dark */
-  --lo-surface-raised: #1b212b;
-  --lo-sunken: #0f1319;
-  --lo-chip: #232b37;        /* --chip dark */
-  --lo-border: #2b3340;      /* --border dark */
-  --lo-border-strong: #4a5464;
-  --lo-fg: #eef0f4;
-  --lo-fg-muted: #a7adbd;
-  --lo-fg-subtle: #858b9c;
+  --lo-bg: #0a0a0a;
+  --lo-surface: #13161c;
+  --lo-surface-raised: #1a1e26;
+  --lo-sunken: #0f1116;
+  --lo-chip: #1f242d;
+  --lo-border: #262b35;
+  --lo-border-strong: #6b7484;
+  --lo-fg: #eceef2;
+  --lo-fg-muted: #a6adba;
+  --lo-fg-subtle: #8c93a1;
 
-  --lo-accent: #ff7a3d;
-  --lo-accent-hover: #ff9560;
-  --lo-accent-soft: #ffb089;
-  --lo-accent-wash: rgb(255 122 61 / 0.12);
-  --lo-accent-fg: #1a0d05;
+  --lo-accent: #8fa4ff;
+  --lo-accent-hover: #a7b7ff;
+  --lo-accent-soft: #7d94f0;
+  --lo-accent-wash: rgb(143 164 255 / 0.12);
+  --lo-accent-fg: #0b1020;
 
   /* Re-stepped for the dark surface, not flipped. */
-  --lo-chart-1: #8593e5;  /* --core-color-primary--0500 */
+  --lo-chart-1: #8593e5;
   --lo-chart-2: #3cc3bd;
   --lo-chart-3: #e3a94a;
   --lo-chart-4: #f0788c;
@@ -179,8 +177,8 @@
   --lo-chart-5-wash: rgb(169 139 255 / 0.18);
   --lo-chart-6-wash: rgb(109 151 230 / 0.18);
 
-  --lo-grid: #222a35;
-  --lo-axis: #39424f;
+  --lo-grid: #20252e;
+  --lo-axis: #39414d;
 
   --lo-normal: #5fd98e;
   --lo-suspicious: #e3a94a;
@@ -198,13 +196,9 @@
   --lo-suspicious-wash: rgb(255 157 46 / 0.16);
   --lo-high-risk-wash: rgb(244 115 127 / 0.14);
 
-  --lo-hover: #1e2530;
+  --lo-hover: #1c2129;
 
-  /* ---- Bklit chart bridge (dark steps come from the --lo-* values above) ------------------------------------------------------------
-   * The bklit chart components (src/components/charts/) read these names directly in
-   * fill/stroke attributes, so they must be real custom properties, not @theme entries.
-   * Every one points at a token above — a chart can never drift from the page palette.
-   */
+  /* ---- Chart bridge (dark steps come from the --lo-* values above) ---- */
   --chart-1: var(--lo-chart-1);
   --chart-2: var(--lo-chart-2);
   --chart-3: var(--lo-chart-3);
@@ -279,8 +273,7 @@
   --color-grid: var(--lo-grid);
   --color-axis: var(--lo-axis);
 
-  /* Bklit legend utilities (text-legend-foreground, bg-legend-muted, …). The raw --legend-*
-     customs are declared per-theme above; these register them as Tailwind colours too. */
+  /* Legend utilities (text-legend-foreground, bg-legend-muted, …). */
   --color-legend: var(--legend);
   --color-legend-foreground: var(--legend-foreground);
   --color-legend-muted: var(--legend-muted);
@@ -309,7 +302,7 @@
   --color-primary-foreground: var(--lo-accent-fg);
   --color-secondary: var(--lo-surface-raised);
   --color-secondary-foreground: var(--lo-fg);
-  --color-muted: var(--lo-surface);
+  --color-muted: var(--lo-chip);
   --color-muted-foreground: var(--lo-fg-muted);
   --color-destructive: var(--lo-high-risk);
   --color-input: var(--lo-border);
@@ -331,29 +324,26 @@
   --color-late: var(--lo-late);
   --color-blocked: var(--lo-blocked);
 
-  /* ---- Radii ----
-   * Softer than before. Embeddable's cards are ~8-12px; the document surfaces stay square
-   * so evidence still reads as paper rather than as another web card.
-   */
+  /* ---- Radii ---- */
   --radius-sm: 0.25rem;   /*  4px — chips, tags, inline marks */
   --radius-md: 0.5rem;    /*  8px — buttons, inputs, interactive controls */
   --radius-lg: 0.75rem;   /* 12px — cards, popovers, menus */
   --radius-xl: 1rem;      /* 16px — sheets, modals, feature panels */
-  --radius-doc: 0.125rem; /*  2px — log strips, record panels, exhibits */
+  --radius-doc: 0.25rem;  /*  4px — log strips, record panels */
 
   /* ---- Type scale ---- */
   --text-display: 4rem;
-  --text-display--line-height: 0.94;
-  --text-display--letter-spacing: -0.03em;
-  --text-display--font-weight: 400;
+  --text-display--line-height: 1;
+  --text-display--letter-spacing: -0.035em;
+  --text-display--font-weight: 600;
 
-  --text-title: 2rem;
-  --text-title--line-height: 1.1;
+  --text-title: 1.75rem;
+  --text-title--line-height: 1.15;
   --text-title--letter-spacing: -0.02em;
-  --text-title--font-weight: 400;
+  --text-title--font-weight: 600;
 
   --text-heading: 1.0625rem;
-  --text-heading--line-height: 1.5rem; /* 24px — 4px grid */
+  --text-heading--line-height: 1.5rem;
   --text-heading--letter-spacing: -0.011em;
   --text-heading--font-weight: 600;
 
@@ -361,19 +351,18 @@
   --text-body--line-height: 1.6;
   --text-body--letter-spacing: -0.003em;
 
+  /* Captions are sentence case: the tracking is for legibility at 12px, not for shouting. */
   --text-caption: 0.75rem;
-  --text-caption--line-height: 1rem; /* 16px — 4px grid */
-  --text-caption--letter-spacing: 0.04em;
+  --text-caption--line-height: 1rem;
+  --text-caption--letter-spacing: 0.005em;
   --text-caption--font-weight: 500;
 
   --text-mono: 0.8125rem;
-  --text-mono--line-height: 1.25rem; /* 20px — 4px grid */
+  --text-mono--line-height: 1.25rem;
   --text-mono--letter-spacing: 0;
 
   /* ---- Families ---- */
   --font-sans: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  /* Display copy deliberately shares the product sans family: the console should feel precise,
-     not editorial, and no browser-serif fallback can leak into a judge-facing screen. */
   --font-serif: var(--font-sans);
   --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
 

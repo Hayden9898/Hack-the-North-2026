@@ -1,4 +1,4 @@
-# Log & Order — product overview and design decisions
+# WatchTower — product overview and design decisions
 
 **Specification version:** 1.0, 2026-09-19. **Status:** implementation-ready design; the application has not been built or benchmarked. Read this file, then `architecture.md`, then execute `plan.md`. These three files supersede both earlier design proposals. `architecture.md` owns technical contracts; `plan.md` owns build gates. Do not combine incompatible alternatives from the old handoffs.
 

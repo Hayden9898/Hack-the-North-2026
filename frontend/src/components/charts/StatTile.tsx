@@ -83,7 +83,7 @@ export function StatTile({
 
       <div className="flex flex-1 flex-col gap-2.5 py-4 pr-4 pl-5">
         <div className="flex items-start justify-between gap-3">
-          <span className="font-mono text-caption text-fg-subtle uppercase tracking-[0.08em]">{label}</span>
+          <span className="font-mono text-caption text-fg-subtle tracking-[0.08em]">{label}</span>
           {trend && TrendIcon ? (
             <span
               title={trend.against}
@@ -109,7 +109,7 @@ export function StatTile({
             {value}
           </span>
           {unit ? (
-            <span className="font-mono text-caption text-fg-subtle uppercase tracking-[0.08em]">{unit}</span>
+            <span className="font-mono text-caption text-fg-subtle tracking-[0.08em]">{unit}</span>
           ) : null}
         </div>
 

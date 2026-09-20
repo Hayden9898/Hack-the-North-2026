@@ -35,7 +35,7 @@ export function VerdictBand({
         <StatusChip verdict={version.threat_class} />
         {/* Status and phase travel together so a wrap can never strand a bare separator. */}
         <span className="flex items-center gap-2">
-          <span className="text-caption text-fg-muted uppercase">{incident.status}</span>
+          <span className="text-caption text-fg-muted">{incident.status}</span>
           <Dot />
           <PhaseChip phase={incident.phase} />
         </span>
@@ -55,7 +55,7 @@ export function VerdictBand({
           })}
         </span>
         {escalated ? (
-          <span className="text-caption text-fg-muted normal-case tracking-normal">
+          <span className="text-caption text-fg-muted">
             escalated from {versions[0].threat_class.replace('_', ' ')} at v{version.version}
           </span>
         ) : null}
@@ -103,7 +103,7 @@ export function VerdictBand({
               older version
             </span>
           ) : null}
-          <label className="flex items-center gap-1.5 text-caption text-fg-muted normal-case tracking-normal">
+          <label className="flex items-center gap-1.5 text-caption text-fg-muted">
             version
             <span className="relative">
               <select
@@ -130,7 +130,7 @@ export function VerdictBand({
 function Meta({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-baseline gap-2">
-      <dt className="text-caption text-fg-muted uppercase">{label}</dt>
+      <dt className="text-caption text-fg-muted">{label}</dt>
       <dd className="text-body text-fg">{children}</dd>
     </div>
   )

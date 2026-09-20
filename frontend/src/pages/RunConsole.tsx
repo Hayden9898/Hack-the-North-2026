@@ -12,7 +12,7 @@ import {
   type RunState,
   type RunStateUpdate,
 } from '../api'
-import { fmtNum, fmtTime, integrationLabel, isFaultRun, modelHealthExplanation, modelHealthLabel, runStateLabel, shortId } from '../format'
+import { fmtNum, fmtTime, integrationLabel, isFaultRun, runStateLabel, shortId } from '../format'
 import { useFetch, useInterval, useThrottledCallback } from '../useFetch'
 import { useRunUpdates } from '../useRunUpdates'
 import { EventFeed } from '../components/console/EventFeed'
@@ -152,11 +152,11 @@ export function RunConsole() {
   return (
     <div className="mx-auto w-full max-w-[84rem] space-y-6 px-4 py-6 sm:px-6 lg:px-8">
       <nav aria-label="Breadcrumb" className="flex items-center gap-1.5">
-        <Link to="/app" className="text-caption text-fg-muted normal-case tracking-normal hover:text-fg">
+        <Link to="/app" className="text-caption text-fg-muted hover:text-fg">
           Runs
         </Link>
         <ChevronRight className="size-3 text-fg-muted" aria-hidden />
-        <span className="font-mono text-caption text-fg-muted normal-case tracking-normal">{shortId(merged.run_id, 16)}</span>
+        <span className="font-mono text-caption text-fg-muted">{shortId(merged.run_id, 16)}</span>
       </nav>
 
       <RunHeaderBand
@@ -196,7 +196,6 @@ function RunHeaderBand({
   resyncs: number
   onChanged: (r: Run) => void
 }) {
-  const degraded = run.model_health !== 'active'
   return (
     <header className="rounded-xl border border-border bg-surface px-5 py-5 sm:px-6">
       <div className="flex flex-wrap items-center gap-2">
@@ -230,34 +229,10 @@ function RunHeaderBand({
         <RunProgress run={run} />
         <RunTransport run={run} onChanged={onChanged} />
       </div>
-
-      {degraded ? (
-        <p className="mt-4 flex items-start gap-2 border-t border-border pt-3 text-caption text-pending normal-case tracking-normal">
-          <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-          <span>
-            <span className="font-medium">{modelHealthLabel(run.model_health)}</span>
-            <span className="text-fg-muted">
-              {' — '}
-              {stripRestatement(modelHealthExplanation(run.model_health), modelHealthLabel(run.model_health)) ??
-                'no model artifact is scoring events. ML scores are null; rule detections still apply.'}
-            </span>
-          </span>
-        </p>
-      ) : null}
     </header>
   )
 }
 
-/**
- * The health label was being restated as the first words of its own explanation
- * ("rules-only. Rules-only mode: no model artifact is scoring events."). Drop the echo.
- */
-function stripRestatement(detail: string | null, label: string): string | null {
-  if (!detail) return null
-  const lead = new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s:,-]*(mode)?[\\s:,-]*`, 'i')
-  const out = detail.replace(lead, '')
-  return out.charAt(0).toLowerCase() + out.slice(1)
-}
 
 function RunStatePill({ state }: { state: RunState }) {
   // A run state is a processing state, never a verdict — `completed` must not read as "clean".
@@ -320,10 +295,10 @@ function Findings({ runId, tick, cutoff }: { runId: string; tick: number; cutoff
   return (
     <section aria-labelledby="findings">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
-        <h2 id="findings" className="text-heading normal-case tracking-normal text-fg">
+        <h2 id="findings" className="text-heading text-fg">
           Findings
           {inc.data ? (
-            <span className="ms-2 text-caption text-fg-muted normal-case tracking-normal">
+            <span className="ms-2 text-caption text-fg-muted">
               {items.length < inc.data.total
                 ? `showing ${fmtNum(items.length)} of ${fmtNum(inc.data.total)}`
                 : fmtNum(inc.data.total)}{' '}
@@ -348,7 +323,7 @@ function Findings({ runId, tick, cutoff }: { runId: string; tick: number; cutoff
           {inc.data && items.length < inc.data.total ? (
             <button
               type="button"
-              className="mt-3 w-full rounded-lg border border-border bg-surface px-4 py-2 text-caption text-fg-muted uppercase transition-colors duration-150 hover:border-border-strong hover:text-fg disabled:opacity-60"
+              className="mt-3 w-full rounded-lg border border-border bg-surface px-4 py-2 text-caption text-fg-muted transition-colors duration-150 hover:border-border-strong hover:text-fg disabled:opacity-60"
               disabled={inc.loading}
               onClick={() => setLimit((n) => n + FINDINGS_PAGE)}
             >
@@ -356,7 +331,7 @@ function Findings({ runId, tick, cutoff }: { runId: string; tick: number; cutoff
             </button>
           ) : null}
           {items.length === 0 && cutoff === 0 ? (
-            <p className="mt-2 text-caption text-fg-muted normal-case tracking-normal">This run has not evaluated anything yet.</p>
+            <p className="mt-2 text-caption text-fg-muted">This run has not evaluated anything yet.</p>
           ) : null}
         </>
       )}
@@ -368,7 +343,7 @@ function Findings({ runId, tick, cutoff }: { runId: string; tick: number; cutoff
 function RunProvenance({ run }: { run: Run }) {
   return (
     <details className="rounded-lg border border-border bg-surface">
-      <summary className="group/sum flex cursor-pointer list-none items-center gap-1.5 px-4 py-3 text-caption text-fg-muted uppercase hover:text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none">
+      <summary className="group/sum flex cursor-pointer list-none items-center gap-1.5 px-4 py-3 text-caption text-fg-muted hover:text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none">
         <ChevronRight className="size-3.5 shrink-0 transition-transform group-open/sum:rotate-90 motion-reduce:transition-none" aria-hidden />
         Run provenance — is this reproducible?
       </summary>
@@ -386,7 +361,7 @@ function RunProvenance({ run }: { run: Run }) {
         </dl>
 
         <div className="mt-4 border-t border-border pt-3">
-          <h4 className="mb-2 text-caption text-fg-muted uppercase">Integrations</h4>
+          <h4 className="mb-2 text-caption text-fg-muted">Integrations</h4>
           <div className="flex flex-wrap gap-2">
             {(['sentry', 'llm', 'slack'] as const).map((k) => {
               const l = integrationLabel(k, run.integrations[k])
@@ -394,7 +369,7 @@ function RunProvenance({ run }: { run: Run }) {
                 <span
                   key={k}
                   className={cn(
-                    'rounded-sm border px-2 py-0.5 text-caption normal-case tracking-normal',
+                    'rounded-sm border px-2 py-0.5 text-caption',
                     l.tone === 'ok' ? 'border-normal/30 text-normal' : l.tone === 'warn' ? 'border-late/45 text-late' : 'border-border text-fg-muted',
                   )}
                 >
@@ -406,7 +381,7 @@ function RunProvenance({ run }: { run: Run }) {
         </div>
 
         <div className="mt-4 border-t border-border pt-3">
-          <h4 className="mb-2 text-caption text-fg-muted uppercase">Counts under cutoff</h4>
+          <h4 className="mb-2 text-caption text-fg-muted">Counts under cutoff</h4>
           <CountsTable run={run} />
           <Containment counts={run.counts?.containment} />
         </div>
@@ -421,11 +396,11 @@ function CountsTable({ run }: { run: Run }) {
     <table className="w-full max-w-lg border-collapse font-mono text-mono">
       <thead>
         <tr className="border-b border-border text-left">
-          <th className="py-1 font-sans text-caption font-medium text-fg-muted uppercase">phase</th>
-          <th className="py-1 text-right font-sans text-caption font-medium text-fg-muted uppercase">normal</th>
-          <th className="py-1 text-right font-sans text-caption font-medium text-fg-muted uppercase">suspicious</th>
-          <th className="py-1 text-right font-sans text-caption font-medium text-fg-muted uppercase">high risk</th>
-          <th className="py-1 text-right font-sans text-caption font-medium text-fg-muted uppercase">unscored</th>
+          <th className="py-1 font-sans text-caption font-medium text-fg-muted">phase</th>
+          <th className="py-1 text-right font-sans text-caption font-medium text-fg-muted">normal</th>
+          <th className="py-1 text-right font-sans text-caption font-medium text-fg-muted">suspicious</th>
+          <th className="py-1 text-right font-sans text-caption font-medium text-fg-muted">high risk</th>
+          <th className="py-1 text-right font-sans text-caption font-medium text-fg-muted">unscored</th>
         </tr>
       </thead>
       <tbody>
@@ -459,12 +434,12 @@ function Containment({ counts }: { counts?: { actionable: number; contained: num
   const pct = counts.actionable > 0 ? Math.round((counts.contained / counts.actionable) * 100) : 0
   return (
     <div className="mt-4 max-w-lg space-y-1.5 border-t border-border pt-3">
-      <h3 className="text-caption text-fg-muted uppercase">Containment</h3>
+      <h3 className="text-caption text-fg-muted">Containment</h3>
       <p className="text-body text-fg">
         <span className="font-mono tabular-nums">{fmtNum(counts.contained)}</span> of{' '}
         <span className="font-mono tabular-nums">{fmtNum(counts.actionable)}</span> actionable incidents contained ({pct}%)
       </p>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-caption text-fg-muted normal-case tracking-normal">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-caption text-fg-muted">
         <span>
           awaiting action <span className="font-mono tabular-nums text-fg">{fmtNum(open)}</span>
         </span>
@@ -475,7 +450,7 @@ function Containment({ counts }: { counts?: { actionable: number; contained: num
         {counts.preview > 0 ? <span className="font-mono tabular-nums">{fmtNum(counts.preview)} preview</span> : null}
         {counts.applied > 0 ? <span className="font-mono tabular-nums text-suspicious">{fmtNum(counts.applied)} applied</span> : null}
       </div>
-      <p className="text-caption text-fg-subtle normal-case tracking-normal">
+      <p className="text-caption text-fg-subtle">
         Console time from the incident record being created to an operator approving a containment action. A preview containment records the
         approval without contacting any external system.
       </p>
@@ -486,7 +461,7 @@ function Containment({ counts }: { counts?: { actionable: number; contained: num
 function Pair({ k, v, mono }: { k: string; v: string; mono?: boolean }) {
   return (
     <div className="min-w-0">
-      <dt className="text-caption text-fg-muted uppercase">{k}</dt>
+      <dt className="text-caption text-fg-muted">{k}</dt>
       <dd className={mono ? 'truncate font-mono text-mono text-fg' : 'truncate text-body text-fg'} title={v}>
         {v}
       </dd>

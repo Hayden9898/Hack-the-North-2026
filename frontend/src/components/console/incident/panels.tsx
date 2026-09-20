@@ -65,14 +65,14 @@ export function UnknownsPanel({
 
   return (
     <section aria-labelledby="limits" className="rounded-lg border border-border bg-surface px-4 py-3.5">
-      <h3 id="limits" className="flex items-center gap-2 text-caption text-fg-muted uppercase">
+      <h3 id="limits" className="flex items-center gap-2 text-caption text-fg-muted">
         <CircleHelp className="size-3.5" aria-hidden />
         What this cannot establish
       </h3>
 
       {notRecorded.length > 0 ? (
         <div className="mt-3">
-          <h4 className="text-caption text-fg-muted normal-case tracking-normal">Not recorded in these logs</h4>
+          <h4 className="text-caption text-fg-muted">Not recorded in these logs</h4>
           <ul className="mt-1.5 grid gap-1.5">
             {notRecorded.map((t) => (
               <li key={t} className="text-body text-fg-muted">
@@ -85,7 +85,7 @@ export function UnknownsPanel({
 
       {notAsserted.length > 0 ? (
         <div className="mt-3 border-t border-border pt-3">
-          <h4 className="text-caption text-fg-muted normal-case tracking-normal">Not asserted by this detector</h4>
+          <h4 className="text-caption text-fg-muted">Not asserted by this detector</h4>
           <ul className="mt-1.5 grid gap-1.5">
             {notAsserted.map((t) => (
               <li key={t} className="text-body text-fg-muted">
@@ -143,7 +143,7 @@ function Pill({ children, tone }: { children: React.ReactNode; tone?: 'ok' | 'wa
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-sm border px-2 py-0.5 text-caption font-medium normal-case tracking-normal',
+        'inline-flex items-center rounded-sm border px-2 py-0.5 text-caption font-medium',
         tone === 'ok' && 'border-border text-fg-muted',
         tone === 'warn' && 'border-late/45 text-late',
         !tone && 'border-border text-fg-muted',
@@ -312,12 +312,12 @@ function PlaybookItem({ playbook, aiSelected }: { playbook: Playbook; aiSelected
           {aiSelected ? (
             <span className="shrink-0 rounded-sm border border-accent/35 px-1.5 py-0.5 text-[0.6875rem] text-accent">AI suggested</span>
           ) : null}
-          <span className="shrink-0 text-caption text-fg-muted normal-case tracking-normal">{steps.length} steps</span>
+          <span className="shrink-0 text-caption text-fg-muted">{steps.length} steps</span>
         </summary>
         <div className="space-y-3 border-t border-border px-4 py-3">
           <p className="text-body text-fg-muted">{playbook.uncertainty}</p>
           <div>
-            <h4 className="mb-1.5 text-caption text-fg-muted uppercase">Proposed steps, for a human reviewer</h4>
+            <h4 className="mb-1.5 text-caption text-fg-muted">Proposed steps, for a human reviewer</h4>
             <ol className="grid list-decimal gap-1 ps-5 text-body text-fg-muted marker:text-fg-muted">
               {steps.map((s, i) => (
                 <li key={i}>{typeof s === 'string' ? s : Object.entries(s).map(([c, t]) => `if ${c}: ${t}`).join('; ')}</li>
@@ -326,7 +326,7 @@ function PlaybookItem({ playbook, aiSelected }: { playbook: Playbook; aiSelected
           </div>
           {playbook.required_evidence?.length ? (
             <div>
-              <h4 className="mb-1.5 text-caption text-fg-muted uppercase">Evidence not in these logs</h4>
+              <h4 className="mb-1.5 text-caption text-fg-muted">Evidence not in these logs</h4>
               <ul className="grid gap-1 text-body text-fg-muted">
                 {playbook.required_evidence.map((e) => (
                   <li key={e}>{unknownLabel(e)}</li>
@@ -384,7 +384,7 @@ export function BaselinePanel({
       </dl>
 
       <figure>
-        <figcaption className="mb-2 text-caption text-fg-muted normal-case tracking-normal">
+        <figcaption className="mb-2 text-caption text-fg-muted">
           When <span className="font-mono text-fg">{account ?? 'this account'}</span> was normally active, by UTC hour,
           across {fmtNum(baseline.total)} events before run_seq {fmtNum(triggerSeq)}.
           {triggerHour !== null ? ' The highlighted hour is when this incident triggered.' : ''}
@@ -430,7 +430,7 @@ export function BaselinePanel({
 function Stat({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div>
-      <dt className="text-caption text-fg-muted uppercase">{label}</dt>
+      <dt className="text-caption text-fg-muted">{label}</dt>
       <dd className={mono ? 'font-mono text-mono text-fg' : 'text-heading text-fg'}>{value}</dd>
     </div>
   )
@@ -447,18 +447,18 @@ export function DeliveryPanel({ deliveries }: { deliveries: Delivery[] }) {
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <Send className="size-3.5 shrink-0 translate-y-0.5 text-fg-muted" aria-hidden />
             <span className="text-body text-fg">{d.notification_kind.replaceAll('_', ' ')}</span>
-            <span className="text-caption text-fg-muted normal-case tracking-normal">
+            <span className="text-caption text-fg-muted">
               — {DELIVERY_STATE_LABEL[d.state] ?? d.state}
             </span>
           </div>
           {d.delivery_ambiguous ? (
-            <p className="mt-1 text-caption text-late normal-case tracking-normal">
+            <p className="mt-1 text-caption text-late">
               Delivery outcome ambiguous — it may or may not have been sent.
             </p>
           ) : null}
           {d.preview_text ? (
             <details className="mt-2">
-              <summary className="group/msg flex cursor-pointer list-none items-center gap-1 text-caption text-accent normal-case tracking-normal underline underline-offset-2 hover:text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none">
+              <summary className="group/msg flex cursor-pointer list-none items-center gap-1 text-caption text-accent underline underline-offset-2 hover:text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none">
                 <ChevronRight className="size-3 shrink-0 transition-transform group-open/msg:rotate-90 motion-reduce:transition-none" aria-hidden />
                 view message
               </summary>
@@ -515,11 +515,11 @@ export function DispositionPanel({
   return (
     <div className="space-y-3">
       <form onSubmit={submit} className="grid gap-2.5">
-        <label className="grid gap-1 text-caption text-fg-muted uppercase">
+        <label className="grid gap-1 text-caption text-fg-muted">
           reviewer
           <input className={field} value={reviewer} onChange={(e) => setReviewer(e.target.value)} placeholder="analyst" />
         </label>
-        <label className="grid gap-1 text-caption text-fg-muted uppercase">
+        <label className="grid gap-1 text-caption text-fg-muted">
           disposition
           <select className={field} value={disposition} onChange={(e) => setDisposition(e.target.value as Disposition)}>
             {DISPOSITIONS.map((d) => (
@@ -529,19 +529,19 @@ export function DispositionPanel({
             ))}
           </select>
         </label>
-        <label className="grid gap-1 text-caption text-fg-muted uppercase">
+        <label className="grid gap-1 text-caption text-fg-muted">
           reason
           <textarea className={cn(field, 'min-h-16 resize-y')} value={reason} onChange={(e) => setReason(e.target.value)} />
         </label>
         <Button type="submit" size="sm" disabled={busy} className="justify-self-start">
           {busy ? 'Recording…' : 'Record disposition'}
         </Button>
-        {err ? <p className="text-caption text-high-risk normal-case tracking-normal">{describeError(err).text}</p> : null}
+        {err ? <p className="text-caption text-high-risk">{describeError(err).text}</p> : null}
       </form>
 
       {feedback.length > 0 ? (
         <div className="border-t border-border pt-3">
-          <h4 className="mb-2 text-caption text-fg-muted uppercase">Recorded — append-only</h4>
+          <h4 className="mb-2 text-caption text-fg-muted">Recorded — append-only</h4>
           <ul className="grid gap-2">
             {feedback.map((f) => (
               <li key={f.id} className="text-body">
@@ -564,7 +564,7 @@ export function Empty({ children }: { children: React.ReactNode }) {
 }
 
 function Th({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <th className={`px-3 py-2 font-sans text-caption font-medium text-fg-muted uppercase ${className ?? ''}`}>{children}</th>
+  return <th className={`px-3 py-2 font-sans text-caption font-medium text-fg-muted ${className ?? ''}`}>{children}</th>
 }
 
 function Td({ children, className, title }: { children: React.ReactNode; className?: string; title?: string }) {

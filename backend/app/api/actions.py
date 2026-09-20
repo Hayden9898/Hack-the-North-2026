@@ -187,7 +187,7 @@ def _queue_handoff(conn: psycopg.Connection[Any], ctx: dict[str, Any], *, packet
         title,
         f"account={inc.get('account')} source={inc.get('ip_raw')} class={ctx['version'].get('threat_class')}",
         f"packet sha256={digest[:16]}…",
-        f"Open in Log & Order: {link}",
+        f"Open in WatchTower: {link}",
     ])
     payload = {
         "kind": "response_packet",

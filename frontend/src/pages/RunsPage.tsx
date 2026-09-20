@@ -1,8 +1,8 @@
-import { ArrowRight, CircleSlash, Database, FlaskConical, Plus, Upload } from 'lucide-react'
+import { ArrowRight, Database, FlaskConical, Play, Plus, Upload } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, describeError, type Dataset, type DatasetDetail, type Model, type Run, type RunCreateBody } from '../api'
-import { fmtBytes, fmtNum, fmtTime, isFaultRun, modelHealthLabel, runStateLabel, shortId, speedLabel } from '../format'
+import { fmtBytes, fmtNum, fmtTime, isFaultRun, runStateLabel, shortId, speedLabel } from '../format'
 import { useFetch, useInterval } from '../useFetch'
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/ui/button'
@@ -31,8 +31,11 @@ export function RunsPage() {
     void models.reload()
   }, 5_000)
 
+  const [startOpen, setStartOpen] = useState(false)
+
   const items = runs.data ?? []
   const [lead, ...rest] = pickLead(items)
+  const readyDatasets = (datasets.data ?? []).filter((d) => d.import_state === 'ready')
 
   return (
     <div className="mx-auto w-full max-w-[84rem] space-y-8 px-4 py-8 sm:px-6 lg:px-8">
@@ -51,9 +54,19 @@ export function RunsPage() {
               void models.reload()
             }}
           />
-          <NewRunDialog datasets={datasets.data ?? []} models={models.data ?? []} onCreated={() => void runs.reload()} />
+          <NewRunDialog
+            datasets={datasets.data ?? []}
+            models={models.data ?? []}
+            open={startOpen}
+            onOpenChange={setStartOpen}
+            onCreated={() => void runs.reload()}
+          />
         </div>
       </header>
+
+      {!runs.loading && items.length === 0 && !runs.error ? (
+        <StartHere hasDataset={readyDatasets.length > 0} onStart={() => setStartOpen(true)} />
+      ) : null}
 
       {runs.loading && !runs.data ? (
         <div className="space-y-3">
@@ -67,9 +80,7 @@ export function RunsPage() {
           onRetry={() => void runs.reload()}
         />
       ) : items.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center">
-          <p className="text-body text-fg-muted">No runs yet. Create one to replay the dataset through the detector.</p>
-        </div>
+        null
       ) : (
         <div className="space-y-3">
           {lead ? <LeadRunCard run={lead} /> : null}
@@ -111,7 +122,7 @@ function LeadRunCard({ run }: { run: Run }) {
   return (
     <article className="rounded-xl border border-border bg-surface px-6 py-5">
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="text-heading normal-case tracking-normal text-fg">{run.name || shortId(run.run_id, 14)}</h2>
+        <h2 className="text-heading text-fg">{run.name || shortId(run.run_id, 14)}</h2>
         <StatePill run={run} />
         <span className="rounded-sm border border-border px-1.5 py-0.5 text-[0.6875rem] text-fg-muted uppercase">
           {run.mode === 'replay' ? 'historical replay' : 'live'}
@@ -125,19 +136,13 @@ function LeadRunCard({ run }: { run: Run }) {
             fault injection
           </span>
         ) : null}
-        {run.model_health !== 'active' ? (
-          <span className="inline-flex items-center gap-1 rounded-sm border border-pending/45 px-1.5 py-0.5 text-[0.6875rem] font-medium text-pending uppercase">
-            <CircleSlash className="size-3" aria-hidden />
-            {modelHealthLabel(run.model_health)}
-          </span>
-        ) : null}
       </div>
 
       <div className="mt-4 flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
         <div>
           <p className="flex items-baseline gap-2">
             <span className="font-sans text-title tabular-nums text-fg">{fmtNum(run.processed_seq)}</span>
-            <span className="text-caption text-fg-muted uppercase">events evaluated</span>
+            <span className="text-caption text-fg-muted">events evaluated</span>
           </p>
           <p className="mt-1 font-mono text-mono text-fg-muted">
             cutoff #{fmtNum(run.processed_seq)} of {fmtNum(run.admitted_seq)} admitted
@@ -193,13 +198,7 @@ function RunRow({ run }: { run: Run }) {
         {fmtNum(run.processed_seq)} / {fmtNum(run.admitted_seq)}
       </span>
       <span className="font-mono text-mono text-fg-muted">{speedLabel(run.speed)}</span>
-      {run.model_health !== 'active' ? (
-        <span className="inline-flex items-center gap-1 rounded-sm border border-pending/45 px-1.5 py-0.5 text-[0.6875rem] font-medium text-pending uppercase">
-          <CircleSlash className="size-3" aria-hidden />
-          {modelHealthLabel(run.model_health)}
-        </span>
-      ) : null}
-      <span className="ms-auto flex items-center gap-1.5 text-caption text-fg-muted normal-case tracking-normal">
+      <span className="ms-auto flex items-center gap-1.5 text-caption text-fg-muted">
         open <ArrowRight className="size-3.5" aria-hidden />
       </span>
     </Link>
@@ -237,7 +236,7 @@ function DatasetStrip({ datasets, loading }: { datasets: Dataset[]; loading: boo
   if (datasets.length === 0) {
     return (
       <section aria-labelledby="datasets" className="border-t border-border pt-5">
-        <h2 id="datasets" className="mb-3 text-caption text-fg-muted uppercase">
+        <h2 id="datasets" className="mb-3 text-caption text-fg-muted">
           Source data
         </h2>
         <p className="text-body text-fg-muted">
@@ -249,7 +248,7 @@ function DatasetStrip({ datasets, loading }: { datasets: Dataset[]; loading: boo
   }
   return (
     <section aria-labelledby="datasets" className="border-t border-border pt-5">
-      <h2 id="datasets" className="mb-3 text-caption text-fg-muted uppercase">
+      <h2 id="datasets" className="mb-3 text-caption text-fg-muted">
         Source data
       </h2>
       <ul className="grid gap-2">
@@ -361,10 +360,19 @@ function DatasetRow({ d }: { d: Dataset }) {
   )
 }
 
-function NewRunDialog({ datasets, models, onCreated }: { datasets: Dataset[]; models: Model[]; onCreated: () => void }) {
-  const [open, setOpen] = useState(false)
+function NewRunDialog({
+  datasets,
+  open,
+  onOpenChange: setOpen,
+  onCreated,
+}: {
+  datasets: Dataset[]
+  models: Model[]
+  open: boolean
+  onOpenChange: (o: boolean) => void
+  onCreated: () => void
+}) {
   const ready = datasets.filter((d) => d.import_state === 'ready')
-  const defaultModel = models.find((m) => m.is_default) ?? null
   const [form, setForm] = useState({ dataset_id: '', name: '', visible_start: '', speed: '', pause: true })
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<unknown>(null)
@@ -398,8 +406,8 @@ function NewRunDialog({ datasets, models, onCreated }: { datasets: Dataset[]; mo
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">
-          <Plus /> New replay run
+        <Button>
+          <Plus /> New run
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
@@ -407,7 +415,7 @@ function NewRunDialog({ datasets, models, onCreated }: { datasets: Dataset[]; mo
           <DialogTitle>New replay run</DialogTitle>
         </DialogHeader>
         <form onSubmit={submit} className="grid gap-3">
-          <label className="grid gap-1 text-caption text-fg-muted uppercase">
+          <label className="grid gap-1 text-caption text-fg-muted">
             dataset
             <select className={field} value={form.dataset_id} onChange={(e) => setForm((f) => ({ ...f, dataset_id: e.target.value }))}>
               {ready.map((d) => (
@@ -417,12 +425,12 @@ function NewRunDialog({ datasets, models, onCreated }: { datasets: Dataset[]; mo
               ))}
             </select>
           </label>
-          <label className="grid gap-1 text-caption text-fg-muted uppercase">
+          <label className="grid gap-1 text-caption text-fg-muted">
             name
             <input className={field} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="march-sequence" />
           </label>
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="grid gap-1 text-caption text-fg-muted uppercase">
+            <label className="grid gap-1 text-caption text-fg-muted">
               visible start (ISO 8601)
               <input
                 className={cn(field, 'font-mono text-mono')}
@@ -431,7 +439,7 @@ function NewRunDialog({ datasets, models, onCreated }: { datasets: Dataset[]; mo
                 placeholder="2026-03-01T04:00:00Z"
               />
             </label>
-            <label className="grid gap-1 text-caption text-fg-muted uppercase">
+            <label className="grid gap-1 text-caption text-fg-muted">
               speed (0 = fast-forward)
               <input
                 className={cn(field, 'font-mono text-mono')}
@@ -440,17 +448,6 @@ function NewRunDialog({ datasets, models, onCreated }: { datasets: Dataset[]; mo
                 placeholder="config default"
               />
             </label>
-          </div>
-          <div className="grid gap-1 text-caption text-fg-muted uppercase">
-            model (rules + ML on every run)
-            {defaultModel ? (
-              <span className="font-mono text-mono text-fg normal-case tracking-normal">{defaultModel.model_id}</span>
-            ) : (
-              <span className="text-body text-fg-muted normal-case tracking-normal">
-                No active model registered — this run scores rules-only until one is calibrated with{' '}
-                <code className="font-mono text-mono">--activate</code>.
-              </span>
-            )}
           </div>
           <label className="flex items-center gap-2 text-body text-fg-muted">
             <input
@@ -461,7 +458,7 @@ function NewRunDialog({ datasets, models, onCreated }: { datasets: Dataset[]; mo
             />
             pause when the visible window begins
           </label>
-          {err ? <p className="text-caption text-high-risk normal-case tracking-normal">{describeError(err).text}</p> : null}
+          {err ? <p className="text-caption text-high-risk">{describeError(err).text}</p> : null}
           <div className="flex justify-end gap-2 pt-1">
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
               Cancel
@@ -516,7 +513,7 @@ function UploadDatasetDialog({ onUploaded }: { onUploaded: () => void }) {
           <DialogTitle>Import access logs</DialogTitle>
         </DialogHeader>
         <form onSubmit={(e) => void submit(e)} className="grid gap-3">
-          <label className="grid gap-1 text-caption text-fg-muted uppercase">
+          <label className="grid gap-1 text-caption text-fg-muted">
             Apache access-log file
             <input
               type="file"
@@ -526,7 +523,7 @@ function UploadDatasetDialog({ onUploaded }: { onUploaded: () => void }) {
                 setResult(null)
                 setErr(null)
               }}
-              className="w-full rounded-md border border-border-strong bg-surface-raised px-2.5 py-1.5 text-body text-fg normal-case tracking-normal file:mr-3 file:rounded file:border-0 file:bg-chip file:px-2 file:py-1 file:font-mono file:text-caption file:text-fg file:uppercase focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+              className="w-full rounded-md border border-border-strong bg-surface-raised px-2.5 py-1.5 text-body text-fg file:mr-3 file:rounded file:border-0 file:bg-chip file:px-2 file:py-1 file:font-mono file:text-caption file:text-fg file:uppercase focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
             />
           </label>
 
@@ -536,7 +533,7 @@ function UploadDatasetDialog({ onUploaded }: { onUploaded: () => void }) {
             </p>
           ) : null}
 
-          <p className="text-caption text-fg-subtle normal-case tracking-normal">
+          <p className="text-caption text-fg-subtle">
             Streams to the server; the configured limit is 200 MiB. Raw evidence is never sent to an AI provider.
           </p>
 
@@ -548,7 +545,7 @@ function UploadDatasetDialog({ onUploaded }: { onUploaded: () => void }) {
             </p>
           ) : null}
           {err ? (
-            <p className="text-caption text-high-risk normal-case tracking-normal" role="alert">
+            <p className="text-caption text-high-risk" role="alert">
               Upload failed (HTTP {describeError(err).status ?? '—'}): {describeError(err).text}
             </p>
           ) : null}
@@ -564,5 +561,46 @@ function UploadDatasetDialog({ onUploaded }: { onUploaded: () => void }) {
         </form>
       </DialogContent>
     </Dialog>
+  )
+}
+
+
+/**
+ * The first thing a new visitor sees when there are no runs yet: what to do, in order, with the
+ * one button that does it.
+ */
+function StartHere({ hasDataset, onStart }: { hasDataset: boolean; onStart: () => void }) {
+  return (
+    <section className="rounded-xl border border-accent/30 bg-accent-wash px-6 py-6 sm:px-8">
+      <h2 className="text-heading text-fg">Start your first run</h2>
+      <p className="mt-1.5 max-w-[60ch] text-body text-fg-muted">
+        A run replays a log file through the detector and turns what it finds into incidents you can open. It takes
+        three steps.
+      </p>
+      <ol className="mt-5 grid gap-3 sm:grid-cols-3">
+        <Step n={1} done={hasDataset} title="Import a log file" body={hasDataset ? 'Done. A dataset is ready to replay.' : 'Use Import logs above. The sample dataset may already be here.'} />
+        <Step n={2} title="Start a run" body="Pick the dataset, name the run, and start the replay." />
+        <Step n={3} title="Open the findings" body="Incidents appear as the replay reaches them. Open one to follow the proof." />
+      </ol>
+      <div className="mt-5">
+        <Button size="lg" onClick={onStart} disabled={!hasDataset}>
+          <Play /> {hasDataset ? 'Start a run' : 'Import a log file first'}
+        </Button>
+      </div>
+    </section>
+  )
+}
+
+function Step({ n, title, body, done }: { n: number; title: string; body: string; done?: boolean }) {
+  return (
+    <li className="flex gap-3 rounded-lg border border-border bg-surface px-4 py-3">
+      <span className={cn('flex size-6 shrink-0 items-center justify-center rounded-full font-mono text-[0.75rem] font-medium', done ? 'bg-normal text-white' : 'bg-accent text-accent-fg')}>
+        {done ? '✓' : n}
+      </span>
+      <span>
+        <span className="block text-body font-medium text-fg">{title}</span>
+        <span className="block text-caption text-fg-muted">{body}</span>
+      </span>
+    </li>
   )
 }

@@ -1,7 +1,7 @@
 # CSE product review — September 19, 2026 (Toronto)
 
 This is a source review of public snapshots, not an independently reproduced benchmark or a prediction of judging.
-No competitor code, design assets, datasets, labels, or generated fixtures were incorporated into Log & Order.
+No competitor code, design assets, datasets, labels, or generated fixtures were incorporated into WatchTower.
 Their projects may change after these commits. Local references were inspected without running their code.
 
 ## What deserves respect

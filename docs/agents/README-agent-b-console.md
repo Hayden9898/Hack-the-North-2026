@@ -1,6 +1,6 @@
 # Agent B — Analyst Console & Data Visualisation
 
-You are one of **two** agents rebuilding the Log & Order frontend. Read this entire file before
+You are one of **two** agents rebuilding the WatchTower frontend. Read this entire file before
 touching code. Your counterpart is **Agent A (Foundation & Landing)**; their brief is
 `docs/agents/README-agent-a-foundation.md`. Read it too — you consume the design system they build.
 
@@ -11,7 +11,7 @@ ever feeling like they're reading a Bloomberg terminal.
 
 ---
 
-## 1. What Log & Order is
+## 1. What WatchTower is
 
 A **behavioral security investigation console** for HTTP access logs, built for Hack the North 2026
 (CSE challenge). It ingests 180,800 real access-log lines spanning Aug 2025 – Mar 2026, replays them

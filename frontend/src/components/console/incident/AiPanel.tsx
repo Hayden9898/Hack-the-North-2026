@@ -75,7 +75,7 @@ function FallbackBody({ explanation, job }: { explanation: Explanation | null; j
         <p className="font-mono text-mono text-fg-muted">{reason}</p>
       ) : null}
       {job && job.state !== 'done' ? (
-        <p className="text-caption text-fg-muted normal-case tracking-normal">
+        <p className="text-caption text-fg-muted">
           Explanation job: {job.state}
           {job.attempts ? ` · ${job.attempts} attempt${job.attempts === 1 ? '' : 's'}` : ''}
           {job.last_error ? ` · ${job.last_error}` : ''}
@@ -106,7 +106,7 @@ function RejectedBody({ explanation }: { explanation: Explanation }) {
       </div>
 
       <div>
-        <h4 className="mb-2 text-caption text-fg-muted uppercase">What it tried, and why it was refused</h4>
+        <h4 className="mb-2 text-caption text-fg-muted">What it tried, and why it was refused</h4>
         <ul className="grid gap-2">
           {grouped.map((g) => (
             <li key={g.category} className="rounded-md border border-border bg-surface-raised px-3 py-2.5">
@@ -123,7 +123,7 @@ function RejectedBody({ explanation }: { explanation: Explanation }) {
         </ul>
       </div>
 
-      <p className="text-caption text-fg-muted normal-case tracking-normal">
+      <p className="text-caption text-fg-muted">
         Proposal from <span className="font-mono">{explanation.model_name}</span> · prompt v
         {explanation.prompt_version}
       </p>
@@ -177,7 +177,7 @@ function ValidatedBody({
 
   return (
     <div className="space-y-4">
-      <p className="flex items-center gap-2 text-caption text-fg-muted normal-case tracking-normal">
+      <p className="flex items-center gap-2 text-caption text-fg-muted">
         <Sparkles className="size-3.5" aria-hidden />
         Suggested by the model, then checked against the recorded facts. Wording comes from a fixed
         reviewed catalogue.
@@ -226,7 +226,7 @@ function FactRefs({
 }) {
   return (
     <p className="mt-2 flex flex-wrap items-center gap-1.5">
-      <span className="text-caption text-fg-muted normal-case tracking-normal">{label}:</span>
+      <span className="text-caption text-fg-muted">{label}:</span>
       {ids.map((id) => {
         const f = byId.get(id)
         return (

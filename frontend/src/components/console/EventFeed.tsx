@@ -103,19 +103,19 @@ export function EventFeed({ runId, tick, cutoff }: { runId: string; tick: number
   const errText = error ? describeError(error) : null
   const active = !!(filters.threat_class || filters.phase || filters.account)
   const select =
-    'rounded-md border border-border-strong bg-surface-raised px-2 py-1 text-caption text-fg normal-case tracking-normal focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none'
+    'rounded-md border border-border-strong bg-surface-raised px-2 py-1 text-caption text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none'
 
   return (
     <section aria-labelledby="feed" className="rounded-lg border border-border bg-surface">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div>
-          <h2 id="feed" className="text-heading normal-case tracking-normal text-fg">
+          <h2 id="feed" className="text-heading text-fg">
             Event feed
           </h2>
           {/* Once paging back has loaded more than one window, `rows` is the OLDEST slice, not
               the newest — so "showing the newest 300" contradicted the rows under it. Name the
               window by which end of the feed it is actually pinned to. */}
-          <p className="text-caption text-fg-muted normal-case tracking-normal">
+          <p className="text-caption text-fg-muted">
             every event evaluated under cutoff #{fmtNum(newest.data?.cutoff_seq ?? cutoff)} · showing{' '}
             {windowed ? (follow ? 'the newest ' : 'the oldest loaded ') : ''}
             {fmtNum(rows.length)}
@@ -163,7 +163,7 @@ export function EventFeed({ runId, tick, cutoff }: { runId: string; tick: number
             </Button>
           </form>
           {follow ? (
-            <span className="flex items-center gap-1.5 text-caption text-normal normal-case tracking-normal">
+            <span className="flex items-center gap-1.5 text-caption text-normal">
               <span aria-hidden className="inline-block size-1.5 rounded-full bg-normal" />
               following
             </span>
@@ -184,7 +184,7 @@ export function EventFeed({ runId, tick, cutoff }: { runId: string; tick: number
       </header>
 
       {errText ? (
-        <p className="border-b border-border bg-surface-raised px-4 py-2 text-caption text-late normal-case tracking-normal">
+        <p className="border-b border-border bg-surface-raised px-4 py-2 text-caption text-late">
           {errText.status === 503 ? 'Database unavailable' : 'Refresh failed'} — showing the last rows loaded.
         </p>
       ) : null}
@@ -205,7 +205,7 @@ export function EventFeed({ runId, tick, cutoff }: { runId: string; tick: number
         </p>
       ) : (
         <>
-          <div className="grid grid-cols-[4.5rem_10.5rem_1fr_3rem_7.5rem_5rem] gap-2 border-b border-border px-4 py-1.5 text-caption text-fg-muted uppercase">
+          <div className="grid grid-cols-[4.5rem_10.5rem_1fr_3rem_7.5rem_5rem] gap-2 border-b border-border px-4 py-1.5 text-caption text-fg-muted">
             <span className="text-right">seq</span>
             <span>time (UTC)</span>
             <span>account@ip · request</span>
