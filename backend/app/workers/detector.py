@@ -56,6 +56,13 @@ class RunModel:
     detail: str = ""
 
 
+@dataclass
+class _WriteBuffers:
+    feature_snapshots: list[tuple[Any, ...]] = field(default_factory=list)
+    detections: list[tuple[Any, ...]] = field(default_factory=list)
+    processed_seqs: list[int] = field(default_factory=list)
+
+
 class Detector:
     def __init__(self, database_url: str | None = None, cfg: DetectionConfig | None = None, fault_hook: FaultHook | None = None) -> None:
         self.settings = get_settings()
@@ -133,11 +140,31 @@ class Detector:
         stats = StatsStore(conn, run_id)
         trace = sentry.current_trace_context()
         last_time: datetime | None = None
+        buffers = _WriteBuffers()
         with sentry.span("detector.batch", run_id=run_id, size=len(rows)):
             for row in rows:
                 ev = Event.from_row(row)
-                self._process_event(conn, run, rm, ref, stats, ev, result, trace)
+                self._process_event(conn, run, rm, ref, stats, ev, result, trace, buffers)
                 last_time = ev.event_time
+            with conn.cursor() as cur:
+                if buffers.feature_snapshots:
+                    cur.executemany(
+                        """INSERT INTO feature_snapshots (run_id, run_seq, event_id, event_time, feature_version, history_count, numeric_vector, observed_context, reference_hash)
+                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                        buffers.feature_snapshots,
+                    )
+                if buffers.detections:
+                    cur.executemany(
+                        """INSERT INTO detections (run_id, run_seq, event_id, event_time, phase, threat_class, processing_status, model_id, model_health,
+                               model_score, anomaly_percentile, model_flagged, reason_codes, rule_ids, top_deviations)
+                           VALUES (%s, %s, %s, %s, %s, %s, 'processed', %s, %s, %s, %s, %s, %s, %s, %s)""",
+                        buffers.detections,
+                    )
+                if buffers.processed_seqs:
+                    cur.execute(
+                        "UPDATE run_events SET processing_state='processed', processed_at=now() WHERE run_id=%s AND run_seq = ANY(%s)",
+                        (run_id, buffers.processed_seqs),
+                    )
             stats.flush()
             with conn.cursor() as cur:
                 cur.execute(
@@ -176,6 +203,7 @@ class Detector:
         ev: Event,
         result: BatchResult,
         trace: dict[str, Any] | None,
+        buffers: _WriteBuffers,
     ) -> None:
         run_id = run["run_id"]
         if self.fault_hook:
@@ -212,29 +240,21 @@ class Detector:
                 app_base_url=self.settings.app_base_url, side_effects=side_effects, trace_context=trace,
             )
         deviations = _top_deviations(fr.observed)
+        buffers.feature_snapshots.append(
+            (run_id, ev.run_seq, ev.event_id, ev.event_time, FEATURE_VERSION, fr.history_count, fr.vector, jsonb(fr.observed), ref.hash)
+        )
+        buffers.detections.append(
+            (run_id, ev.run_seq, ev.event_id, ev.event_time, ev.phase, decision.threat_class, run.get("model_id"), rm.health, score, pct,
+             decision.model_flagged, decision.reason_codes, decision.rule_ids, jsonb(deviations))
+        )
+        buffers.processed_seqs.append(ev.run_seq)
         with conn.cursor() as cur:
-            cur.execute(
-                """INSERT INTO feature_snapshots (run_id, run_seq, event_id, event_time, feature_version, history_count, numeric_vector, observed_context, reference_hash)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-                (run_id, ev.run_seq, ev.event_id, ev.event_time, FEATURE_VERSION, fr.history_count, fr.vector, jsonb(fr.observed), ref.hash),
-            )
-            cur.execute(
-                """INSERT INTO detections (run_id, run_seq, event_id, event_time, phase, threat_class, processing_status, model_id, model_health,
-                       model_score, anomaly_percentile, model_flagged, reason_codes, rule_ids, top_deviations)
-                   VALUES (%s, %s, %s, %s, %s, %s, 'processed', %s, %s, %s, %s, %s, %s, %s, %s)""",
-                (run_id, ev.run_seq, ev.event_id, ev.event_time, ev.phase, decision.threat_class, run.get("model_id"), rm.health, score, pct,
-                 decision.model_flagged, decision.reason_codes, decision.rule_ids, jsonb(deviations)),
-            )
             cur.execute(
                 """INSERT INTO processed_events (event_time, run_id, run_seq, event_id, username, ip_raw, method, path, route_family, object_id,
                        status, response_bytes, threat_class, phase)
                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                 (ev.event_time, run_id, ev.run_seq, ev.event_id, ev.username, ev.ip_raw, ev.method, ev.path, ev.route_family, ev.object_id,
                  ev.status, ev.response_bytes, decision.threat_class, ev.phase),
-            )
-            cur.execute(
-                "UPDATE run_events SET processing_state='processed', processed_at=now() WHERE run_id=%s AND run_seq=%s",
-                (run_id, ev.run_seq),
             )
         stats.apply_event(ev)
         result.processed += 1
