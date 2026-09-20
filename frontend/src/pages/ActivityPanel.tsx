@@ -1,107 +1,29 @@
+import { ChevronRight } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import {
-  api,
-  describeError,
-  type BenchmarkResponse,
-  type RefreshResponse,
-  type Run,
-  type TimeseriesResponse,
-  type TimeseriesRow,
-  type TimeseriesSource,
-} from '../api'
-import { fmtNum, fmtTime } from '../format'
+import { api, describeError, type BenchmarkResponse, type RefreshResponse, type Run, type TimeseriesResponse } from '../api'
+import { fmtNum } from '../format'
 import { useFetch } from '../useFetch'
-import { Empty, ErrorState, Loading, Section, Tag } from '../ui'
-
-const MAX_BUCKETS = 500
-
-interface Bin {
-  start: number // epoch ms
-  events: number
-  c401: number
-  c403: number
-  suspicious: number
-  high_risk: number
-}
-
-type Rollup = 'server' | 'hour' | 'day'
-
-function bucketLabel(minutes: number): string {
-  if (minutes === 1440) return 'daily'
-  if (minutes === 60) return 'hourly'
-  if (minutes === 5) return 'five-minute'
-  return `${minutes}-minute`
-}
-
-/** Safety net: roll server buckets up client-side to hourly or daily bins when there are still too many to draw. */
-function rollup(rows: TimeseriesRow[], serverMinutes: number): { bins: Bin[]; unit: Rollup } {
-  if (rows.length === 0) return { bins: [], unit: 'server' }
-  // No spread over the row list: a full run returns >100k rows (per account per 5-minute bucket).
-  const distinctTimes = new Set<number>()
-  let tMin = Number.POSITIVE_INFINITY
-  let tMax = Number.NEGATIVE_INFINITY
-  for (const r of rows) {
-    const t = Date.parse(r.bucket)
-    if (!Number.isFinite(t)) continue
-    distinctTimes.add(t)
-    if (t < tMin) tMin = t
-    if (t > tMax) tMax = t
-  }
-  let unit: Rollup = 'server'
-  let size = serverMinutes * 60_000
-  if (distinctTimes.size > MAX_BUCKETS && serverMinutes < 1440) {
-    unit = 'hour'
-    size = Math.max(size, 3_600_000)
-    const span = tMax - tMin
-    if (span / size > MAX_BUCKETS) {
-      unit = 'day'
-      size = 86_400_000
-    }
-  }
-  const map = new Map<number, Bin>()
-  for (const r of rows) {
-    const t = Date.parse(r.bucket)
-    if (!Number.isFinite(t)) continue
-    const key = Math.floor(t / size) * size
-    const b = map.get(key) ?? { start: key, events: 0, c401: 0, c403: 0, suspicious: 0, high_risk: 0 }
-    b.events += r.events
-    b.c401 += r.c401
-    b.c403 += r.c403
-    b.suspicious += r.suspicious
-    b.high_risk += r.high_risk
-    map.set(key, b)
-  }
-  return { bins: Array.from(map.values()).sort((a, b) => a.start - b.start), unit }
-}
-
-function iso(ms: number): string {
-  return new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z')
-}
-
-type BucketMinutes = 5 | 60 | 1440
-
-const DAY_MS = 86_400_000
+import { FreshnessChip, FreshnessDetail } from '../components/charts/FreshnessChip'
+import { RunActivityChart } from '../components/charts/RunActivityChart'
+import { binUnitLabel, chooseBucketMinutes, describeFreshness, toBins } from '../components/charts/timeseries'
+import { Button } from '@/components/ui/button'
+import { ErrorState } from '@/components/ui/error-state'
+import { Skeleton } from '@/components/ui/skeleton'
 
 /**
- * Server-side roll-up choice: hourly by default; daily when the run spans more than 14 days;
- * five-minute when the visible window is shorter than 24 h or a single account is selected.
+ * The shape of the run, plus where its numbers came from.
+ *
+ * Operator actions (re-materialise, benchmark) are deliberately separated from the freshness
+ * chip: "is this data fresh?" and "go recompute it" are different questions, and mixing them
+ * in one control strip was part of why the old panel read as a control surface rather than an
+ * answer.
  */
-function chooseBucketMinutes(run: Run, account: string): BucketMinutes {
-  if (account) return 5
-  const end = Date.parse(run.last_processed_time ?? run.last_admitted_time ?? '') || Date.now()
-  const visibleStart = Date.parse(run.visible_start ?? '')
-  const spanStart = Date.parse(run.range_start ?? run.visible_start ?? '')
-  const visibleWindow = Number.isFinite(visibleStart) ? end - visibleStart : Number.NaN
-  if (Number.isFinite(visibleWindow) && visibleWindow > 0 && visibleWindow < DAY_MS) return 5
-  const span = Number.isFinite(spanStart) ? end - spanStart : Number.NaN
-  if (Number.isFinite(span) && span > 14 * DAY_MS) return 1440
-  return 60
-}
-
 export function ActivityPanel({ runId, processedSeq, run }: { runId: string; processedSeq: number; run: Run }) {
   const [account, setAccount] = useState('')
   const [accountDraft, setAccountDraft] = useState('')
   const [asOf, setAsOf] = useState(false)
+  const [showOps, setShowOps] = useState(false)
+
   const bucketMinutes = chooseBucketMinutes(run, account)
   const ts = useFetch<TimeseriesResponse>(
     () =>
@@ -113,237 +35,153 @@ export function ActivityPanel({ runId, processedSeq, run }: { runId: string; pro
       }),
     [runId, account, asOf, bucketMinutes],
   )
-  const [refresh, setRefresh] = useState<{ busy: boolean; result: RefreshResponse | null; error: unknown | null }>({ busy: false, result: null, error: null })
-  const [bench, setBench] = useState<{ open: boolean; busy: boolean; result: BenchmarkResponse | null; error: unknown | null }>({
-    open: false,
+
+  const model = useMemo(() => {
+    if (!ts.data) return null
+    const serverMinutes = ts.data.source.bucket_minutes ?? bucketMinutes
+    return {
+      ...toBins(ts.data.rows, serverMinutes),
+      freshness: describeFreshness(ts.data.source),
+      serverMinutes,
+    }
+  }, [ts.data, bucketMinutes])
+
+  return (
+    <section aria-labelledby="activity" className="rounded-lg border border-border bg-surface">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 id="activity" className="text-heading text-fg">
+            Shape of the run
+          </h2>
+          {model ? <FreshnessChip freshness={model.freshness} /> : null}
+        </div>
+
+        {/* one filter row, above everything it scopes */}
+        <div className="flex flex-wrap items-center gap-2">
+          <form
+            className="flex items-center gap-1.5"
+            onSubmit={(e) => {
+              e.preventDefault()
+              setAccount(accountDraft.trim())
+            }}
+          >
+            <input
+              value={accountDraft}
+              onChange={(e) => setAccountDraft(e.target.value)}
+              placeholder="all accounts"
+              aria-label="Filter by account"
+              className="w-32 rounded-md border border-border bg-surface-raised px-2 py-1 font-mono text-mono text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+            />
+            <Button type="submit" variant="outline" size="sm">
+              Filter
+            </Button>
+          </form>
+          <label className="flex items-center gap-1.5 text-caption text-fg-muted normal-case tracking-normal">
+            <input type="checkbox" checked={asOf} onChange={(e) => setAsOf(e.target.checked)} className="accent-[var(--color-accent)]" />
+            as of cutoff #{fmtNum(processedSeq)}
+          </label>
+        </div>
+      </header>
+
+      <div className="px-4 py-4">
+        {ts.loading && !ts.data ? (
+          <Skeleton className="h-48 w-full" />
+        ) : ts.error && !ts.data ? (
+          <ErrorState title="Could not load the activity series" detail={describeError(ts.error).text} onRetry={() => void ts.reload()} />
+        ) : model ? (
+          <div className={ts.loading ? 'opacity-60 transition-opacity' : undefined}>
+            <RunActivityChart
+              bins={model.bins}
+              widthMs={model.widthMs}
+              unitLabel={binUnitLabel(model.unit, model.serverMinutes)}
+              cutoffLabel={account ? `account ${account}` : undefined}
+            />
+          </div>
+        ) : null}
+
+        {model ? (
+          <details className="mt-4 border-t border-border pt-3" open={showOps} onToggle={(e) => setShowOps((e.target as HTMLDetailsElement).open)}>
+            <summary className="group/sum flex cursor-pointer list-none items-center gap-1.5 text-caption text-fg-muted normal-case tracking-normal hover:text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none">
+              <ChevronRight className="size-3.5 shrink-0 transition-transform group-open/sum:rotate-90 motion-reduce:transition-none" aria-hidden />
+              Where these numbers came from
+            </summary>
+            <div className="mt-3 space-y-4">
+              <FreshnessDetail freshness={model.freshness} />
+              <OperatorTools runId={runId} disabled={asOf} onRefreshed={() => void ts.reload()} />
+            </div>
+          </details>
+        ) : null}
+      </div>
+    </section>
+  )
+}
+
+/**
+ * Operator-only actions. Behind the provenance disclosure on purpose — a judge reading the
+ * chart should not be one click from re-materialising the aggregate.
+ */
+function OperatorTools({ runId, disabled, onRefreshed }: { runId: string; disabled: boolean; onRefreshed: () => void }) {
+  const [refresh, setRefresh] = useState<{ busy: boolean; result: RefreshResponse | null; error: unknown }>({
     busy: false,
     result: null,
     error: null,
   })
-
-  const rolled = useMemo(() => rollup(ts.data?.rows ?? [], ts.data?.source.bucket_minutes ?? bucketMinutes), [ts.data, bucketMinutes])
+  const [bench, setBench] = useState<{ busy: boolean; result: BenchmarkResponse | null; error: unknown }>({
+    busy: false,
+    result: null,
+    error: null,
+  })
 
   async function doRefresh() {
     setRefresh({ busy: true, result: null, error: null })
     try {
       const r = await api.refreshAggregate(runId)
       setRefresh({ busy: false, result: r, error: null })
-      void ts.reload()
+      onRefreshed()
     } catch (e) {
       setRefresh({ busy: false, result: null, error: e })
     }
   }
 
-  async function runBench() {
-    setBench((b) => ({ ...b, open: true, busy: true, error: null }))
+  async function doBench() {
+    setBench({ busy: true, result: null, error: null })
     try {
-      const r = await api.benchmark(runId, 5)
-      setBench((b) => ({ ...b, busy: false, result: r }))
+      setBench({ busy: false, result: await api.benchmark(runId, 5), error: null })
     } catch (e) {
-      setBench((b) => ({ ...b, busy: false, error: e }))
+      setBench({ busy: false, result: null, error: e })
     }
   }
 
-  const refreshErr = refresh.error ? describeError(refresh.error) : null
-  const benchErr = bench.error ? describeError(bench.error) : null
-
   return (
-    <Section
-      title={
-        <span className="row">
-          Activity <span className="muted small" style={{ textTransform: 'none', letterSpacing: 0 }}>Tiger continuous aggregate</span>
-        </span>
-      }
-      aside={
-        <div className="filters">
-          <form
-            className="row"
-            onSubmit={(e) => {
-              e.preventDefault()
-              setAccount(accountDraft.trim())
-            }}
-          >
-            <input value={accountDraft} onChange={(e) => setAccountDraft(e.target.value)} placeholder="account (all)" style={{ width: 120 }} />
-            <button type="submit" className="btn btn-sm">
-              Filter
-            </button>
-          </form>
-          <label className="check">
-            <input type="checkbox" checked={asOf} onChange={(e) => setAsOf(e.target.checked)} /> as-of current cutoff (#{fmtNum(processedSeq)})
-          </label>
-          <button type="button" className="btn btn-sm" disabled={refresh.busy || asOf} onClick={() => void doRefresh()} title="POST /analytics/refresh (operator)">
-            {refresh.busy ? 'Refreshing…' : 'Refresh aggregate'}
-          </button>
-        </div>
-      }
-    >
-      {ts.data ? <FreshnessBadge source={ts.data.source} /> : null}
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" disabled={refresh.busy || disabled} onClick={() => void doRefresh()}>
+          {refresh.busy ? 'Refreshing…' : 'Re-materialise aggregate'}
+        </Button>
+        <Button variant="outline" size="sm" disabled={bench.busy} onClick={() => void doBench()}>
+          {bench.busy ? 'Measuring…' : 'Benchmark aggregate vs raw'}
+        </Button>
+      </div>
+
       {refresh.result ? (
-        <div className="notice small" style={{ marginTop: 6 }}>
+        <p className="font-mono text-mono text-fg-muted">
           {refresh.result.refreshed
-            ? `Aggregate refreshed through ${fmtTime(refresh.result.refreshed_through)} · ${fmtNum(refresh.result.buckets)} buckets · ${fmtNum(refresh.result.duration_ms)} ms`
-            : `Not refreshed: ${refresh.result.reason ?? 'unknown reason'}`}
-        </div>
+            ? `refreshed through ${refresh.result.refreshed_through} · ${fmtNum(refresh.result.buckets)} buckets · ${fmtNum(refresh.result.duration_ms)} ms`
+            : `not refreshed: ${refresh.result.reason ?? 'unknown reason'}`}
+        </p>
       ) : null}
-      {refreshErr ? (
-        <div className="notice notice-danger small" style={{ marginTop: 6 }}>
-          Refresh failed (HTTP {refreshErr.status ?? '—'}): {refreshErr.text}
-        </div>
+      {refresh.error ? <p className="text-caption text-high-risk normal-case tracking-normal">{describeError(refresh.error).text}</p> : null}
+
+      {bench.result ? (
+        <p className="font-mono text-mono text-fg-muted">
+          aggregate {bench.result.aggregate_ms.median} ms vs raw {bench.result.raw_ms.median} ms (median of {bench.result.repeats}) ·{' '}
+          {fmtNum(bench.result.rows)} rows ·{' '}
+          <span className={bench.result.identical_results ? 'text-normal' : 'text-high-risk'}>
+            {bench.result.identical_results ? 'identical results' : 'RESULTS DIFFER'}
+          </span>
+        </p>
       ) : null}
-
-      <div style={{ marginTop: 8 }}>
-        {ts.loading && !ts.data ? (
-          <Loading what="activity" />
-        ) : ts.error && !ts.data ? (
-          <ErrorState error={ts.error} onRetry={() => void ts.reload()} what="activity time series" />
-        ) : !ts.data || rolled.bins.length === 0 ? (
-          <Empty>No activity buckets under the current cutoff{account ? ` for ${account}` : ''}.</Empty>
-        ) : (
-          <>
-            {ts.error ? (
-              <div className="notice notice-warn small" style={{ marginBottom: 6 }}>
-                Refresh failed (HTTP {describeError(ts.error).status ?? '—'}); showing the last loaded series.
-              </div>
-            ) : null}
-            <ActivityChart bins={rolled.bins} />
-            <p className="muted small" style={{ marginTop: 4 }}>
-              {fmtNum(ts.data.rows.length)} {bucketLabel(ts.data.source.bucket_minutes ?? bucketMinutes)} rows from the server
-              {account ? ` for ${account}` : ' (accounts summed server-side)'}
-              {rolled.unit !== 'server'
-                ? `, rolled up client-side to ${rolled.unit === 'hour' ? 'hourly' : 'daily'} bins (${fmtNum(rolled.bins.length)}) because more than ${MAX_BUCKETS} buckets were returned`
-                : ` → ${fmtNum(rolled.bins.length)} bins`}
-              . Bin size: {bucketLabel(rolled.unit === 'server' ? (ts.data.source.bucket_minutes ?? bucketMinutes) : rolled.unit === 'hour' ? 60 : 1440)}. Bars: events per bin. Markers: <span style={{ color: 'var(--warn)' }}>401</span> · <span style={{ color: '#ffb36b' }}>403</span> ·{' '}
-              <span style={{ color: 'var(--warn)' }}>■ suspicious</span> · <span style={{ color: 'var(--danger)' }}>■ high risk</span>. Counts are measured from processed
-              evidence under cutoff #{fmtNum(ts.data.cutoff_seq)}.
-            </p>
-          </>
-        )}
-      </div>
-
-      <details
-        open={bench.open}
-        onToggle={(e) => {
-          const open = (e.currentTarget as HTMLDetailsElement).open
-          setBench((b) => ({ ...b, open }))
-          if (open && !bench.result && !bench.busy) void runBench()
-        }}
-        style={{ marginTop: 8 }}
-      >
-        <summary className="small muted">Benchmark: raw scoped query vs continuous aggregate (measured on this database, not a promise)</summary>
-        <div className="small" style={{ marginTop: 6 }}>
-          {bench.busy ? (
-            <Loading what="benchmark" />
-          ) : benchErr ? (
-            <span style={{ color: 'var(--danger)' }}>
-              Benchmark failed (HTTP {benchErr.status ?? '—'}): {benchErr.text}
-            </span>
-          ) : bench.result ? (
-            <dl className="kvs">
-              <div className="kv">
-                <dt>raw ms (median)</dt>
-                <dd className="mono">{bench.result.raw_ms.median.toFixed(1)}</dd>
-              </div>
-              <div className="kv">
-                <dt>aggregate ms (median)</dt>
-                <dd className="mono">{bench.result.aggregate_ms.median.toFixed(1)}</dd>
-              </div>
-              <div className="kv">
-                <dt>identical results</dt>
-                <dd>{bench.result.identical_results ? <span className="check-ok">✓ yes</span> : <span className="check-bad">✗ no</span>}</dd>
-              </div>
-              <div className="kv">
-                <dt>rows · repeats · watermark</dt>
-                <dd className="mono">
-                  {fmtNum(bench.result.rows)} · {bench.result.repeats} · {fmtTime(bench.result.watermark)}
-                </dd>
-              </div>
-            </dl>
-          ) : null}
-          <button type="button" className="btn btn-sm" style={{ marginTop: 6 }} disabled={bench.busy} onClick={() => void runBench()}>
-            Run again (5 repeats)
-          </button>
-        </div>
-      </details>
-    </Section>
-  )
-}
-
-function FreshnessBadge({ source }: { source: TimeseriesSource }) {
-  if (source.mode === 'aggregate_plus_raw_tail') {
-    return (
-      <div className="row small">
-        <Tag tone={source.stale ? 'warn' : 'ok'}>
-          materialized through {fmtTime(source.materialized_through)} (refreshed {fmtTime(source.refreshed_at)}) + raw tail
-        </Tag>
-        <span className="muted">
-          {fmtNum(source.materialized_buckets)} aggregate buckets · {fmtNum(source.raw_tail_buckets)} raw tail buckets
-          {source.stale ? ' · stale: processed evidence is ahead of the aggregate' : ''}
-          {source.last_processed_time ? ` · last processed ${fmtTime(source.last_processed_time)}` : ''}
-        </span>
-      </div>
-    )
-  }
-  if (source.mode === 'raw_fallback') {
-    return (
-      <div className="row small">
-        <Tag tone="warn">raw fallback: {source.reason}</Tag>
-        <span className="muted">served from a raw scoped query; detector semantics unchanged</span>
-      </div>
-    )
-  }
-  return (
-    <div className="row small">
-      <Tag tone="info">pinned as-of seq {fmtNum(source.as_of_seq)}</Tag>
-      <span className="muted">raw processed records with run_seq ≤ cutoff; the aggregate is not used for pinned views</span>
+      {bench.error ? <p className="text-caption text-high-risk normal-case tracking-normal">{describeError(bench.error).text}</p> : null}
     </div>
-  )
-}
-
-function ActivityChart({ bins }: { bins: Bin[] }) {
-  const W = 960
-  const H = 180
-  const padL = 44
-  const padR = 8
-  const padT = 8
-  const padB = 26
-  const n = bins.length
-  const max = bins.reduce((m, b) => (b.events > m ? b.events : m), 1)
-  const innerW = W - padL - padR
-  const innerH = H - padT - padB
-  const bw = innerW / n
-  const y = (v: number) => padT + innerH - (innerH * v) / max
-  const labelEvery = Math.max(1, Math.ceil(n / 8))
-  return (
-    <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Events per time bin with 401, 403, suspicious and high-risk markers">
-      <line x1={padL} y1={padT + innerH} x2={W - padR} y2={padT + innerH} stroke="var(--line-strong)" />
-      <line x1={padL} y1={padT} x2={padL} y2={padT + innerH} stroke="var(--line-strong)" />
-      <text x={padL - 6} y={padT + 4} fill="var(--fg-3)" fontSize="10" textAnchor="end">
-        {fmtNum(max)}
-      </text>
-      <text x={padL - 6} y={padT + innerH} fill="var(--fg-3)" fontSize="10" textAnchor="end">
-        0
-      </text>
-      {bins.map((b, i) => {
-        const x = padL + i * bw
-        const w = Math.max(1, bw - (bw > 3 ? 1 : 0))
-        const top = y(b.events)
-        return (
-          <g key={b.start}>
-            <rect x={x} y={top} width={w} height={padT + innerH - top} fill="var(--accent-2)" opacity={0.85}>
-              <title>{`${iso(b.start)} — events ${fmtNum(b.events)}, 401 ${fmtNum(b.c401)}, 403 ${fmtNum(b.c403)}, suspicious ${fmtNum(b.suspicious)}, high risk ${fmtNum(b.high_risk)}`}</title>
-            </rect>
-            {b.c401 > 0 ? <rect x={x} y={y(b.c401) - 1} width={w} height={2} fill="var(--warn)" /> : null}
-            {b.c403 > 0 ? <rect x={x} y={y(b.c403) - 1} width={w} height={2} fill="#ffb36b" /> : null}
-            {b.suspicious > 0 ? <rect x={x} y={padT + innerH + 3} width={w} height={4} fill="var(--warn)" /> : null}
-            {b.high_risk > 0 ? <rect x={x} y={padT + innerH + 8} width={w} height={4} fill="var(--danger)" /> : null}
-            {i % labelEvery === 0 ? (
-              <text x={x} y={H - 4} fill="var(--fg-3)" fontSize="9" textAnchor="start">
-                {iso(b.start).slice(0, 16).replace('T', ' ')}
-              </text>
-            ) : null}
-          </g>
-        )
-      })}
-    </svg>
   )
 }

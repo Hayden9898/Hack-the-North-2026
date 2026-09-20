@@ -1,41 +1,27 @@
+import { ChevronRight, TriangleAlert } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import {
   api,
   describeError,
-  type EventRow,
-  type EventsPage,
-  type EventsQuery,
   type IncidentsPage,
-  type IncidentsQuery,
   type ModelHealth,
   type Phase,
   type ProgressUpdate,
   type Run,
   type RunState,
   type RunStateUpdate,
-  type ThreatClass,
 } from '../api'
-import {
-  classTone,
-  explanationStateLabel,
-  fmtNum,
-  fmtPercentile,
-  fmtTime,
-  integrationLabel,
-  isFaultRun,
-  phaseLabel,
-  runStateLabel,
-  shortId,
-  speedLabel,
-} from '../format'
+import { fmtNum, fmtTime, integrationLabel, isFaultRun, modelHealthExplanation, modelHealthLabel, runStateLabel, shortId } from '../format'
 import { useFetch, useInterval, useThrottledCallback } from '../useFetch'
-import { ClassBadge, Empty, ErrorState, IncidentLink, Loading, ModelHealthBadge, ModelHealthBanner, PhaseBadge, RuleTags, Section, StateBadge, Tag } from '../ui'
-import { useRunUpdates, type ConnectionStatus, type UpdateType } from '../useRunUpdates'
+import { useRunUpdates } from '../useRunUpdates'
+import { EventFeed } from '../components/console/EventFeed'
+import { FindingsList } from '../components/console/FindingsList'
+import { ConnectionDot, RunProgress, RunTransport } from '../components/console/RunTransport'
 import { ActivityPanel } from './ActivityPanel'
-
-const WINDOW_ROWS = 300
-const PAGE = 100
+import { cn } from '@/lib/cn'
+import { ErrorState } from '@/components/ui/error-state'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface LiveCounters {
   processed_seq: number
@@ -46,15 +32,22 @@ interface LiveCounters {
   model_health: ModelHealth
 }
 
+/**
+ * Run console.
+ *
+ * Reordered around the question it exists to answer: what needs my attention. The findings
+ * lead; the event feed is the evidence substrate beneath them; the reproducibility metadata
+ * (config hash, feature version, dataset, integrations) is a real question — "is this run
+ * reproducible?" — so it is a disclosure rather than the first thing on screen.
+ */
 export function RunConsole() {
   const { runId = '' } = useParams()
   const run = useFetch<Run>(() => api.getRun(runId), [runId])
   const [live, setLive] = useState<LiveCounters | null>(null)
-  const [tick, setTick] = useState(0) // bumps when the events feed should refetch its newest page
+  const [tick, setTick] = useState(0)
   const [incTick, setIncTick] = useState(0)
   const [resyncs, setResyncs] = useState(0)
 
-  // Coalesce bursts of SSE progress events into at most one refresh per second.
   const refreshFeeds = useThrottledCallback(() => {
     setTick((t) => t + 1)
     setIncTick((t) => t + 1)
@@ -63,7 +56,7 @@ export function RunConsole() {
   const refreshIncidents = useThrottledCallback(() => setIncTick((t) => t + 1), 1_000)
 
   const onEvent = useCallback(
-    (type: UpdateType, data: Record<string, unknown>) => {
+    (type: string, data: Record<string, unknown>) => {
       switch (type) {
         case 'progress': {
           const p = data as unknown as ProgressUpdate
@@ -93,16 +86,14 @@ export function RunConsole() {
           refreshIncidents()
           refreshRun()
           break
-        case 'heartbeat':
-        case 'resync_required':
         default:
           break
       }
     },
     [refreshFeeds, refreshRun, refreshIncidents],
   )
+
   const onResync = useCallback(() => {
-    // Cursor expired: full snapshot refetch of run + incidents + events.
     setResyncs((n) => n + 1)
     void run.reload()
     setTick((t) => t + 1)
@@ -111,7 +102,6 @@ export function RunConsole() {
 
   const updates = useRunUpdates(runId, { onEvent, onResync })
 
-  // Polling fallback when the stream cannot be established: GET /runs/:id every 2 s.
   useInterval(
     () => {
       void run.reload()
@@ -125,7 +115,6 @@ export function RunConsole() {
   const merged = useMemo(() => {
     if (!r) return null
     if (!live) return r
-    // The live counters are newer than the last GET; prefer them, but never show a processed_seq below what the API returned.
     return {
       ...r,
       processed_seq: Math.max(r.processed_seq, live.processed_seq),
@@ -137,534 +126,151 @@ export function RunConsole() {
     }
   }, [r, live])
 
-  if (run.loading && !r) return <Loading what="run" />
-  if (run.error && !r) return <ErrorState error={run.error} onRetry={() => void run.reload()} what="run" />
-  if (!merged) return <Empty>Run not found.</Empty>
+  if (run.loading && !r) return <ConsoleSkeleton />
+  if (run.error && !r) {
+    const e = describeError(run.error)
+    return (
+      <div className="mx-auto max-w-2xl px-6 py-16">
+        <ErrorState
+          title={e.status === 503 ? 'Database unavailable' : 'Could not load this run'}
+          detail={e.text}
+          onRetry={() => void run.reload()}
+        />
+      </div>
+    )
+  }
+  if (!merged) {
+    return (
+      <div className="mx-auto max-w-2xl px-6 py-16">
+        <ErrorState title="Run not found" detail="No run with this id exists." />
+      </div>
+    )
+  }
 
   return (
-    <div className="stack">
-      <div className="crumbs">
-        <Link to="/app">Runs</Link> / <span className="mono">{shortId(merged.run_id, 18)}</span>
-      </div>
-      <RunHeader run={merged} updates={updates} resyncs={resyncs} onRunChanged={(u) => run.set(() => u)} error={run.error} />
-      <ModelHealthBanner health={merged.model_health} />
-      <div className="grid-2">
-        <EventsFeed runId={runId} tick={tick} cutoff={merged.processed_seq} />
-        <IncidentsPanel runId={runId} tick={incTick} />
-      </div>
+    <div className="mx-auto w-full max-w-[84rem] space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+      <nav aria-label="Breadcrumb" className="flex items-center gap-1.5">
+        <Link to="/app" className="text-caption text-fg-muted normal-case tracking-normal hover:text-fg">
+          Runs
+        </Link>
+        <ChevronRight className="size-3 text-fg-subtle" aria-hidden />
+        <span className="font-mono text-caption text-fg-subtle normal-case tracking-normal">{shortId(merged.run_id, 16)}</span>
+      </nav>
+
+      <RunHeaderBand
+        run={merged}
+        status={updates.status}
+        attempts={updates.attempts}
+        lastId={updates.lastId}
+        resyncs={resyncs}
+        onChanged={(u) => run.set(() => u)}
+      />
+
+      {merged.state === 'blocked' ? <BlockedBanner run={merged} /> : null}
+
+      <Findings runId={runId} tick={incTick} cutoff={merged.processed_seq} />
+
       <ActivityPanel runId={runId} processedSeq={merged.processed_seq} run={merged} />
+
+      <EventFeed runId={runId} tick={tick} cutoff={merged.processed_seq} />
+
+      <RunProvenance run={merged} />
     </div>
   )
 }
 
-// ------------------------------------------------------------------ header
-
-function RunHeader({
+function RunHeaderBand({
   run,
-  updates,
+  status,
+  attempts,
+  lastId,
   resyncs,
-  onRunChanged,
-  error,
+  onChanged,
 }: {
   run: Run
-  updates: { status: ConnectionStatus; attempts: number; lastId: number | null; polling: boolean }
+  status: string
+  attempts: number
+  lastId: number | null
   resyncs: number
-  onRunChanged: (r: Run) => void
-  error: unknown
+  onChanged: (r: Run) => void
 }) {
-  const counts = run.counts ?? {}
-  const total = (m?: Record<string, number>) => Object.values(m ?? {}).reduce((a, b) => a + b, 0)
-  const incidentsTotal = total(counts.incidents)
-  const err = error ? describeError(error) : null
+  const degraded = run.model_health !== 'active'
   return (
-    <Section
-      title={
-        <span className="row">
-          <span style={{ textTransform: 'none', letterSpacing: 0, color: 'var(--fg)', fontSize: 17 }}>{run.name || shortId(run.run_id, 12)}</span>
-          <Tag tone={run.mode === 'replay' ? 'muted' : 'info'}>{run.mode === 'replay' ? 'historical replay' : 'live'}</Tag>
-          {isFaultRun(run.name) ? <Tag tone="danger">fault injection</Tag> : null}
-          <PhaseBadge phase={run.phase} />
-          <StateBadge state={run.state} label={runStateLabel(run.state)} />
-          <ModelHealthBadge health={run.model_health} />
+    <header className="rounded-xl border border-border bg-surface px-5 py-5 sm:px-6">
+      <div className="flex flex-wrap items-center gap-2">
+        <h1 className="text-heading text-fg">{run.name || shortId(run.run_id, 12)}</h1>
+        <span className="rounded-sm border border-border px-1.5 py-0.5 text-[0.6875rem] text-fg-muted uppercase">
+          {run.mode === 'replay' ? 'historical replay' : 'live'}
         </span>
-      }
-      aside={<Connection status={updates.status} attempts={updates.attempts} lastId={updates.lastId} resyncs={resyncs} />}
-    >
-      {err ? (
-        <div className={`notice ${err.status === 503 ? 'notice-danger' : 'notice-warn'}`} style={{ marginBottom: 8 }}>
-          {err.status === 503 ? 'Database unavailable — ' : 'Refresh failed — '}HTTP {err.status ?? '—'}: {err.text}. Showing last known state.
-        </div>
-      ) : null}
-      {run.state === 'blocked' ? (
-        <div className="notice notice-danger" style={{ marginBottom: 8 }}>
-          <strong>Run blocked</strong> at run_seq {fmtNum(run.blocked_seq)}: {run.block_reason ?? 'unknown reason'}. Evidence up to the cutoff is preserved;
-          nothing after it has been evaluated.
-        </div>
-      ) : null}
-      <div className="grid-3">
-        <div>
-          <div className="stats">
-            <div className="stat">
-              <div className="v">{fmtNum(run.processed_seq)}</div>
-              <div className="k">processed seq (cutoff)</div>
-            </div>
-            <div className="stat">
-              <div className="v">{fmtNum(run.admitted_seq)}</div>
-              <div className="k">admitted seq</div>
-            </div>
-            <div className="stat">
-              <div className="v">{fmtNum(Math.max(0, run.admitted_seq - run.processed_seq))}</div>
-              <div className="k">backlog</div>
-            </div>
-            <div className="stat">
-              <div className="v">{fmtNum(incidentsTotal)}</div>
-              <div className="k">incidents</div>
-            </div>
-          </div>
-          <dl className="kvs" style={{ marginTop: 10 }}>
-            <div className="kv">
-              <dt>dataset / source</dt>
-              <dd className="mono small">{run.dataset_id ?? run.source_id ?? '—'}</dd>
-            </div>
-            <div className="kv">
-              <dt>phase</dt>
-              <dd>{phaseLabel(run.phase)}</dd>
-            </div>
-            <div className="kv">
-              <dt>visible start</dt>
-              <dd className="mono small">{fmtTime(run.visible_start)}</dd>
-            </div>
-            <div className="kv">
-              <dt>virtual time</dt>
-              <dd className="mono small">{fmtTime(run.virtual_time)}</dd>
-            </div>
-            <div className="kv">
-              <dt>last processed event</dt>
-              <dd className="mono small">{fmtTime(run.last_processed_time)}</dd>
-            </div>
-            <div className="kv">
-              <dt>last admitted event</dt>
-              <dd className="mono small">{fmtTime(run.last_admitted_time)}</dd>
-            </div>
-            <div className="kv">
-              <dt>model</dt>
-              <dd>
-                {run.model_id ?? <span className="muted">none</span>} · features {run.feature_version}
-              </dd>
-            </div>
-            <div className="kv">
-              <dt>late events</dt>
-              <dd>
-                {fmtNum(run.late_count)} <span className="muted small">(persisted separately, excluded from live inference)</span>
-              </dd>
-            </div>
-            <div className="kv">
-              <dt>config hash</dt>
-              <dd className="mono small">{shortId(run.config_hash, 16)}</dd>
-            </div>
-          </dl>
-        </div>
-        <div>
-          <h3>Counts under cutoff</h3>
-          <table className="tbl" style={{ marginTop: 4 }}>
-            <thead>
-              <tr>
-                <th>phase</th>
-                <th className="right">normal</th>
-                <th className="right">suspicious</th>
-                <th className="right">high risk</th>
-                <th className="right">unscored</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(['warmup', 'visible'] as const).map((ph) => {
-                const m = (counts[ph] ?? {}) as Record<string, number>
-                return (
-                  <tr key={ph}>
-                    <td>{phaseLabel(ph)}</td>
-                    <td className="right mono">{fmtNum(m.normal ?? 0)}</td>
-                    <td className="right mono">{fmtNum(m.suspicious ?? 0)}</td>
-                    <td className="right mono">{fmtNum(m.high_risk ?? 0)}</td>
-                    <td className="right mono">{fmtNum(m.unscored ?? 0)}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-          <div className="small muted" style={{ marginTop: 6 }}>
-            incidents: {Object.entries(counts.incidents ?? {}).map(([k, v]) => `${k}=${v}`).join(' ') || 'none'} · notifications:{' '}
-            {Object.entries(counts.notifications ?? {}).map(([k, v]) => `${k}=${v}`).join(' ') || 'none'} · explanation jobs:{' '}
-            {Object.entries(counts.explanation_jobs ?? {}).map(([k, v]) => `${k}=${v}`).join(' ') || 'none'}
-          </div>
-          <h3 style={{ marginTop: 10 }}>Integrations</h3>
-          <div className="tags" style={{ marginTop: 4 }}>
-            {(['sentry', 'llm', 'slack'] as const).map((k) => {
-              const l = integrationLabel(k, run.integrations[k])
-              return (
-                <Tag key={k} tone={l.tone === 'ok' ? 'ok' : l.tone === 'warn' ? 'warn' : 'muted'}>
-                  {l.text}
-                </Tag>
-              )
-            })}
-          </div>
-        </div>
-        <ReplayControls run={run} onChanged={onRunChanged} />
+        <RunStatePill state={run.state} />
+        <span className="rounded-sm border border-border px-1.5 py-0.5 text-[0.6875rem] text-fg-muted uppercase">
+          {run.phase === 'warmup' ? 'historical warmup' : 'visible window'}
+        </span>
+        {isFaultRun(run.name) ? (
+          <span className="rounded-sm border border-high-risk/45 bg-high-risk-wash px-1.5 py-0.5 text-[0.6875rem] font-medium text-high-risk">
+            fault injection
+          </span>
+        ) : null}
+        <span className="ms-auto">
+          <ConnectionDot status={status} attempts={attempts} lastId={lastId} resyncs={resyncs} />
+        </span>
       </div>
-    </Section>
+
+      <div className="mt-4 flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+        <RunProgress run={run} />
+        <RunTransport run={run} onChanged={onChanged} />
+      </div>
+
+      {degraded ? (
+        <p className="mt-4 flex items-start gap-2 border-t border-border pt-3 text-caption text-pending normal-case tracking-normal">
+          <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          <span>
+            <span className="font-medium">{modelHealthLabel(run.model_health)}.</span>{' '}
+            <span className="text-fg-muted">
+              {modelHealthExplanation(run.model_health) ?? 'Rule detections still apply; no model score is available.'}
+            </span>
+          </span>
+        </p>
+      ) : null}
+    </header>
   )
 }
 
-function Connection({ status, attempts, lastId, resyncs }: { status: ConnectionStatus; attempts: number; lastId: number | null; resyncs: number }) {
-  const text =
-    status === 'live'
-      ? 'live'
-      : status === 'connecting'
-        ? 'connecting'
-        : status === 'reconnecting'
-          ? `reconnecting (attempt ${attempts})`
-          : status === 'polling'
-            ? `stream unavailable — polling every 2 s (after ${attempts} failures)`
-            : 'disconnected'
+function RunStatePill({ state }: { state: RunState }) {
+  // A run state is a processing state, never a verdict — `completed` must not read as "clean".
+  const live = state === 'running' || state === 'warming'
   return (
-    <span className={`conn conn-${status}`} title={`SSE /updates · last update seq ${lastId ?? '—'} · resyncs ${resyncs}`}>
-      <span className="dot" /> updates: {text}
-      {lastId !== null ? <span className="muted"> · seq {lastId}</span> : null}
-      {resyncs > 0 ? <span className="muted"> · resynced ×{resyncs}</span> : null}
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-sm border px-1.5 py-0.5 text-[0.6875rem] font-medium uppercase',
+        state === 'blocked' ? 'state-hatch border-blocked/50 text-blocked' : 'border-border text-fg-muted',
+      )}
+    >
+      {live ? <span aria-hidden className="inline-block size-1.5 animate-pulse rounded-full bg-accent motion-reduce:animate-none" /> : null}
+      {runStateLabel(state)}
     </span>
   )
 }
 
-// ------------------------------------------------------------------ replay controls
-
-function ReplayControls({ run, onChanged }: { run: Run; onChanged: (r: Run) => void }) {
-  // Draft speed: null means "show the run's current speed".
-  const [speedDraft, setSpeedDraft] = useState<string | null>(null)
-  const speed = speedDraft ?? String(run.speed ?? '')
-  const setSpeed = setSpeedDraft
-  const [busy, setBusy] = useState<string | null>(null)
-  const [err, setErr] = useState<unknown | null>(null)
-
-  async function act(action: 'start' | 'pause' | 'resume' | 'speed') {
-    setBusy(action)
-    setErr(null)
-    try {
-      const body = action === 'speed' ? { action, speed: Number(speed) } : { action }
-      const updated = await api.replay(run.run_id, body)
-      if (action === 'speed') setSpeedDraft(null)
-      onChanged(updated)
-    } catch (e) {
-      setErr(e)
-    } finally {
-      setBusy(null)
-    }
-  }
-
-  if (run.mode !== 'replay') {
-    return (
-      <div>
-        <h3>Live ingestion</h3>
-        <p className="small muted">This run is fed by POST /events with an ingest token. Replay controls do not apply.</p>
-      </div>
-    )
-  }
-  const s = run.state
-  const canStart = s === 'created'
-  const canPause = s === 'warming' || s === 'running'
-  const canResume = s === 'paused'
-  const terminal = s === 'completed' || s === 'blocked'
-  const e = err ? describeError(err) : null
+function BlockedBanner({ run }: { run: Run }) {
   return (
-    <div>
-      <h3>Replay controls</h3>
-      <div className="row" style={{ marginTop: 6 }}>
-        <button type="button" className="btn btn-primary" disabled={!canStart || busy !== null} onClick={() => void act('start')}>
-          {busy === 'start' ? '…' : 'Start'}
-        </button>
-        <button type="button" className="btn" disabled={!canPause || busy !== null} onClick={() => void act('pause')}>
-          {busy === 'pause' ? '…' : 'Pause'}
-        </button>
-        <button type="button" className="btn" disabled={!canResume || busy !== null} onClick={() => void act('resume')}>
-          {busy === 'resume' ? '…' : 'Resume'}
-        </button>
+    <div className="state-hatch flex items-start gap-3 rounded-lg border border-blocked/50 px-4 py-3.5">
+      <TriangleAlert className="mt-0.5 size-4 shrink-0 text-blocked" aria-hidden />
+      <div>
+        <p className="text-body font-medium text-fg">
+          Run blocked at run_seq {fmtNum(run.blocked_seq)}
+        </p>
+        <p className="mt-1 max-w-[70ch] text-body text-fg-muted">
+          {run.block_reason ?? 'No reason was recorded.'} Evidence up to the cutoff is preserved and remains valid;
+          nothing after it has been evaluated. Create a new run to retry.
+        </p>
       </div>
-      <div className="row" style={{ marginTop: 8 }}>
-        <label className="field">
-          speed (0 = fast-forward, unbounded)
-          <span className="row">
-            <input type="number" min={0} step="any" value={speed} onChange={(ev) => setSpeed(ev.target.value)} style={{ width: 110 }} disabled={terminal} />
-            <button type="button" className="btn btn-sm" disabled={terminal || busy !== null || speed === ''} onClick={() => void act('speed')}>
-              {busy === 'speed' ? '…' : 'Apply'}
-            </button>
-          </span>
-        </label>
-        <span className="small muted">current: {speedLabel(run.speed)}</span>
-      </div>
-      <p className="small muted" style={{ marginTop: 6 }}>
-        {s === 'created'
-          ? 'Not started. Start admits the historical warmup first, then the visible window.'
-          : s === 'completed'
-            ? 'Completed: everything admissible was processed. A reset is a new run.'
-            : s === 'blocked'
-              ? 'Blocked: controls disabled; create a new run to retry.'
-              : run.pause_at_visible_start
-                ? 'Will pause automatically when the visible window begins.'
-                : ''}
-      </p>
-      {e ? (
-        <div className="notice notice-danger">
-          Control rejected (HTTP {e.status ?? '—'}): {e.text}
-        </div>
-      ) : null}
     </div>
   )
 }
 
-// ------------------------------------------------------------------ events feed
-
-interface Filters {
-  threat_class: ThreatClass | ''
-  phase: Phase | ''
-  account: string
-}
-
-function EventsFeed({ runId, tick, cutoff }: { runId: string; tick: number; cutoff: number }) {
-  const nav = useNavigate()
-  const [filters, setFilters] = useState<Filters>({ threat_class: '', phase: '', account: '' })
-  const [accountDraft, setAccountDraft] = useState('')
-  const [follow, setFollow] = useState(true)
-  const filterKey = `${filters.threat_class}|${filters.phase}|${filters.account}`
-  const baseQuery = useCallback(
-    (extra: Partial<EventsQuery>): EventsQuery => ({
-      order: 'desc',
-      limit: PAGE,
-      threat_class: filters.threat_class || undefined,
-      phase: filters.phase || undefined,
-      account: filters.account || undefined,
-      ...extra,
-    }),
-    [filters],
-  )
-
-  // Newest page under the cutoff (bounded; refetched on throttled progress ticks while following).
-  const newest = useFetch<EventsPage>(() => api.listEvents(runId, baseQuery({})), [runId, filterKey])
-  const firstTick = useRef(true)
-  useEffect(() => {
-    if (firstTick.current) {
-      firstTick.current = false
-      return
-    }
-    if (follow) void newest.reload()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tick, follow])
-
-  // Older pages loaded on demand; tagged with the filter key so a filter change discards them.
-  const [older, setOlder] = useState<{ key: string; pages: EventsPage[] }>({ key: filterKey, pages: [] })
-  const [loadingOlder, setLoadingOlder] = useState(false)
-  const [olderError, setOlderError] = useState<unknown | null>(null)
-  const olderPages = useMemo(() => (older.key === filterKey ? older.pages : []), [older, filterKey])
-
-  // The bounded window is derived: newest page + older pages, de-duplicated, sorted desc, capped.
-  const rows = useMemo(() => {
-    const seen = new Set<number>()
-    const out: EventRow[] = []
-    for (const page of [newest.data, ...olderPages]) {
-      for (const it of page?.items ?? []) {
-        if (!seen.has(it.run_seq)) {
-          seen.add(it.run_seq)
-          out.push(it)
-        }
-      }
-    }
-    out.sort((a, b) => b.run_seq - a.run_seq)
-    if (out.length <= WINDOW_ROWS) return out
-    // Following live: keep the newest rows. Browsing history: keep the oldest rows the user paged to.
-    return follow ? out.slice(0, WINDOW_ROWS) : out.slice(out.length - WINDOW_ROWS)
-  }, [newest.data, olderPages, follow])
-
-  const lastPage = olderPages.length ? olderPages[olderPages.length - 1] : newest.data
-  const hasOlder = !!lastPage?.has_more
-
-  async function loadOlder() {
-    if (rows.length === 0) return
-    setLoadingOlder(true)
-    setFollow(false) // browsing history pauses the live merge so the window is stable
-    try {
-      const oldest = rows[rows.length - 1].run_seq
-      const page = await api.listEvents(runId, baseQuery({ before_seq: oldest }))
-      setOlder((o) => ({ key: filterKey, pages: [...(o.key === filterKey ? o.pages : []), page] }))
-      setOlderError(null)
-    } catch (e) {
-      setOlderError(e)
-    } finally {
-      setLoadingOlder(false)
-    }
-  }
-
-  function resumeFollow() {
-    setOlder({ key: filterKey, pages: [] })
-    setFollow(true)
-    void newest.reload()
-  }
-
-  const error = newest.error ?? olderError
-  const errText = error ? describeError(error) : null
-  const activeFilters = !!(filters.threat_class || filters.phase || filters.account)
-
-  return (
-    <Section
-      title={
-        <span className="row">
-          Event feed
-          <span className="muted small" style={{ textTransform: 'none', letterSpacing: 0 }}>
-            processed evidence under cutoff #{fmtNum(newest.data?.cutoff_seq ?? cutoff)} · window {rows.length}/{WINDOW_ROWS}
-          </span>
-        </span>
-      }
-      aside={
-        <div className="filters">
-          <select value={filters.threat_class} onChange={(e) => setFilters((f) => ({ ...f, threat_class: e.target.value as Filters['threat_class'] }))}>
-            <option value="">all classes</option>
-            <option value="normal">normal</option>
-            <option value="suspicious">suspicious</option>
-            <option value="high_risk">high risk</option>
-          </select>
-          <select value={filters.phase} onChange={(e) => setFilters((f) => ({ ...f, phase: e.target.value as Filters['phase'] }))}>
-            <option value="">all phases</option>
-            <option value="warmup">historical warmup</option>
-            <option value="visible">visible</option>
-          </select>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              setFilters((f) => ({ ...f, account: accountDraft.trim() }))
-            }}
-            className="row"
-          >
-            <input value={accountDraft} onChange={(e) => setAccountDraft(e.target.value)} placeholder="account (exact)" style={{ width: 130 }} />
-            <button type="submit" className="btn btn-sm">
-              Filter
-            </button>
-          </form>
-          {follow ? (
-            <Tag tone="ok">following live</Tag>
-          ) : (
-            <button type="button" className="btn btn-sm" onClick={resumeFollow}>
-              Resume following
-            </button>
-          )}
-        </div>
-      }
-    >
-      <div className="legend" style={{ marginBottom: 6 }}>
-        <span>
-          <ClassBadge threatClass="normal" /> no configured detector flagged this
-        </span>
-        <span>
-          <ClassBadge threatClass="suspicious" /> flagged for review
-        </span>
-        <span>
-          <ClassBadge threatClass="high_risk" /> investigate urgently, not established guilt
-        </span>
-        <span>
-          <ClassBadge threatClass={null} /> processing state, not a verdict
-        </span>
-        <span>
-          <PhaseBadge phase="warmup" /> historical state-building, not a live decision
-        </span>
-      </div>
-      {newest.error && !newest.data ? (
-        <ErrorState error={newest.error} onRetry={() => void newest.reload()} what="events" />
-      ) : newest.loading && !newest.data ? (
-        <Loading what="events" />
-      ) : rows.length === 0 ? (
-        <Empty>No processed events under the current cutoff{activeFilters ? ' match these filters' : ''}.</Empty>
-      ) : (
-        <>
-          {errText ? (
-            <div className="notice notice-warn" style={{ marginBottom: 6 }}>
-              {errText.status === 503 ? 'Database unavailable' : 'Refresh failed'} (HTTP {errText.status ?? '—'}): {errText.text}. Showing last loaded rows.{' '}
-              <button type="button" className="btn btn-sm" onClick={() => void newest.reload()}>
-                Retry
-              </button>
-            </div>
-          ) : null}
-          {newest.loading ? <Loading what="events" /> : null}
-          <div className="table-wrap feed-scroll">
-            <table className="tbl">
-              <thead>
-                <tr>
-                  <th className="right">seq</th>
-                  <th>time (UTC)</th>
-                  <th>phase</th>
-                  <th>account@ip</th>
-                  <th>request</th>
-                  <th className="right">status</th>
-                  <th className="right">bytes</th>
-                  <th>class</th>
-                  <th>rules</th>
-                  <th>rarity pct.</th>
-                  <th>reasons</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((ev) => {
-                  const tone = classTone(ev.threat_class, ev.processing_status)
-                  return (
-                    <tr
-                      key={ev.run_seq}
-                      className={`clickable row-${tone} ${ev.phase === 'warmup' ? 'row-warmup' : ''}`}
-                      onClick={() => nav(`/app/runs/${encodeURIComponent(runId)}/events/${ev.run_seq}`)}
-                    >
-                      <td className="right mono">
-                        <Link className="link" to={`/app/runs/${encodeURIComponent(runId)}/events/${ev.run_seq}`} onClick={(e) => e.stopPropagation()}>
-                          {ev.run_seq}
-                        </Link>
-                      </td>
-                      <td className="mono nowrap">{fmtTime(ev.event_time)}</td>
-                      <td>{ev.phase === 'warmup' ? <PhaseBadge phase="warmup" /> : <span className="muted small">visible</span>}</td>
-                      <td className="mono">
-                        {ev.username}@{ev.ip_raw}
-                      </td>
-                      <td className="mono">
-                        {ev.method} {ev.path}
-                      </td>
-                      <td className="right mono">{ev.status}</td>
-                      <td className="right mono">{ev.response_bytes ?? '—'}</td>
-                      <td>
-                        <ClassBadge threatClass={ev.threat_class} processingStatus={ev.processing_status} />
-                      </td>
-                      <td>
-                        <RuleTags ids={ev.rule_ids} />
-                      </td>
-                      <td className="mono small" title="rarity percentile from the baseline model; not a confidence or attack probability">
-                        {ev.anomaly_percentile !== null ? fmtPercentile(ev.anomaly_percentile) : ev.model_score !== null ? ev.model_score.toFixed(3) : '—'}
-                      </td>
-                      <td className="small">{ev.reason_codes.length ? ev.reason_codes.join(', ') : <span className="muted">—</span>}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-          <div className="row row-between" style={{ marginTop: 8 }}>
-            <span className="muted small">
-              oldest shown #{rows[rows.length - 1]?.run_seq} · newest #{rows[0]?.run_seq}
-            </span>
-            <button type="button" className="btn btn-sm" disabled={!hasOlder || loadingOlder} onClick={() => void loadOlder()}>
-              {loadingOlder ? 'Loading…' : hasOlder ? 'Load older' : 'No older events'}
-            </button>
-          </div>
-        </>
-      )}
-    </Section>
-  )
-}
-
-// ------------------------------------------------------------------ incidents panel
-
-function IncidentsPanel({ runId, tick }: { runId: string; tick: number }) {
-  const [q, setQ] = useState<IncidentsQuery>({ threat_class: '', status: '', phase: '', limit: 50, offset: 0 })
-  const inc = useFetch<IncidentsPage>(() => api.listIncidents(runId, q), [runId, q.threat_class, q.status, q.phase, q.offset])
+function Findings({ runId, tick, cutoff }: { runId: string; tick: number; cutoff: number }) {
+  const inc = useFetch<IncidentsPage>(() => api.listIncidents(runId, { limit: 50, offset: 0 }), [runId])
   const first = useRef(true)
   useEffect(() => {
     if (first.current) {
@@ -675,105 +281,146 @@ function IncidentsPanel({ runId, tick }: { runId: string; tick: number }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick])
 
-  const total = inc.data?.total ?? 0
-  const limit = q.limit ?? 50
-  const offset = q.offset ?? 0
+  const items = inc.data?.items ?? []
+  const high = items.filter((i) => i.current_class === 'high_risk').length
+
   return (
-    <Section
-      title={
-        <span className="row">
-          Incidents <span className="muted small" style={{ textTransform: 'none', letterSpacing: 0 }}>{inc.data ? `${fmtNum(total)} under cutoff #${fmtNum(inc.data.cutoff_seq)}` : ''}</span>
-        </span>
-      }
-      aside={
-        <div className="filters">
-          <select value={q.threat_class} onChange={(e) => setQ((s) => ({ ...s, offset: 0, threat_class: e.target.value as IncidentsQuery['threat_class'] }))}>
-            <option value="">all classes</option>
-            <option value="suspicious">suspicious</option>
-            <option value="high_risk">high risk</option>
-            <option value="normal">normal</option>
-          </select>
-          <select value={q.status} onChange={(e) => setQ((s) => ({ ...s, offset: 0, status: e.target.value as IncidentsQuery['status'] }))}>
-            <option value="">open + closed</option>
-            <option value="open">open</option>
-            <option value="closed">closed</option>
-          </select>
-          <select value={q.phase} onChange={(e) => setQ((s) => ({ ...s, offset: 0, phase: e.target.value as IncidentsQuery['phase'] }))}>
-            <option value="">all phases</option>
-            <option value="visible">visible</option>
-            <option value="warmup">historical warmup</option>
-          </select>
-        </div>
-      }
-    >
+    <section aria-labelledby="findings">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
+        <h2 id="findings" className="text-heading text-fg">
+          Findings
+          {inc.data ? (
+            <span className="ms-2 text-caption text-fg-muted normal-case tracking-normal">
+              {fmtNum(inc.data.total)} under cutoff #{fmtNum(inc.data.cutoff_seq)}
+              {high > 0 ? ` · ${fmtNum(high)} high risk` : ''}
+            </span>
+          ) : null}
+        </h2>
+      </div>
+
       {inc.loading && !inc.data ? (
-        <Loading what="incidents" />
+        <div className="space-y-3">
+          {Array.from({ length: 3 }, (_, i) => (
+            <Skeleton key={i} className="h-28 w-full rounded-lg" />
+          ))}
+        </div>
       ) : inc.error && !inc.data ? (
-        <ErrorState error={inc.error} onRetry={() => void inc.reload()} what="incidents" />
-      ) : !inc.data || inc.data.items.length === 0 ? (
-        <Empty>No incidents under the current cutoff{q.threat_class || q.status || q.phase ? ' match these filters' : ''}.</Empty>
+        <ErrorState title="Could not load findings" detail={describeError(inc.error).text} onRetry={() => void inc.reload()} />
       ) : (
         <>
-          {inc.error ? (
-            <div className="notice notice-warn" style={{ marginBottom: 6 }}>
-              Refresh failed (HTTP {describeError(inc.error).status ?? '—'}). Showing last loaded incidents.
-            </div>
-          ) : null}
-          <ul className="plain feed-scroll inc-list">
-            {inc.data.items.map((i) => (
-              <li key={i.incident_id} className={`inc-row inc-${i.current_class}`}>
-                <div className="row">
-                  <ClassBadge threatClass={i.current_class} />
-                  <StateBadge state={i.status} />
-                  <PhaseBadge phase={i.phase} />
-                  <RuleTags ids={i.rule_ids} />
-                  <span className="muted small mono">v{i.current_version}</span>
-                  {i.evidence_strength?.evaluation_incomplete ? <Tag tone="warn">evaluation incomplete</Tag> : null}
-                </div>
-                <div className="inc-headline">
-                  <IncidentLink runId={runId} incidentId={i.incident_id}>
-                    <span style={{ fontFamily: 'var(--sans)' }}>{i.summary?.headline ?? i.primary_rule_id}</span>
-                  </IncidentLink>
-                </div>
-                <div className="row small muted inc-meta">
-                  <span className="mono">
-                    {i.account ?? '—'}@{i.ip_raw ?? '—'}
-                  </span>
-                  <span className="mono nowrap">
-                    {fmtTime(i.first_event_time)} → {fmtTime(i.last_event_time)}
-                  </span>
-                  <span>{i.evidence_count} evidence</span>
-                  <span className="row">
-                    delivery:{' '}
-                    {i.delivery_states ? (
-                      Array.from(new Set(i.delivery_states.split(','))).map((s) => <StateBadge key={s} state={s} />)
-                    ) : (
-                      <span>none</span>
-                    )}
-                  </span>
-                  <StateBadge state={i.explanation_state ?? 'none'} label={explanationStateLabel(i.explanation_state)} />
-                  <span className="mono">{shortId(i.incident_id, 12)}</span>
-                </div>
-              </li>
-            ))}
-          </ul>
-          {total > limit ? (
-            <div className="row row-between" style={{ marginTop: 8 }}>
-              <span className="muted small">
-                {offset + 1}–{Math.min(total, offset + limit)} of {fmtNum(total)}
-              </span>
-              <span className="row">
-                <button type="button" className="btn btn-sm" disabled={offset === 0} onClick={() => setQ((s) => ({ ...s, offset: Math.max(0, offset - limit) }))}>
-                  Newer
-                </button>
-                <button type="button" className="btn btn-sm" disabled={offset + limit >= total} onClick={() => setQ((s) => ({ ...s, offset: offset + limit }))}>
-                  Older
-                </button>
-              </span>
-            </div>
+          <FindingsList incidents={items} runId={runId} />
+          {items.length === 0 && cutoff === 0 ? (
+            <p className="mt-2 text-caption text-fg-muted normal-case tracking-normal">This run has not evaluated anything yet.</p>
           ) : null}
         </>
       )}
-    </Section>
+    </section>
+  )
+}
+
+/** Reproducibility metadata. A real question, just not the first one. */
+function RunProvenance({ run }: { run: Run }) {
+  return (
+    <details className="rounded-lg border border-border bg-surface">
+      <summary className="group/sum flex cursor-pointer list-none items-center gap-1.5 px-4 py-3 text-caption text-fg-muted uppercase hover:text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none">
+        <ChevronRight className="size-3.5 shrink-0 transition-transform group-open/sum:rotate-90 motion-reduce:transition-none" aria-hidden />
+        Run provenance — is this reproducible?
+      </summary>
+      <div className="border-t border-border px-4 py-4">
+        <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+          <Pair k="dataset" v={run.dataset_id ?? run.source_id ?? '—'} mono />
+          <Pair k="config hash" v={shortId(run.config_hash, 24)} mono />
+          <Pair k="reference hash" v={run.reference_hash ? shortId(run.reference_hash, 24) : '—'} mono />
+          <Pair k="feature version" v={run.feature_version} mono />
+          <Pair k="model" v={run.model_id ?? 'none — rules only'} mono />
+          <Pair k="visible start" v={fmtTime(run.visible_start)} mono />
+          <Pair k="last processed event" v={fmtTime(run.last_processed_time)} mono />
+          <Pair k="last admitted event" v={fmtTime(run.last_admitted_time)} mono />
+          <Pair k="created" v={fmtTime(run.created_at)} mono />
+        </dl>
+
+        <div className="mt-4 border-t border-border pt-3">
+          <h4 className="mb-2 text-caption text-fg-muted uppercase">Integrations</h4>
+          <div className="flex flex-wrap gap-2">
+            {(['sentry', 'llm', 'slack'] as const).map((k) => {
+              const l = integrationLabel(k, run.integrations[k])
+              return (
+                <span
+                  key={k}
+                  className={cn(
+                    'rounded-sm border px-2 py-0.5 text-caption normal-case tracking-normal',
+                    l.tone === 'ok' ? 'border-normal/30 text-normal' : l.tone === 'warn' ? 'border-late/45 text-late' : 'border-border text-fg-muted',
+                  )}
+                >
+                  {l.text}
+                </span>
+              )
+            })}
+          </div>
+        </div>
+
+        <div className="mt-4 border-t border-border pt-3">
+          <h4 className="mb-2 text-caption text-fg-muted uppercase">Counts under cutoff</h4>
+          <CountsTable run={run} />
+        </div>
+      </div>
+    </details>
+  )
+}
+
+function CountsTable({ run }: { run: Run }) {
+  const counts = run.counts ?? {}
+  return (
+    <table className="w-full max-w-lg border-collapse font-mono text-mono">
+      <thead>
+        <tr className="border-b border-border text-left">
+          <th className="py-1 font-sans text-caption font-medium text-fg-muted uppercase">phase</th>
+          <th className="py-1 text-right font-sans text-caption font-medium text-fg-muted uppercase">normal</th>
+          <th className="py-1 text-right font-sans text-caption font-medium text-fg-muted uppercase">suspicious</th>
+          <th className="py-1 text-right font-sans text-caption font-medium text-fg-muted uppercase">high risk</th>
+          <th className="py-1 text-right font-sans text-caption font-medium text-fg-muted uppercase">unscored</th>
+        </tr>
+      </thead>
+      <tbody>
+        {(['warmup', 'visible'] as const).map((ph) => {
+          const m = (counts[ph] ?? {}) as Record<string, number>
+          return (
+            <tr key={ph} className="border-b border-border/50 last:border-0">
+              <td className="py-1 text-fg-muted">{ph === 'warmup' ? 'historical warmup' : 'visible window'}</td>
+              <td className="py-1 text-right tabular-nums text-fg">{fmtNum(m.normal ?? 0)}</td>
+              <td className="py-1 text-right tabular-nums text-fg">{fmtNum(m.suspicious ?? 0)}</td>
+              <td className="py-1 text-right tabular-nums text-fg">{fmtNum(m.high_risk ?? 0)}</td>
+              <td className="py-1 text-right tabular-nums text-fg-muted">{fmtNum(m.unscored ?? 0)}</td>
+            </tr>
+          )
+        })}
+      </tbody>
+    </table>
+  )
+}
+
+function Pair({ k, v, mono }: { k: string; v: string; mono?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-caption text-fg-muted uppercase">{k}</dt>
+      <dd className={cn('truncate text-body text-fg', mono && 'font-mono text-mono')} title={v}>
+        {v}
+      </dd>
+    </div>
+  )
+}
+
+function ConsoleSkeleton() {
+  return (
+    <div className="mx-auto w-full max-w-[84rem] space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+      <Skeleton className="h-4 w-48" />
+      <Skeleton className="h-36 w-full rounded-xl" />
+      <div className="space-y-3">
+        {Array.from({ length: 3 }, (_, i) => (
+          <Skeleton key={i} className="h-28 w-full rounded-lg" />
+        ))}
+      </div>
+      <Skeleton className="h-64 w-full rounded-lg" />
+    </div>
   )
 }

@@ -1,4 +1,4 @@
-import { CircleHelp, Link2, Send } from 'lucide-react'
+import { ChevronRight, CircleHelp, Link2, Send } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -210,7 +210,8 @@ function PlaybookItem({ playbook, aiSelected }: { playbook: Playbook; aiSelected
   return (
     <li>
       <details className="rounded-lg border border-border bg-surface">
-        <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none">
+        <summary className="group/sum flex cursor-pointer list-none items-center gap-3 px-4 py-3 hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none">
+          <ChevronRight className="size-3.5 shrink-0 text-fg-muted transition-transform group-open/sum:rotate-90 motion-reduce:transition-none" aria-hidden />
           <span className="min-w-0 flex-1 text-body text-fg">{playbook.title}</span>
           {aiSelected ? (
             <span className="shrink-0 rounded-sm border border-accent/35 px-1.5 py-0.5 text-[0.6875rem] text-accent">AI suggested</span>

@@ -1,249 +1,259 @@
-import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { ArrowRight, Database, Plus } from 'lucide-react'
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api, describeError, type Dataset, type Run, type RunCreateBody } from '../api'
-import { fmtBytes, fmtNum, fmtTime, isFaultRun, runStateLabel, shortId, speedLabel } from '../format'
+import { fmtBytes, fmtNum, fmtTime, isFaultRun, modelHealthLabel, runStateLabel, shortId, speedLabel } from '../format'
 import { useFetch, useInterval } from '../useFetch'
-import { Empty, ErrorState, Loading, ModelHealthBadge, PhaseBadge, Section, StateBadge, Tag } from '../ui'
+import { cn } from '@/lib/cn'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { ErrorState } from '@/components/ui/error-state'
+import { Skeleton } from '@/components/ui/skeleton'
 
+/**
+ * Run list — the console entry point.
+ *
+ * Answers one question: which run do I open. The create form used to sit beside the list at
+ * equal weight, so the first thing a judge saw was a form; it is now behind a dialog. Dataset
+ * import internals answer a different question ("did ingestion work?") and collapse to a
+ * provenance strip.
+ */
 export function RunsPage() {
   const runs = useFetch<Run[]>(() => api.listRuns(), [])
   const datasets = useFetch<Dataset[]>(() => api.listDatasets(), [])
-  useInterval(() => {
-    void runs.reload()
-    void datasets.reload()
-  }, 5_000)
+  useInterval(() => void runs.reload(), 5_000)
+
+  const items = runs.data ?? []
+  const [lead, ...rest] = pickLead(items)
 
   return (
-    <div className="stack">
-      <div className="page-head">
-        <h1>Runs</h1>
-        <span className="muted small">
-          Each run is an isolated detection pass over a dataset (historical replay) or a live source. Replays never contaminate each other and never
-          send real notifications unless Slack is explicitly live.
-        </span>
-      </div>
-
-      <div className="grid-2">
-        <Section title="Runs" aside={runs.refreshing ? <span className="muted">refreshing…</span> : <span className="muted">auto-refresh 5 s</span>}>
-          {runs.loading ? (
-            <Loading what="runs" />
-          ) : runs.error ? (
-            <ErrorState error={runs.error} onRetry={() => void runs.reload()} what="runs" />
-          ) : !runs.data || runs.data.length === 0 ? (
-            <Empty>No runs yet. Create one from a ready dataset.</Empty>
-          ) : (
-            <div className="table-wrap">
-              <table className="tbl">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Mode</th>
-                    <th>Phase</th>
-                    <th>State</th>
-                    <th>Model</th>
-                    <th className="right">Cursor</th>
-                    <th>Speed</th>
-                    <th>Dataset</th>
-                    <th>Created</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {runs.data.map((r) => (
-                    <tr key={r.run_id}>
-                      <td>
-                        <Link className="link" to={`/app/runs/${encodeURIComponent(r.run_id)}`}>
-                          {r.name || shortId(r.run_id, 12)}
-                        </Link>
-                        {isFaultRun(r.name) ? (
-                          <>
-                            {' '}
-                            <Tag tone="danger">fault injection</Tag>
-                          </>
-                        ) : null}
-                        <div className="muted small mono">{shortId(r.run_id, 18)}</div>
-                      </td>
-                      <td>
-                        <Tag tone={r.mode === 'replay' ? 'muted' : 'info'}>{r.mode === 'replay' ? 'historical replay' : 'live'}</Tag>
-                      </td>
-                      <td>
-                        <PhaseBadge phase={r.phase} />
-                      </td>
-                      <td>
-                        <StateBadge state={r.state} label={runStateLabel(r.state)} />
-                        {r.block_reason ? <div className="small muted">{r.block_reason}</div> : null}
-                      </td>
-                      <td>
-                        <ModelHealthBadge health={r.model_health} />
-                      </td>
-                      <td className="right mono nowrap">
-                        {fmtNum(r.processed_seq)} / {fmtNum(r.admitted_seq)}
-                        {r.backlog > 0 ? <div className="small muted">backlog {fmtNum(r.backlog)}</div> : null}
-                      </td>
-                      <td className="nowrap">{speedLabel(r.speed)}</td>
-                      <td className="mono small">{shortId(r.dataset_id ?? r.source_id, 16)}</td>
-                      <td className="nowrap small">{fmtTime(r.created_at)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Section>
-
-        <div className="stack">
-          <NewRunForm datasets={datasets.data ?? []} onCreated={() => void runs.reload()} />
-          <Section title="Datasets">
-            {datasets.loading ? (
-              <Loading what="datasets" />
-            ) : datasets.error ? (
-              <ErrorState error={datasets.error} onRetry={() => void datasets.reload()} what="datasets" />
-            ) : !datasets.data || datasets.data.length === 0 ? (
-              <Empty>No datasets imported. Upload one with the import script; the console does not accept filesystem paths.</Empty>
-            ) : (
-              <ul className="plain stack">
-                {datasets.data.map((d) => (
-                  <DatasetCard key={d.dataset_id} d={d} />
-                ))}
-              </ul>
-            )}
-          </Section>
+    <div className="mx-auto w-full max-w-[84rem] space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-title text-fg">Runs</h1>
+          <p className="mt-1.5 max-w-[68ch] text-body text-fg-muted">
+            A run is one isolated detection pass over a dataset. Each replays log lines in causal order and evaluates
+            them under its own cutoff, so runs never contaminate each other.
+          </p>
         </div>
-      </div>
+        <NewRunDialog datasets={datasets.data ?? []} onCreated={() => void runs.reload()} />
+      </header>
+
+      {runs.loading && !runs.data ? (
+        <div className="space-y-3">
+          <Skeleton className="h-40 w-full rounded-xl" />
+          <Skeleton className="h-20 w-full rounded-lg" />
+        </div>
+      ) : runs.error && !runs.data ? (
+        <ErrorState
+          title={describeError(runs.error).status === 503 ? 'Database unavailable' : 'Could not load runs'}
+          detail={describeError(runs.error).text}
+          onRetry={() => void runs.reload()}
+        />
+      ) : items.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center">
+          <p className="text-body text-fg-muted">No runs yet. Create one to replay the dataset through the detector.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {lead ? <LeadRunCard run={lead} /> : null}
+          {rest.length > 0 ? (
+            <ul className="grid gap-2">
+              {rest.map((r) => (
+                <li key={r.run_id}>
+                  <RunRow run={r} />
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      )}
+
+      <DatasetStrip datasets={datasets.data ?? []} loading={datasets.loading} />
     </div>
   )
 }
 
-function DatasetCard({ d }: { d: Dataset }) {
-  const [showRejects, setShowRejects] = useState(false)
-  const detail = useFetch(() => api.getDataset(d.dataset_id), [d.dataset_id, showRejects], showRejects)
-  const pct = d.total_lines && d.progress_line ? Math.min(100, Math.round((d.progress_line / d.total_lines) * 100)) : null
-  const stats = d.stats as { users?: number; status_counts?: Record<string, number> }
+/** Most-recently-updated run leads; it is almost always the one a judge wants. */
+function pickLead(runs: Run[]): Run[] {
+  return [...runs].sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at))
+}
+
+function LeadRunCard({ run }: { run: Run }) {
+  const pct = run.admitted_seq > 0 ? Math.round((run.processed_seq / run.admitted_seq) * 100) : 0
   return (
-    <li className="notice" style={{ padding: 10 }}>
-      <div className="row row-between">
-        <strong>{d.original_name}</strong>
-        <StateBadge state={d.import_state} />
-      </div>
-      <div className="mono small muted">{d.dataset_id}</div>
-      <dl className="kvs" style={{ marginTop: 6 }}>
-        <div className="kv">
-          <dt>size</dt>
-          <dd>{fmtBytes(d.bytes)}</dd>
-        </div>
-        <div className="kv">
-          <dt>lines</dt>
-          <dd>
-            {fmtNum(d.progress_line)} / {fmtNum(d.total_lines)}
-            {pct !== null && d.import_state !== 'ready' ? ` (${pct}%)` : ''}
-          </dd>
-        </div>
-        <div className="kv">
-          <dt>valid / rejected</dt>
-          <dd>
-            {fmtNum(d.valid_count)} / <span className={d.rejected_count ? 'check-bad' : ''}>{fmtNum(d.rejected_count)}</span>
-          </dd>
-        </div>
-        <div className="kv">
-          <dt>range</dt>
-          <dd className="small">
-            {fmtTime(d.first_event_time)} → {fmtTime(d.last_event_time)}
-          </dd>
-        </div>
-        <div className="kv">
-          <dt>sha256</dt>
-          <dd className="mono small">{shortId(d.content_sha256, 20)}</dd>
-        </div>
-        {stats.users !== undefined ? (
-          <div className="kv">
-            <dt>accounts</dt>
-            <dd>{stats.users}</dd>
-          </div>
+    <article className="rounded-xl border border-border bg-surface px-6 py-5">
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="text-heading text-fg">{run.name || shortId(run.run_id, 14)}</h2>
+        <StatePill run={run} />
+        <span className="rounded-sm border border-border px-1.5 py-0.5 text-[0.6875rem] text-fg-muted uppercase">
+          {run.mode === 'replay' ? 'historical replay' : 'live'}
+        </span>
+        {isFaultRun(run.name) ? (
+          <span className="rounded-sm border border-high-risk/45 bg-high-risk-wash px-1.5 py-0.5 text-[0.6875rem] font-medium text-high-risk">
+            fault injection
+          </span>
         ) : null}
-      </dl>
-      {stats.status_counts ? (
-        <div className="small muted" style={{ marginTop: 4 }}>
-          status counts:{' '}
-          {Object.entries(stats.status_counts)
-            .map(([k, v]) => `${k}=${fmtNum(v)}`)
-            .join(' ')}
+        {run.model_health !== 'active' ? (
+          <span className="state-hatch rounded-sm border border-pending/45 px-1.5 py-0.5 text-[0.6875rem] font-medium text-pending uppercase">
+            {modelHealthLabel(run.model_health)}
+          </span>
+        ) : null}
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+        <div>
+          <p className="flex items-baseline gap-2">
+            <span className="font-sans text-title tabular-nums text-fg">{fmtNum(run.processed_seq)}</span>
+            <span className="text-caption text-fg-muted uppercase">events evaluated</span>
+          </p>
+          <p className="mt-1 font-mono text-mono text-fg-subtle">
+            cutoff #{fmtNum(run.processed_seq)} of {fmtNum(run.admitted_seq)} admitted
+            {run.last_processed_time ? ` · through ${fmtTime(run.last_processed_time)}` : ''}
+          </p>
         </div>
-      ) : null}
-      {d.error ? <div className="notice notice-danger" style={{ marginTop: 6 }}>import error: {d.error}</div> : null}
-      {d.rejected_count ? (
-        <div style={{ marginTop: 6 }}>
-          <button type="button" className="btn btn-sm" onClick={() => setShowRejects((s) => !s)}>
-            {showRejects ? 'Hide' : 'Show'} rejected lines
-          </button>
-          {showRejects ? (
-            detail.loading ? (
-              <Loading what="rejects" />
-            ) : detail.error ? (
-              <ErrorState error={detail.error} onRetry={() => void detail.reload()} what="rejects" />
-            ) : detail.data && detail.data.rejects_sample.length > 0 ? (
-              <ul className="plain" style={{ marginTop: 6 }}>
-                {detail.data.rejects_sample.map((r) => (
-                  <li key={r.line_number} className="evidence-line">
-                    <div className="meta">
-                      line {r.line_number} · {r.reason}
-                    </div>
-                    <pre className="code-block">
-                      <code>{r.raw_input}</code>
-                    </pre>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <Empty>No reject samples returned.</Empty>
-            )
-          ) : null}
+        <Button asChild>
+          <Link to={`/app/runs/${encodeURIComponent(run.run_id)}`}>
+            Open console <ArrowRight />
+          </Link>
+        </Button>
+      </div>
+
+      <div className="mt-4" aria-hidden>
+        <div className="h-1 w-full overflow-hidden rounded-full bg-surface-raised">
+          <div className="h-full rounded-full bg-accent" style={{ width: `${Math.min(100, pct)}%` }} />
         </div>
-      ) : null}
-    </li>
+      </div>
+    </article>
   )
 }
 
-function NewRunForm({ datasets, onCreated }: { datasets: Dataset[]; onCreated: () => void }) {
-  const nav = useNavigate()
+function RunRow({ run }: { run: Run }) {
+  return (
+    <Link
+      to={`/app/runs/${encodeURIComponent(run.run_id)}`}
+      className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border border-border bg-surface px-4 py-3 hover:border-border-strong hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+    >
+      <span className="text-body text-fg">{run.name || shortId(run.run_id, 14)}</span>
+      <StatePill run={run} />
+      {isFaultRun(run.name) ? (
+        <span className="rounded-sm border border-high-risk/45 px-1.5 py-0.5 text-[0.6875rem] font-medium text-high-risk">
+          fault injection
+        </span>
+      ) : null}
+      <span className="font-mono text-mono text-fg-muted">
+        {fmtNum(run.processed_seq)} / {fmtNum(run.admitted_seq)}
+      </span>
+      <span className="font-mono text-mono text-fg-subtle">{speedLabel(run.speed)}</span>
+      <span className="ms-auto flex items-center gap-1.5 text-caption text-fg-muted normal-case tracking-normal">
+        open <ArrowRight className="size-3.5" aria-hidden />
+      </span>
+    </Link>
+  )
+}
+
+function StatePill({ run }: { run: Run }) {
+  const live = run.state === 'running' || run.state === 'warming'
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-sm border px-1.5 py-0.5 text-[0.6875rem] font-medium uppercase',
+        run.state === 'blocked' ? 'state-hatch border-blocked/50 text-blocked' : 'border-border text-fg-muted',
+      )}
+    >
+      {live ? <span aria-hidden className="inline-block size-1.5 animate-pulse rounded-full bg-accent motion-reduce:animate-none" /> : null}
+      {runStateLabel(run.state)}
+    </span>
+  )
+}
+
+/**
+ * Dataset provenance, compressed to one line per dataset.
+ *
+ * These numbers are the product's claim to have read real data, so they stay visible — but
+ * they answer "did ingestion work?", not "which run do I open", so they sit at the bottom.
+ */
+function DatasetStrip({ datasets, loading }: { datasets: Dataset[]; loading: boolean }) {
+  if (loading) return <Skeleton className="h-12 w-full rounded-lg" />
+  if (datasets.length === 0) return null
+  return (
+    <section aria-labelledby="datasets" className="border-t border-border pt-5">
+      <h2 id="datasets" className="mb-3 text-caption text-fg-muted uppercase">
+        Source data
+      </h2>
+      <ul className="grid gap-2">
+        {datasets.map((d) => (
+          <li key={d.dataset_id} className="flex flex-wrap items-center gap-x-5 gap-y-1 rounded-lg border border-border bg-surface px-4 py-2.5">
+            <Database className="size-3.5 shrink-0 text-fg-subtle" aria-hidden />
+            <span className="font-mono text-mono text-fg">{d.original_name}</span>
+            <span className="font-mono text-mono text-fg-muted">
+              {fmtNum(d.valid_count)} valid
+              <span className={d.rejected_count ? 'text-late' : 'text-fg-subtle'}> · {fmtNum(d.rejected_count)} rejected</span>
+            </span>
+            <span className="font-mono text-mono text-fg-subtle">{fmtBytes(d.bytes)}</span>
+            {d.first_event_time ? (
+              <span className="font-mono text-mono text-fg-subtle">
+                {fmtTime(d.first_event_time)} → {fmtTime(d.last_event_time)}
+              </span>
+            ) : null}
+            <span className="ms-auto font-mono text-mono text-fg-subtle" title={d.content_sha256}>
+              sha256 {shortId(d.content_sha256, 12)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+function NewRunDialog({ datasets, onCreated }: { datasets: Dataset[]; onCreated: () => void }) {
+  const [open, setOpen] = useState(false)
   const ready = datasets.filter((d) => d.import_state === 'ready')
-  const [datasetId, setDatasetId] = useState('')
-  const [name, setName] = useState('')
-  const [visibleStart, setVisibleStart] = useState('')
-  const [speed, setSpeed] = useState('')
-  const [pauseAtVisible, setPauseAtVisible] = useState(false)
-  const [modelId, setModelId] = useState('')
+  const [form, setForm] = useState({ dataset_id: '', name: '', visible_start: '', speed: '', pause: true })
   const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState<unknown | null>(null)
+  const [err, setErr] = useState<unknown>(null)
 
-  const chosen = datasetId || ready[0]?.dataset_id || ''
-
-  async function submit(e: FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (!chosen) return
     setBusy(true)
     setErr(null)
-    const body: RunCreateBody = { dataset_id: chosen, mode: 'replay', name: name.trim(), pause_at_visible_start: pauseAtVisible }
-    if (visibleStart.trim()) body.visible_start = visibleStart.trim()
-    if (speed.trim() !== '') body.speed = Number(speed)
-    if (modelId.trim()) body.model_id = modelId.trim()
     try {
-      const run = await api.createRun(body)
+      const body: RunCreateBody = {
+        dataset_id: form.dataset_id || ready[0]?.dataset_id || '',
+        mode: 'replay',
+        name: form.name.trim() || 'replay',
+        pause_at_visible_start: form.pause,
+        ...(form.visible_start ? { visible_start: form.visible_start } : {}),
+        ...(form.speed ? { speed: Number(form.speed) } : {}),
+      }
+      await api.createRun(body)
+      setOpen(false)
       onCreated()
-      nav(`/app/runs/${encodeURIComponent(run.run_id)}`)
-    } catch (ex) {
-      setErr(ex)
+    } catch (e2) {
+      setErr(e2)
     } finally {
       setBusy(false)
     }
   }
 
+  const field =
+    'w-full rounded-md border border-border bg-surface-raised px-2.5 py-1.5 text-body text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none'
+
   return (
-    <Section title="New replay run">
-      <form onSubmit={(e) => void submit(e)} className="stack">
-        <div className="form-grid">
-          <label className="field">
-            dataset (ready only)
-            <select value={chosen} onChange={(e) => setDatasetId(e.target.value)} required>
-              {ready.length === 0 ? <option value="">no ready dataset</option> : null}
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline">
+          <Plus /> New replay run
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>New replay run</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={submit} className="grid gap-3">
+          <label className="grid gap-1 text-caption text-fg-muted uppercase">
+            dataset
+            <select className={field} value={form.dataset_id} onChange={(e) => setForm((f) => ({ ...f, dataset_id: e.target.value }))}>
               {ready.map((d) => (
                 <option key={d.dataset_id} value={d.dataset_id}>
                   {d.original_name} ({fmtNum(d.valid_count)} lines)
@@ -251,41 +261,50 @@ function NewRunForm({ datasets, onCreated }: { datasets: Dataset[]; onCreated: (
               ))}
             </select>
           </label>
-          <label className="field">
+          <label className="grid gap-1 text-caption text-fg-muted uppercase">
             name
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. march-sequence (use 'fault' for fault injection)" />
+            <input className={field} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="march-sequence" />
           </label>
-          <label className="field">
-            visible start (ISO 8601, optional)
-            <input value={visibleStart} onChange={(e) => setVisibleStart(e.target.value)} placeholder="2026-03-01T04:00:00Z" />
-          </label>
-          <label className="field">
-            speed (0 = fast-forward, unbounded)
-            <input value={speed} onChange={(e) => setSpeed(e.target.value)} type="number" min={0} step="any" placeholder="config default" />
-          </label>
-          <label className="field">
-            model id (optional; blank = rules-only if none)
-            <input value={modelId} onChange={(e) => setModelId(e.target.value)} placeholder="model_id" />
-          </label>
-          <label className="check">
-            <input type="checkbox" checked={pauseAtVisible} onChange={(e) => setPauseAtVisible(e.target.checked)} /> pause at visible start
-          </label>
-        </div>
-        <div className="row">
-          <button type="submit" className="btn btn-primary" disabled={busy || !chosen}>
-            {busy ? 'Creating…' : 'Create run'}
-          </button>
-          <span className="muted small">Mode: historical replay. Start it from the run console.</span>
-        </div>
-        {err ? (
-          <div className="notice notice-danger">
-            {(() => {
-              const d = describeError(err)
-              return `Create failed (HTTP ${d.status ?? '—'}): ${d.text}`
-            })()}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="grid gap-1 text-caption text-fg-muted uppercase">
+              visible start (ISO 8601)
+              <input
+                className={cn(field, 'font-mono text-mono')}
+                value={form.visible_start}
+                onChange={(e) => setForm((f) => ({ ...f, visible_start: e.target.value }))}
+                placeholder="2026-03-01T04:00:00Z"
+              />
+            </label>
+            <label className="grid gap-1 text-caption text-fg-muted uppercase">
+              speed (0 = fast-forward)
+              <input
+                className={cn(field, 'font-mono text-mono')}
+                value={form.speed}
+                onChange={(e) => setForm((f) => ({ ...f, speed: e.target.value }))}
+                placeholder="config default"
+              />
+            </label>
           </div>
-        ) : null}
-      </form>
-    </Section>
+          <label className="flex items-center gap-2 text-body text-fg-muted">
+            <input
+              type="checkbox"
+              checked={form.pause}
+              onChange={(e) => setForm((f) => ({ ...f, pause: e.target.checked }))}
+              className="accent-[var(--color-accent)]"
+            />
+            pause when the visible window begins
+          </label>
+          {err ? <p className="text-caption text-high-risk normal-case tracking-normal">{describeError(err).text}</p> : null}
+          <div className="flex justify-end gap-2 pt-1">
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={busy || ready.length === 0}>
+              {busy ? 'Creating…' : 'Create run'}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }

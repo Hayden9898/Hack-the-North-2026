@@ -1,4 +1,4 @@
-import { ArrowRight, Ban, Sigma } from 'lucide-react'
+import { ArrowRight, Ban, ChevronRight, Sigma } from 'lucide-react'
 import type { Fact } from '../../../api'
 import { fmtNum } from '../../../format'
 import { cn } from '@/lib/cn'
@@ -204,8 +204,9 @@ function compact(figure: string | null, fact: Fact): string {
 function ObservedEvents({ facts, onShowEvidence }: { facts: Fact[]; onShowEvidence: (f: Fact) => void }) {
   return (
     <details className="group/obs rounded-lg border border-border bg-surface">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-body text-fg-muted hover:text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none">
-        <span>
+      <summary className="group/sum flex cursor-pointer list-none items-center gap-3 px-4 py-3 text-body text-fg-muted hover:text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none">
+        <ChevronRight className="size-3.5 shrink-0 transition-transform group-open/sum:rotate-90 motion-reduce:transition-none" aria-hidden />
+        <span className="flex-1">
           <span className="font-medium text-fg">{fmtNum(facts.length)} observed events</span> recorded as evidence for
           this incident
         </span>
