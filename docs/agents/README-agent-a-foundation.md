@@ -111,7 +111,6 @@ Integration status you will see and must render truthfully: `sentry: disabled_no
 | `frontend/index.html`, `frontend/public/**` | Document head, fonts, favicon, OG image |
 | `frontend/src/index.css` | You migrate this to Tailwind; you may delete it once nothing imports it |
 | `docs/agents/foundation-status.md` | Your status log (see §7) |
-| `backend/app/api/summary.py` (new, optional) | Only if the landing page needs a public stats endpoint |
 
 ### You do NOT own
 
@@ -301,7 +300,7 @@ Agent B owns the **six console screens, the data layer, and charting** on branch
 | `src/api.ts` `format.ts` `useFetch.ts` `useRunUpdates.ts` | — | Data layer, SSE |
 
 They also pick and justify a charting library (the user's "BKlit UI" does not resolve to a real
-package), and may make **additive, tested** changes to `backend/app/api/analytics.py`.
+package). Like you, they are **frontend-only** — see the backend note below.
 
 **They are blocked on your Phase 0.** They cannot restyle anything until your tokens and components
 exist. While waiting they audit information architecture, read `api.ts`, run `replay-demo`, and
@@ -323,9 +322,11 @@ internal links break.
   ```
 - If B files a **REQUEST** line for a token or component you haven't shipped, treat it as high
   priority — they are stubbing around your absence, and every stub is future rework.
-- **Known conflict point:** `backend/app/api/main.py` line ~52 registers routers from a tuple:
-  `("datasets", "runs", "incidents", "updates", "analytics")`. If you add `summary.py`, append
-  `"summary"`; B appends their own name if needed. Expect a one-line conflict and keep both entries.
+- **No backend changes, by either of you.** A teammate owns the Tiger Data / analytics work on the
+  backend. Both of your branches are frontend-only, so your branches cannot conflict with theirs or
+  with each other outside `frontend/`. If the landing page needs a number, take it from an existing
+  endpoint or from the verified dataset constants in §1 — do not add an endpoint, and do not
+  fabricate a figure.
 - If you need something from B (a prop, a data shape, a component contract), write it in your status
   file as a **REQUEST** line. Don't block waiting — stub it and move on.
 
@@ -390,8 +391,8 @@ git push -u origin hayden/frontend-foundation
   commit does not exist.
 - **Conventional Commits, scoped:** `feat(design):`, `feat(landing):`, `style(tokens):`,
   `refactor(shell):`, `fix(a11y):`, `docs(agents):`, `chore(deps):`, `test(ui):`.
-- Before every push: `npm run typecheck && npm run lint && npm run build` must pass, and the console
-  must still render. **Do not push red** — a red foundation branch blocks B completely.
+- Before every push: `npm run typecheck && npm run lint && npm run build` must pass and the
+  console must still render. **Do not push red** — a red foundation branch blocks B completely.
 - Never commit `node_modules/`, `dist/`, `.env`, or `htn_challenge_logs_2026.txt`.
 
 ### PR
@@ -402,12 +403,24 @@ Body: what changed, the final rubric scores, screenshots, and anything you left 
 
 **Do not merge to `main`.** The user merges to `main` only on their explicit go.
 
-### Final integration (whoever finishes second drives it)
+### Handoff — you do NOT merge anything
 
-Once both PRs exist and both are approved-in-spirit: merge both into `hayden/frontend`, resolve
-conflicts with your counterpart, then verify the integrated app end to end — landing → console →
-incident → evidence drawer, in both themes, typecheck + lint + build + the 86 backend tests green.
-Report the result. Then stop and wait for the user.
+Stop when your PR is open. **Do not merge your branch, do not merge your counterpart's branch into
+yours, and do not touch `main`.**
+
+The repo owner runs a separate **PR review agent** after both branches are finished. That agent
+reviews both PRs, integrates them, and merges to `main` on the owner's explicit go. Your job ends at
+a clean, reviewable, green PR.
+
+To make that review cheap, your PR body must contain:
+
+- What changed, screen by screen, with screenshots (light + dark, desktop + mobile)
+- Final rubric scores per dimension, and how many rounds you ran
+- Anything you deliberately left undone, and why
+- Any **REQUEST** you filed that your counterpart or the backend teammate did not deliver
+- Known conflicts you expect with the other branch, and your suggested resolution
+
+Then report back and wait. Do not start new work after the PR is open unless asked.
 
 ---
 
@@ -424,5 +437,5 @@ Report the result. Then stop and wait for the user.
 - [ ] No banned §6 slop tells
 - [ ] Rubric threshold met, or 6 rounds spent and scores reported honestly
 - [ ] `npm run typecheck && npm run lint && npm run build` green
-- [ ] 86 backend tests still green
+- [ ] `backend/` untouched (a teammate owns the Tiger/analytics work)
 - [ ] Status file current; PR open against `hayden/frontend`; nothing merged to `main`

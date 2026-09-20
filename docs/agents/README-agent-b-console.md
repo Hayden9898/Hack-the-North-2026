@@ -124,7 +124,6 @@ decompose it.
 | `frontend/src/components/charts/**` (new) | Charting layer |
 | `frontend/src/api.ts`, `format.ts`, `useFetch.ts`, `useRunUpdates.ts` | Data layer |
 | `docs/agents/console-status.md` | Your status log (see §7) |
-| `backend/app/api/analytics.py` | Existing — additive changes only, with tests |
 
 ### You do NOT own
 
@@ -135,17 +134,27 @@ your own design tokens, do not fork their components, do not touch routing.
 Off-limits to **both** of you: `backend/app/{ingest,detection,incidents,investigation,notifications,workers,db}`,
 `ml/`, `config/`, and all migrations. The detector and schema are done and tested — leave them alone.
 
-### Backend permission
+### Backend permission: none
 
-**Additive, read-only, tested.** You may add new endpoints or new fields to
-`backend/app/api/analytics.py`, and you must add pytest coverage for anything you add. You may not
-change an existing response shape, touch the detector, or write a migration. The 86 tests must stay
-green — that is the hard gate.
+**You are frontend-only.** A teammate owns the Tiger Data and analytics work on the backend,
+including `backend/app/api/analytics.py`, the `processed_events` continuous aggregate and its
+refresh. Do not touch `backend/` at all — not additively, not "just one field". Their branch and
+yours must not overlap.
 
-Before you add an endpoint, check §4: the API is already unusually complete and it is likely the
-data you want exists.
+If you hit a genuine data gap the API cannot serve:
 
----
+1. Write a **REQUEST** line in `docs/agents/console-status.md` describing the exact shape you need.
+2. Note it in your PR body so it reaches the reviewer.
+3. Work around it in the frontend **without fabricating data**. Render an honest empty or
+   "not available" state. This product's entire credibility rests on never showing a number it
+   cannot prove — a placeholder figure is a correctness bug, not a stopgap.
+
+Before you conclude something is missing, read §4. The API is unusually complete and the data you
+want almost certainly already exists.
+
+> **Heads-up on coupling:** the teammate's Tiger work may change the timeseries response shape. Your
+> charts consume it. Keep chart data access behind a thin adapter in `src/components/charts/` so a
+> backend shape change is a one-file fix, and flag the dependency in your status file.
 
 ## 4. The API you already have
 
@@ -301,9 +310,9 @@ Build any internal links against the `/app` paths from the start.
   ```
 - If you need a component or token A hasn't shipped, write a **REQUEST** line in your status file,
   then **stub it locally and keep moving**. Never sit blocked.
-- **Known conflict point:** `backend/app/api/main.py` ~line 52 registers routers from the tuple
-  `("datasets", "runs", "incidents", "updates", "analytics")`. If you add a module, append to it; A
-  may append `"summary"`. Expect a one-line conflict and keep both entries.
+- **No backend changes, by either of you.** A teammate owns the Tiger/analytics backend work, so
+  both of your branches stay inside `frontend/` and `docs/agents/`. That makes conflicts between
+  your two branches essentially limited to `frontend/src/` files neither of you owns — i.e. none.
 
 ---
 
@@ -366,8 +375,7 @@ git push -u origin hayden/frontend-console
   only way Agent A can track you. An unpushed commit does not exist.
 - **Conventional Commits, scoped:** `feat(console):`, `feat(charts):`, `refactor(incident):`,
   `fix(sse):`, `style(feed):`, `perf(feed):`, `docs(agents):`, `test(api):`, `chore(deps):`.
-- Before every push: `npm run typecheck && npm run lint && npm run build` must pass, and if you
-  touched backend, `.venv/bin/python tasks.py test ARGS="-m 'not slow'"` must be 86 green.
+- Before every push: `npm run typecheck && npm run lint && npm run build` must pass.
   **Do not push red.**
 - Never commit `node_modules/`, `dist/`, `.env`, or `htn_challenge_logs_2026.txt`.
 
@@ -375,17 +383,29 @@ git push -u origin hayden/frontend-console
 
 When done, open a PR from `hayden/frontend-console` → **`hayden/frontend`** (the integration
 branch). **Not to `main`.** Title `feat(frontend): analyst console redesign and data visualisation`.
-Body: what changed, final rubric scores, screenshots, charting-library justification, any backend
-additions and their tests, and anything left undone.
+Body: what changed, final rubric scores, screenshots, charting-library justification, and
+anything left undone.
 
 **Do not merge to `main`.** The user merges to `main` only on their explicit go.
 
-### Final integration (whoever finishes second drives it)
+### Handoff — you do NOT merge anything
 
-Once both PRs exist: merge both into `hayden/frontend`, resolve conflicts together with Agent A,
-then verify the integrated app end to end — landing → console → incident → evidence drawer showing
-all 77 denials — in both themes, with typecheck + lint + build + 86 backend tests green. Report the
-result, then stop and wait for the user.
+Stop when your PR is open. **Do not merge your branch, do not merge your counterpart's branch into
+yours, and do not touch `main`.**
+
+The repo owner runs a separate **PR review agent** after both branches are finished. That agent
+reviews both PRs, integrates them, and merges to `main` on the owner's explicit go. Your job ends at
+a clean, reviewable, green PR.
+
+To make that review cheap, your PR body must contain:
+
+- What changed, screen by screen, with screenshots (light + dark, desktop + mobile)
+- Final rubric scores per dimension, and how many rounds you ran
+- Anything you deliberately left undone, and why
+- Any **REQUEST** you filed that your counterpart or the backend teammate did not deliver
+- Known conflicts you expect with the other branch, and your suggested resolution
+
+Then report back and wait. Do not start new work after the PR is open unless asked.
 
 ---
 
@@ -395,7 +415,8 @@ result, then stop and wait for the user.
 - [ ] `IncidentPage.tsx` decomposed; primary read in one glance, full evidence one interaction away
 - [ ] The **77-denial evidence proof** is the best-designed flow in the app
 - [ ] Charting library chosen, justified, and built on the shared tokens; `dataviz` skill invoked
-- [ ] Tiger aggregate vs raw-fallback freshness surfaced
+- [ ] Tiger aggregate vs raw-fallback freshness surfaced in the UI (display only — the
+      backend side belongs to the teammate)
 - [ ] Event feed virtualised
 - [ ] Processing states (pending/late/blocked) visually distinct from verdicts
 - [ ] Warmup vs visible phase distinguished
@@ -404,6 +425,7 @@ result, then stop and wait for the user.
 - [ ] Light and dark, WCAG AA; responsive 390px and 1440px; reduced-motion honoured; keyboard navigable
 - [ ] No banned §6 slop tells
 - [ ] Rubric threshold met, or 6 rounds spent and scores reported honestly
-- [ ] `npm run typecheck && npm run lint && npm run build` green; 86 backend tests green
+- [ ] `npm run typecheck && npm run lint && npm run build` green
+- [ ] `backend/` untouched (a teammate owns the Tiger/analytics work)
 - [ ] Incremental commits throughout, pushed; status file current; PR open against `hayden/frontend`
 - [ ] Nothing merged to `main`
