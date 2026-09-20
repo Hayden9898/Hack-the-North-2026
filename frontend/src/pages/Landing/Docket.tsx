@@ -82,7 +82,7 @@ export function Docket() {
                 <span>seq {inc.span}</span>
                 <Link
                   to="/app"
-                  className="inline-flex items-center gap-1 text-fg-muted transition-colors duration-150 hover:text-accent"
+                  className="inline-flex items-center gap-1 py-1 text-accent transition-opacity duration-150 hover:opacity-75"
                 >
                   open incident {inc.docket} <ArrowUpRight className="size-3" />
                 </Link>

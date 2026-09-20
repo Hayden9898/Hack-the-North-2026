@@ -79,6 +79,7 @@ function ProofCapsule() {
         code={grant.raw}
         emphasize={['200 8459200']}
         copyable={false}
+        wrap="always"
       />
     </a>
   )

@@ -100,7 +100,7 @@ export function ExhibitA() {
             ].map(([k, v]) => (
               <div key={k} className="contents">
                 <dt className="text-fg-subtle">{k}</dt>
-                <dd className="break-words text-fg-muted">{v}</dd>
+                <dd className="min-w-0 text-fg-muted [overflow-wrap:anywhere]">{v}</dd>
               </div>
             ))}
           </dl>
