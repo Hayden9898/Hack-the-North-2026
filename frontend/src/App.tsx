@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
-import { api, describeError, subscribeDbStatus, type Health } from './api'
+import { api, describeError, setOperatorToken, subscribeDbStatus, subscribeOperatorToken, type Health } from './api'
 import { degradedModeLabel } from './format'
 import { MonitoringCheck } from './MonitoringCheck'
 import { useFetch, useInterval } from './useFetch'
@@ -28,6 +28,7 @@ export default function App() {
         </nav>
         <span className="spacer" />
         <MonitoringCheck />
+        {health.data?.auth?.operator_required ? <OperatorToken /> : null}
         <HealthChip health={health.data} error={health.error} loading={health.loading} onRetry={() => void health.reload()} />
       </header>
 
@@ -77,6 +78,70 @@ export default function App() {
   )
 }
 
+/**
+ * Shared deployments require an operator bearer token for mutations (creating runs, replay control, feedback,
+ * aggregate refresh). Reads are open. The token stays in this tab and is sent only as an Authorization header.
+ */
+function OperatorToken() {
+  const [present, setPresent] = useState(false)
+  const [open, setOpen] = useState(false)
+  const [value, setValue] = useState('')
+  useEffect(() => subscribeOperatorToken(setPresent), [])
+
+  function save(e: FormEvent) {
+    e.preventDefault()
+    setOperatorToken(value)
+    setValue('')
+    setOpen(false)
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className={`conn ${present ? 'conn-live' : 'conn-disconnected'}`}
+        onClick={() => setOpen(true)}
+        title={present ? 'Operator token set for this tab; click to replace or clear it' : 'Mutations need an operator token on this deployment'}
+      >
+        <span className="dot" /> operator {present ? 'authenticated' : 'token required'}
+      </button>
+    )
+  }
+  return (
+    <form onSubmit={save} className="row" style={{ gap: 6 }}>
+      <input
+        type="password"
+        autoFocus
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="APP_AUTH_SECRET"
+        aria-label="operator token"
+        autoComplete="off"
+        spellCheck={false}
+      />
+      <button type="submit" className="btn btn-sm btn-primary">
+        Use
+      </button>
+      {present ? (
+        <button
+          type="button"
+          className="btn btn-sm"
+          onClick={() => {
+            setOperatorToken('')
+            setValue('')
+            setOpen(false)
+          }}
+        >
+          Clear
+        </button>
+      ) : null}
+      <button type="button" className="btn btn-sm" onClick={() => setOpen(false)}>
+        Cancel
+      </button>
+    </form>
+  )
+}
+
 function HealthChip({ health, error, loading, onRetry }: { health: Health | null; error: unknown; loading: boolean; onRetry: () => void }) {
   if (loading && !health) return <span className="conn conn-connecting"><span className="dot" /> checking health…</span>
   if (error && !health) {
@@ -92,7 +157,7 @@ function HealthChip({ health, error, loading, onRetry }: { health: Health | null
   return (
     <span className={`conn ${ok ? 'conn-live' : 'conn-disconnected'}`} title={`db: ${health.database.detail ?? '—'}; models: ${health.models.artifacts.join(', ') || 'none'}`}>
       <span className="dot" /> API {ok ? 'ready' : health.status}
-      {health.models.artifacts.length === 0 ? <span className="muted"> · no model artifacts</span> : null}
+      {health.models.active ? <span className="muted"> · model {health.models.active}</span> : <span className="muted"> · no active model</span>}
     </span>
   )
 }

@@ -58,6 +58,8 @@ export function modelHealthLabel(h: ModelHealth): string {
   switch (h) {
     case 'active':
       return 'model active'
+    case 'pending_load':
+      return 'model loading'
     case 'rules_only':
       return 'rules-only'
     case 'degraded':
@@ -71,8 +73,10 @@ export function modelHealthLabel(h: ModelHealth): string {
 
 export function modelHealthExplanation(h: ModelHealth): string | null {
   switch (h) {
+    case 'pending_load':
+      return 'A model is attached to this run and loads when the detector processes its first batch.'
     case 'rules_only':
-      return 'Rules-only mode: no model artifact is scoring events. ML scores are null; rule detections still apply.'
+      return 'Rules-only: no model was active when this run was created, so no artifact is scoring its events. ML scores are null; rule detections still apply. Calibrate a model with --activate and create a new run.'
     case 'degraded':
       return 'Degraded model mode: model scores may be missing or stale. Rule detections still apply.'
     case 'shadow':
@@ -100,7 +104,8 @@ export const DEGRADED_MODE_LABEL: Record<string, string> = {
   sentry_disabled: 'Sentry disabled (no DSN configured)',
   llm_deterministic_only: 'AI review unavailable: deterministic summaries only',
   slack_preview: 'Slack in preview mode: no message leaves the application',
-  no_model_artifacts_rules_only: 'No model artifacts: detection is rules-only',
+  no_model_artifacts_rules_only: 'No model artifacts on disk: detection is rules-only',
+  no_active_model_rules_only: 'No active model registered: new runs are rules-only until one is calibrated with --activate',
 }
 
 export function degradedModeLabel(code: string): string {

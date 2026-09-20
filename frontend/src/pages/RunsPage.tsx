@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { api, describeError, type Dataset, type Run, type RunCreateBody } from '../api'
+import { api, describeError, type Dataset, type Model, type Run, type RunCreateBody } from '../api'
 import { fmtBytes, fmtNum, fmtTime, isFaultRun, runStateLabel, shortId, speedLabel } from '../format'
 import { useFetch, useInterval } from '../useFetch'
 import { Empty, ErrorState, Loading, ModelHealthBadge, PhaseBadge, Section, StateBadge, Tag } from '../ui'
@@ -8,9 +8,11 @@ import { Empty, ErrorState, Loading, ModelHealthBadge, PhaseBadge, Section, Stat
 export function RunsPage() {
   const runs = useFetch<Run[]>(() => api.listRuns(), [])
   const datasets = useFetch<Dataset[]>(() => api.listDatasets(), [])
+  const models = useFetch<Model[]>(() => api.listModels(), [])
   useInterval(() => {
     void runs.reload()
     void datasets.reload()
+    void models.reload()
   }, 5_000)
 
   return (
@@ -92,7 +94,7 @@ export function RunsPage() {
 
         <div className="stack">
           <DatasetUploadForm onUploaded={() => void datasets.reload()} />
-          <NewRunForm datasets={datasets.data ?? []} onCreated={() => void runs.reload()} />
+          <NewRunForm datasets={datasets.data ?? []} models={models.data ?? []} onCreated={() => void runs.reload()} />
           <Section title="Datasets">
             {datasets.loading ? (
               <Loading what="datasets" />
@@ -270,15 +272,15 @@ function DatasetCard({ d }: { d: Dataset }) {
   )
 }
 
-function NewRunForm({ datasets, onCreated }: { datasets: Dataset[]; onCreated: () => void }) {
+function NewRunForm({ datasets, models, onCreated }: { datasets: Dataset[]; models: Model[]; onCreated: () => void }) {
   const nav = useNavigate()
   const ready = datasets.filter((d) => d.import_state === 'ready')
+  const defaultModel = models.find((m) => m.is_default) ?? null
   const [datasetId, setDatasetId] = useState('')
   const [name, setName] = useState('')
   const [visibleStart, setVisibleStart] = useState('')
   const [speed, setSpeed] = useState('')
   const [pauseAtVisible, setPauseAtVisible] = useState(false)
-  const [modelId, setModelId] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<unknown | null>(null)
 
@@ -292,7 +294,6 @@ function NewRunForm({ datasets, onCreated }: { datasets: Dataset[]; onCreated: (
     const body: RunCreateBody = { dataset_id: chosen, mode: 'replay', name: name.trim(), pause_at_visible_start: pauseAtVisible }
     if (visibleStart.trim()) body.visible_start = visibleStart.trim()
     if (speed.trim() !== '') body.speed = Number(speed)
-    if (modelId.trim()) body.model_id = modelId.trim()
     try {
       const run = await api.createRun(body)
       onCreated()
@@ -331,10 +332,14 @@ function NewRunForm({ datasets, onCreated }: { datasets: Dataset[]; onCreated: (
             speed (0 = fast-forward, unbounded)
             <input value={speed} onChange={(e) => setSpeed(e.target.value)} type="number" min={0} step="any" placeholder="config default" />
           </label>
-          <label className="field">
-            model id (optional; blank = rules-only if none)
-            <input value={modelId} onChange={(e) => setModelId(e.target.value)} placeholder="model_id" />
-          </label>
+          <div className="field">
+            model (rules + ML on every run)
+            {defaultModel ? (
+              <span className="mono small">{defaultModel.model_id}</span>
+            ) : (
+              <span className="small">no active model registered yet: rules-only until one is calibrated with --activate</span>
+            )}
+          </div>
           <label className="check">
             <input type="checkbox" checked={pauseAtVisible} onChange={(e) => setPauseAtVisible(e.target.checked)} /> pause at visible start
           </label>

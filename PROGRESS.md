@@ -158,3 +158,79 @@ Concise record of milestones, decisions, commands and results. Newest entries at
 - Disposable synthetic test DB removed after verification; no existing application data changed. Apply migration 0004
   to the intended app database before restarting updated services. Canonical-data/model, persistent DB, real Sentry
   credentials/receipt and hosting remain unverified; no detection-accuracy superiority or prize outcome is claimed.
+### M9 — Runs always attach the active model (branch `fix-ml-pipeline`) ✅
+- Root cause of the "rules-only mode" banner on UI-created runs: `model_id` was per run, the run form's model field
+  was free text defaulting to blank, and nothing resolved the active model on the operator's behalf. Only
+  `replay-demo` looked it up, so `hybrid-full` scored with ML while every UI-created run was rules-only.
+- `runs.create_run` now attaches the newest active model (`runs.active_model_id`) whenever `model_id` is not
+  pinned. There is no opt-out anywhere (UI, API or CLI): every run is rules + ML. The only rules-only run is one
+  created before any model is active (bootstrap snapshot pass); it degrades visibly, never with a fabricated model.
+- New `GET /api/v1/models` (status, threshold, `is_default`, `artifact_present`); the run form has no model choice,
+  it states which model every run gets; `pending_load` gets a label.
+- `/health/ready` reports `models.active` and a `no_active_model_rules_only` degraded mode; the artifacts list now
+  names model ids (it listed `manifest.json` twice before).
+- Verified: `tests/integration/test_run_default_model.py` 4 passed (default/newest/pinned, API, health);
+  full suite 100 passed (11 min); mypy, ruff, tsc, oxlint, vite build clean. The running API must be restarted to
+  pick this up (`serve_api` runs without reload).
+
+### M9 — hosted deployment (Railway) ✅ image verified, cloud deploy pending credentials
+- One `Dockerfile` (node build → python:3.12-slim runtime, 184 MB) running three roles: `scripts.serve_api`
+  (FastAPI **plus** the built console, mounted last so API routes always win and unknown `/api/*` stays a JSON 404),
+  `scripts.serve_worker` (detector + side-effect loops as two threads, `WORKER_ROLES` to split them, SIGTERM drains),
+  and the existing one-off CLIs. `railway.json` / `railway.worker.json` carry build, start command and healthcheck;
+  `docker compose --profile app` runs the same image locally (opt-in, `db-up` unaffected).
+- D-006 No Redis/object storage: the queues are Postgres tables with `SKIP LOCKED` leases and the model is CPU
+  scikit-learn from the image. Consequence recorded in `docs/DEPLOY.md`: `POST /datasets` (upload → worker import)
+  needs a shared filesystem, so hosted seeding is `scripts.import_dataset` over the network instead.
+- Browser/API auth for shared deployments: `/health/ready` now declares `auth.operator_required`; the console asks
+  for the operator token in its header and sends it only as `Authorization` (sessionStorage, never a URL). Reads stay
+  unauthenticated, as locally.
+- Fix: `scripts.migrate` treated an empty `TEST_DATABASE_URL` as reachable — `ping("")` falls back to the default
+  connection parameters — and then failed the deploy on `create_engine('')`. Empty now means "not configured".
+- Verified in containers against the local TimescaleDB (`docker compose --profile app up --build`): `/health/ready`
+  → `ready`, `timescaledb 2.30.1`, migrations `0004/0004`, `auth.operator_required=true`; SPA served at `/`, deep route
+  `/runs/abc` → 200, `/api/v1/nope` → JSON 404; mutation 401 without/with a wrong bearer, 201 with the right one;
+  3 live events ingested with `X-Ingest-Token` and processed by the *separate* worker container (processed_seq 3).
+  Frontend `tsc`/`oxlint`/`vite build` clean; `ruff`/`mypy` clean on the touched files; `tests/integration/test_health.py`
+  5 passed (the DB-backed case errored on a TRUNCATE deadlock from another pytest process sharing `logorder_test`).
+- Not done: no Railway project created and no Tiger Cloud connection string, so the deployment itself is
+  **unverified**; `ml/artifacts/` is empty in this checkout, so a deploy from git is rules-only until an artifact is
+  force-added; the left-over `deploy-check` live run in the local dev database is a verification artifact.
+
+### M9 — containment actions: the call to action ✅
+- Problem: the console ended at *reading* — playbooks rendered as prose under "nothing here executes". Added the
+  loop that turns a described incident into an approved, verifiable operation without pretending to touch a system
+  that does not exist behind a replayed log.
+- `config/actions.yaml` (7 actions, 6 containment + 1 handoff) maps each playbook step to a typed action. D-008
+  **The AI never supplies a parameter**: `actions/binding.py` reads every value from the incident row or a typed fact
+  (`fact:<kind>.args.<key>`, `fact:<kind>.value`, optional `split` for `account|path` keys) and keeps the fact id as
+  provenance; a missing fact makes the action *unavailable with the reason*, never partially bound. Preconditions
+  (`incident_status_open`, `rule_any`, `fact_present`, `fact_value_in`) are evaluated by code and shown as checks.
+- `actions/service.py` sequences dry run → execute → verify → rollback. Refusals are typed 409s: `dry_run_required`,
+  `already_executed`, `binding_changed` (the `params_hash` pinned at dry run no longer matches a re-binding),
+  `preconditions_unmet` (re-evaluated at execute time, not trusted from the dry run), `not_executed`/`not_reversible`.
+  Every phase appends to `action_log` (operator, adapter, exact request, result) before state moves.
+- D-009 Execution adapters mirror Slack: `PreviewAdapter` (default) records the request and reports
+  `applied_to_external_system: false`; `WebhookAdapter` POSTs the same object when `ACTION_MODE=live` +
+  `ACTION_WEBHOOK_URL`. `incidents.contained_at` + `containment_mode ∈ {preview, applied}` — a preview is stamped as
+  a preview, and `runs.counts.containment` reports `contained/actionable`, `preview`, `applied`, `median_seconds`.
+- `actions/verify.py`: six named SQL identities over `processed_events` under the cutoff (`success_on_path_after`,
+  `events_from_source_after`, `admin_post_2xx_after`, …). In a replay the log is fixed, so `contradicted` means "the
+  recorded activity continued past the approval point" — surfaced as such rather than hidden.
+- `actions/packet.py`: response packet (Markdown) from committed rows only — facts with evidence refs, timeline,
+  unknown codes, playbooks, bound actions, action log, dispositions; `sha256` + fact packet hash; `POST` stores it
+  and queues a `response_packet` message through the existing outbox (same preview/live rules, idempotent key).
+- API `api/actions.py`: `GET …/actions`, `POST …/actions/{id}/{dry-run,execute,verify,rollback}`,
+  `GET|POST …/response-packet` (`?download=true` → `.md` attachment). Migration `0005` (`action_proposals`,
+  `action_log`, `response_packets`, containment columns). Health `integrations.actions`.
+- UI: `pages/ActionsSection.tsx` under the playbooks — bound parameters with "bound from" column, impact /
+  permissions / rollback / verification, dry-run request viewer, confirm-to-execute, verification banner, rollback,
+  append-only log, response packet preview/download/send. Run console gains a **Containment** block.
+- CLI: `scripts/contain_incident.py` (list / dry run / execute / verify / packet) over the same service layer.
+- Verified: `tests/unit/test_action_binding.py` 18 passed; `tests/e2e/test_action_flows.py` 11 passed (273 s) —
+  provenance listing, unavailable reasons, full loop with containment stamp + clear on rollback, append-only log and
+  SSE `action` updates, `binding_changed`, execute-time precondition re-check via a closing disposition, 404 for an
+  inapplicable action, `block_source` binding on an R1 incident, packet render/download, outbox handoff idempotency,
+  run containment counts. `ruff`, `mypy` (68 files), `tsc`, `oxlint` clean.
+- Not done: no real remediation endpoint, so the `live` adapter is **unverified**; the catalog is reviewed content,
+  not a claim about CSE's systems; no Slack Block Kit buttons (would need an interactive app, not a webhook).

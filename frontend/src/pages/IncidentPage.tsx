@@ -27,6 +27,7 @@ import {
   unknownLabel,
 } from '../format'
 import { useFetch } from '../useFetch'
+import { ActionsSection } from './ActionsSection'
 import { ClassBadge, Code, Empty, ErrorState, EventLink, IncidentLink, Loading, PhaseBadge, RuleTags, Section, StateBadge, Tag } from '../ui'
 
 export function IncidentPage() {
@@ -257,6 +258,8 @@ export function IncidentPage() {
           />
 
           <PlaybooksSection playbooks={d.playbooks ?? null} />
+
+          <ActionsSection runId={runId} incidentId={incidentId} version={v.version} onChanged={() => void inc.reload()} />
 
           <BaselineSection baseline={d.baseline} account={d.incident.account} triggerSeq={v.trigger_seq} />
         </div>

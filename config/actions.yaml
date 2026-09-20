@@ -1,0 +1,132 @@
+# Reviewed containment-action catalog. Each action belongs to a playbook in playbooks.yaml and turns one of its
+# proposed steps into a typed, parameter-bound operation.
+#
+# Two invariants hold for everything in this file:
+#   1. The AI never supplies a parameter. Every value in `params` is bound by code from the incident row or from a
+#      typed fact in the committed fact packet, so a remediation target can never be invented.
+#   2. Nothing here is applied to a real system unless an operator approves it AND an execution adapter is
+#      configured (ACTION_MODE=live with ACTION_WEBHOOK_URL). The default adapter records a preview.
+version: 1
+actions:
+  - id: revoke_sessions
+    playbook_id: review_account_activity
+    title: Revoke active sessions for the account
+    kind: identity.revoke_sessions
+    severity: containment
+    reversible: true
+    summary: Invalidate every active session for the account so the next request must re-authenticate.
+    params:
+      account: {from: "incident.account"}
+    preconditions:
+      - {check: incident_status_open}
+      - {check: rule_any, rules: [R1, R4]}
+    impact: The account's users are logged out and must sign in again. No data is changed or destroyed.
+    permissions: Identity administrator
+    rollback: None required; the account signs in again normally.
+    verification: {id: account_activity_after, criterion: "No request for this account succeeds without a fresh login after the action point."}
+
+  - id: force_credential_reset
+    playbook_id: review_account_activity
+    title: Force a credential reset for the account
+    kind: identity.force_credential_reset
+    severity: containment
+    reversible: true
+    summary: Expire the account's credential so a reset is required before the next successful login.
+    params:
+      account: {from: "incident.account"}
+    preconditions:
+      - {check: incident_status_open}
+      - {check: fact_present, kind: auth_failures_in_window}
+    impact: The account cannot sign in until its owner completes a reset. Blocks the owner as well as anyone else.
+    permissions: Identity administrator; account owner contact
+    rollback: Issue a new credential to the owner; no data is destroyed.
+    verification: {id: auth_success_for_pair_after, criterion: "No successful login for this account/source pair after the action point."}
+
+  - id: block_source
+    playbook_id: review_account_activity
+    title: Block the source address at the edge
+    kind: network.block_source
+    severity: containment
+    reversible: true
+    summary: Deny traffic from the recorded source address pending confirmation of who owns it.
+    params:
+      account: {from: "incident.account"}
+      source: {from: "incident.ip_raw"}
+    preconditions:
+      - {check: incident_status_open}
+      - {check: fact_value_in, kind: source_familiarity, values: [unfamiliar, unknown]}
+    impact: Every user behind that address loses access, not only this account. Check whether the address is shared
+      (office egress, VPN, kiosk) before approving.
+    permissions: Network administrator
+    rollback: Remove the block entry; access is restored immediately.
+    verification: {id: events_from_source_after, criterion: "No request from this source address after the action point."}
+
+  - id: restore_acl
+    playbook_id: sensitive_access_authorization_review
+    title: Restore the previous ACL on the resource
+    kind: access.restore_acl
+    severity: containment
+    reversible: true
+    summary: Return the account's access to the resource to its state before the measured change (403 rather than 200).
+    params:
+      account: {from: "fact:prior_denials_count.args.account"}
+      path: {from: "fact:prior_denials_count.args.path"}
+    preconditions:
+      - {check: incident_status_open}
+      - {check: fact_present, kind: first_success_after_denials}
+    impact: The account loses access to this resource. If the grant was approved, this reverses an authorised change.
+    permissions: Resource owner; access administrator
+    rollback: Re-grant access; the previous ACL is recorded in the action log before the change.
+    verification: {id: success_on_path_after, criterion: "Requests by this account for this path return 403 again after the action point."}
+
+  - id: revert_role_change
+    playbook_id: role_audit_review
+    title: Revert the role assignment to the approved baseline
+    kind: access.revert_role
+    severity: containment
+    reversible: true
+    summary: Undo the role assignment made through the admin endpoint and preserve the audit entries.
+    params:
+      account: {from: "fact:prior_endpoint_post_2xx_count.args.account_endpoint", split: {sep: "|", index: 0}}
+      endpoint: {from: "fact:prior_endpoint_post_2xx_count.args.account_endpoint", split: {sep: "|", index: 1}}
+    preconditions:
+      - {check: incident_status_open}
+      - {check: rule_any, rules: [R3, R5]}
+    impact: Removes access the account currently holds. The access log does not record what the role change contained,
+      so the application's own audit log must be read before approving.
+    permissions: Application administrator; change management reviewer
+    rollback: Re-apply the role if the change turns out to have been authorised.
+    verification: {id: admin_post_2xx_after, criterion: "No further 2xx POST by this account to this admin endpoint after the action point."}
+
+  - id: quarantine_object
+    playbook_id: forum_content_request_protection_review
+    title: Quarantine the forum object pending review
+    kind: content.quarantine_object
+    severity: containment
+    reversible: true
+    summary: Make the object unreachable to ordinary viewers while its content and revisions are preserved as evidence.
+    params:
+      object_id: {from: "fact:same_object.args.object_id"}
+    preconditions:
+      - {check: incident_status_open}
+      - {check: fact_present, kind: same_object}
+    impact: Viewers can no longer open the object. Nothing is deleted; content and revision history are retained.
+    permissions: Forum administrator
+    rollback: Restore visibility; the object and its revisions were never removed.
+    verification: {id: object_access_after, criterion: "No request touching this object after the action point."}
+
+  - id: export_response_packet
+    playbook_id: review_account_activity
+    title: Export the response packet for handoff
+    kind: report.export_packet
+    severity: handoff
+    reversible: true
+    summary: Render the incident, its typed facts with evidence references, the applicable playbooks and every bound
+      action into one signed Markdown handoff for whoever performs the remediation.
+    params: {}
+    preconditions:
+      - {check: always}
+    impact: Produces a document. Nothing is changed in any system.
+    permissions: None
+    rollback: Not applicable.
+    verification: {id: none, criterion: "The packet hash matches the fact packet it was rendered from."}

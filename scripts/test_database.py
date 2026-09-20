@@ -10,6 +10,9 @@ TEST_LOCK_ID = 627043611337
 # Every table holding test-generated state. Consumers may truncate only after
 # validate_test_database has established that the target is disposable.
 TRUNCATE_ORDER = (
+    "response_packets",
+    "action_log",
+    "action_proposals",
     "analyst_feedback",
     "ui_updates",
     "notification_outbox",

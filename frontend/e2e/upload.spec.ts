@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 const health = {
   status: 'ready',
   database: { ok: true, detail: 'test' },
-  migrations: { current: '0004', head: '0004', ok: true },
+  migrations: { current: '0005', head: '0005', ok: true },
   config: { ok: true, hash: 'test' },
   models: { artifacts: [] },
   integrations: { sentry: 'disabled_no_dsn', llm: 'deterministic_only_no_key', slack: 'preview' },
