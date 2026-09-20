@@ -23,10 +23,6 @@ from app.settings import get_settings  # noqa: E402
 FIXTURES = ROOT / "tests" / "fixtures"
 
 
-def _needs_db(request: pytest.FixtureRequest) -> bool:
-    return any(m.name in ("integration", "e2e") for m in request.node.iter_markers())
-
-
 @pytest.fixture(scope="session")
 def test_db_url() -> Iterator[str]:
     url = os.environ.get("TEST_DATABASE_URL") or get_settings().test_database_url
@@ -53,7 +49,8 @@ def test_db_url() -> Iterator[str]:
         lease.autocommit = True
         with lease.cursor() as cur:
             cur.execute("SELECT pg_try_advisory_lock(%s) AS acquired", (TEST_LOCK_ID,))
-            if not cur.fetchone()["acquired"]:
+            lock = cur.fetchone()
+            if lock is None or not lock["acquired"]:
                 pytest.fail("Another test process owns this database. Run the backend suite serially.")
         migrate.upgrade(url)
         yield url

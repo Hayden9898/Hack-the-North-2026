@@ -34,6 +34,7 @@ actions:
     summary: Expire the account's credential so a reset is required before the next successful login.
     params:
       account: {from: "incident.account"}
+      source: {from: "incident.ip_raw"}
     preconditions:
       - {check: incident_status_open}
       - {check: fact_present, kind: auth_failures_in_window}

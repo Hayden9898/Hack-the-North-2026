@@ -120,8 +120,24 @@ def list_for_incident(conn: psycopg.Connection[Any], ctx: dict[str, Any], config
 
 # ------------------------------------------------------------------------------------------------- writes
 
+def _lock_run(conn: psycopg.Connection[Any], ctx: dict[str, Any]) -> None:
+    """Take the run row lock first (same order as the detector: run -> incident/proposal rows) so the
+    `ui_updates.update_seq = max+1` allocation in `_emit` cannot collide with a concurrent microbatch commit."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT 1 FROM runs WHERE run_id=%s FOR UPDATE", (ctx["run"]["run_id"],))
+
+
 def dry_run(conn: psycopg.Connection[Any], ctx: dict[str, Any], action_id: str, *, operator: str, adapter: Any, config_dir: str | None = None) -> dict[str, Any]:
+    _lock_run(conn, ctx)
     b = _require_bound(ctx, action_id, config_dir)
+    pid = proposal_id(ctx["run"]["run_id"], ctx["incident"]["incident_id"], ctx["version_number"], action_id)
+    with conn.cursor() as cur:
+        cur.execute("SELECT state FROM action_proposals WHERE proposal_id=%s FOR UPDATE", (pid,))
+        existing = cur.fetchone()
+    if existing is not None and existing["state"] == "executed":
+        # A fresh approval must not reset an executed proposal: that would allow a second execute and would leave
+        # the rollback unable to find anything to revert.
+        raise ActionError("already_executed", "this action was already executed; roll it back before approving it again")
     entry = b.as_dict()
     request = adapters_mod.build_request(
         phase="dry_run", run_id=ctx["run"]["run_id"], incident_id=ctx["incident"]["incident_id"], version=ctx["version_number"],
@@ -140,21 +156,23 @@ def dry_run(conn: psycopg.Connection[Any], ctx: dict[str, Any], action_id: str, 
         "adapter": getattr(adapter, "name", "preview"),
         "applied_to_external_system": False,
     }
-    pid = _upsert_proposal(conn, ctx, b, state="dry_run")
+    _upsert_proposal(conn, ctx, b)  # the row must exist for the log's foreign key; its state moves only after the log
     _append_log(conn, ctx, b, proposal=pid, phase="dry_run", operator=operator, adapter=getattr(adapter, "name", "preview"),
                 request=request, result=result, outcome="ok", error=None)
+    _set_state(conn, pid, "dry_run")
     _emit(conn, ctx, {"action_id": action_id, "phase": "dry_run", "outcome": "ok"})
     return {"proposal_id": pid, "action": entry, "result": result}
 
 
 def execute(conn: psycopg.Connection[Any], ctx: dict[str, Any], action_id: str, *, operator: str, adapter: Any, config_dir: str | None = None) -> dict[str, Any]:
+    _lock_run(conn, ctx)
     b = _require_bound(ctx, action_id, config_dir)  # preconditions re-checked here, not trusted from the dry run
     run_id, incident_id, v = ctx["run"]["run_id"], ctx["incident"]["incident_id"], ctx["version_number"]
     pid = proposal_id(run_id, incident_id, v, action_id)
     with conn.cursor() as cur:
         cur.execute("SELECT * FROM action_proposals WHERE proposal_id=%s FOR UPDATE", (pid,))
         row = cur.fetchone()
-    if row is None or row["state"] == "proposed":
+    if row is None or row["state"] in ("proposed", "failed"):
         raise ActionError("dry_run_required", "approve a dry run for this action before executing it")
     if row["state"] == "executed":
         raise ActionError("already_executed", "this action was already executed for this incident version")
@@ -176,10 +194,9 @@ def execute(conn: psycopg.Connection[Any], ctx: dict[str, Any], action_id: str, 
         after_seq=int(ctx["version"]["trigger_seq"]), cutoff_seq=ctx["cutoff_seq"],
     )
     result = {**res.detail, "outcome": res.outcome, "http_status": res.http_status, "verification": verification}
-    state = "executed" if res.ok else "failed"
-    _set_state(conn, pid, state)
     _append_log(conn, ctx, b, proposal=pid, phase="execute", operator=operator, adapter=res.adapter,
                 request=request, result=result, outcome=res.outcome, error=res.error)
+    _set_state(conn, pid, "executed" if res.ok else "failed")
     contained = None
     if res.ok and entry["severity"] == "containment":
         contained = _stamp_containment(conn, run_id, incident_id, mode="applied" if res.outcome == "applied" else "preview")
@@ -188,6 +205,7 @@ def execute(conn: psycopg.Connection[Any], ctx: dict[str, Any], action_id: str, 
 
 
 def rollback(conn: psycopg.Connection[Any], ctx: dict[str, Any], action_id: str, *, operator: str, adapter: Any, config_dir: str | None = None) -> dict[str, Any]:
+    _lock_run(conn, ctx)
     run_id, incident_id, v = ctx["run"]["run_id"], ctx["incident"]["incident_id"], ctx["version_number"]
     pid = proposal_id(run_id, incident_id, v, action_id)
     with conn.cursor() as cur:
@@ -206,10 +224,10 @@ def rollback(conn: psycopg.Connection[Any], ctx: dict[str, Any], action_id: str,
         action=b.as_dict(), params=dict(row["params"]), params_hash=str(row["params_hash"]), operator=operator,
     )
     res: adapters_mod.ActionResult = adapter.revert(request)
-    _set_state(conn, pid, "rolled_back" if res.ok else "executed")
     _append_log(conn, ctx, b, proposal=pid, phase="rollback", operator=operator, adapter=res.adapter,
                 request=request, result={**res.detail, "outcome": res.outcome}, outcome=res.outcome, error=res.error,
                 params_hash=str(row["params_hash"]))
+    _set_state(conn, pid, "rolled_back" if res.ok else "executed")
     if res.ok:
         _clear_containment_if_last(conn, run_id, incident_id)
     _emit(conn, ctx, {"action_id": action_id, "phase": "rollback", "outcome": res.outcome})
@@ -218,6 +236,7 @@ def rollback(conn: psycopg.Connection[Any], ctx: dict[str, Any], action_id: str,
 
 def verify(conn: psycopg.Connection[Any], ctx: dict[str, Any], action_id: str, *, operator: str, config_dir: str | None = None) -> dict[str, Any]:
     """Recompute the criterion against everything processed since the action was approved."""
+    _lock_run(conn, ctx)
     run_id, incident_id, v = ctx["run"]["run_id"], ctx["incident"]["incident_id"], ctx["version_number"]
     pid = proposal_id(run_id, incident_id, v, action_id)
     after_seq = int(ctx["version"]["trigger_seq"])
@@ -226,16 +245,17 @@ def verify(conn: psycopg.Connection[Any], ctx: dict[str, Any], action_id: str, *
         row = cur.fetchone()
         if row is None:
             raise ActionError("not_proposed", "this action has no proposal for this incident version", status=404)
-        cur.execute("SELECT created_at FROM action_log WHERE proposal_id=%s AND phase='execute' ORDER BY created_at LIMIT 1", (pid,))
+        # Verify from the run cutoff recorded when the action was last executed, not from the trigger. Event times
+        # in a replay are older than any wall clock, so the recorded cutoff_seq is the only honest approval point.
+        cur.execute(
+            """SELECT result->'verification'->>'cutoff_seq' AS approved_cutoff FROM action_log
+               WHERE proposal_id=%s AND phase='execute' ORDER BY id DESC LIMIT 1""",
+            (pid,),
+        )
         executed = cur.fetchone()
-        if executed is not None:
-            # Verify from the last event that had been processed when the action was approved, not from the trigger.
-            cur.execute(
-                """SELECT coalesce(max(run_seq), %s) s FROM processed_events
-                   WHERE run_id=%s AND run_seq <= %s AND event_time <= %s""",
-                (after_seq, run_id, ctx["cutoff_seq"], executed["created_at"]),
-            )
-            after_seq = max(after_seq, int(one(cur)["s"]))
+        approved_cutoff = (executed or {}).get("approved_cutoff")
+        if approved_cutoff not in (None, ""):
+            after_seq = max(after_seq, int(str(approved_cutoff)))
     action = catalog_mod.by_id(catalog_mod.load_catalog(config_dir), action_id)
     if action is None:
         raise ActionError("action_not_found", f"action {action_id!r} is not in the catalog", status=404)
@@ -252,7 +272,8 @@ def verify(conn: psycopg.Connection[Any], ctx: dict[str, Any], action_id: str, *
 
 # ------------------------------------------------------------------------------------------------- persistence
 
-def _upsert_proposal(conn: psycopg.Connection[Any], ctx: dict[str, Any], b: binding_mod.BoundAction, *, state: str) -> str:
+def _upsert_proposal(conn: psycopg.Connection[Any], ctx: dict[str, Any], b: binding_mod.BoundAction) -> str:
+    """Creates the proposal as `proposed` or refreshes its binding; the state itself only moves through `_set_state`."""
     run_id, incident_id, v = ctx["run"]["run_id"], ctx["incident"]["incident_id"], ctx["version_number"]
     pid = proposal_id(run_id, incident_id, v, b.action_id)
     with conn.cursor() as cur:
@@ -261,10 +282,10 @@ def _upsert_proposal(conn: psycopg.Connection[Any], ctx: dict[str, Any], b: bind
                    reversible, params, params_hash, bound_fact_ids, catalog_version, state)
                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                ON CONFLICT (proposal_id) DO UPDATE SET params=EXCLUDED.params, params_hash=EXCLUDED.params_hash,
-                   bound_fact_ids=EXCLUDED.bound_fact_ids, state=EXCLUDED.state, updated_at=now()""",
+                   bound_fact_ids=EXCLUDED.bound_fact_ids, updated_at=now()""",
             (pid, run_id, incident_id, v, b.action_id, b.action["playbook_id"], b.action["kind"], b.action["severity"],
              bool(b.action.get("reversible", True)), jsonb(b.params), b.params_hash, b.bound_fact_ids,
-             catalog_mod.CATALOG_VERSION, state),
+             catalog_mod.CATALOG_VERSION, "proposed"),
         )
     return pid
 
@@ -306,16 +327,29 @@ def _stamp_containment(conn: psycopg.Connection[Any], run_id: str, incident_id: 
 
 
 def _clear_containment_if_last(conn: psycopg.Connection[Any], run_id: str, incident_id: str) -> None:
+    """Clears the stamp when nothing executed remains; otherwise the mode follows the actions still in force."""
     with conn.cursor() as cur:
         cur.execute(
-            """SELECT count(*) n FROM action_proposals
-               WHERE run_id=%s AND incident_id=%s AND severity='containment' AND state='executed'""",
+            """SELECT count(*) n, count(*) FILTER (WHERE last.outcome = 'applied') applied
+               FROM action_proposals p
+               LEFT JOIN LATERAL (
+                   SELECT outcome FROM action_log l
+                   WHERE l.proposal_id = p.proposal_id AND l.phase='execute' ORDER BY l.id DESC LIMIT 1
+               ) last ON true
+               WHERE p.run_id=%s AND p.incident_id=%s AND p.severity='containment' AND p.state='executed'""",
             (run_id, incident_id),
         )
-        if int(one(cur)["n"]) == 0:
+        remaining = one(cur)
+        if int(remaining["n"]) == 0:
             cur.execute(
                 "UPDATE incidents SET contained_at=NULL, containment_mode=NULL, updated_at=now() WHERE run_id=%s AND incident_id=%s",
                 (run_id, incident_id),
+            )
+        else:
+            mode = "applied" if int(remaining["applied"]) > 0 else "preview"
+            cur.execute(
+                "UPDATE incidents SET containment_mode=%s, updated_at=now() WHERE run_id=%s AND incident_id=%s AND containment_mode IS DISTINCT FROM %s",
+                (mode, run_id, incident_id, mode),
             )
 
 

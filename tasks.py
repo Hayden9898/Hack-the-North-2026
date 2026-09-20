@@ -228,7 +228,12 @@ def main(argv: list[str]) -> int:
     if fn is None:
         print(f"unknown target {argv[0]}", file=sys.stderr)
         return 2
-    kw = dict(a.split("=", 1) for a in argv[1:] if "=" in a)
+    stray = [a for a in argv[1:] if "=" not in a]
+    if stray:
+        # Flags such as --activate were silently dropped before; every option is KEY=VALUE (boolean ones KEY=1).
+        print(f"unexpected argument(s) {' '.join(stray)}: options are KEY=VALUE, e.g. MODEL_ID=... ACTIVATE=1", file=sys.stderr)
+        return 2
+    kw = dict(a.split("=", 1) for a in argv[1:])
     try:
         fn(**kw)
     except subprocess.CalledProcessError as exc:

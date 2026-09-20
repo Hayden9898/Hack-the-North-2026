@@ -12,7 +12,7 @@ import psycopg
 
 from app.config import get_config
 from app.db.engine import connect_direct, jsonb, one
-from app.ingest.parser import PARSE_VERSION, ParseError, file_event_id, parse_line
+from app.ingest.parser import PARSE_VERSION, ParseError, file_event_id, parse_line, reject_text
 from app.ingest.registry import RegistryRow, register_batch
 from app.observability import sentry
 
@@ -84,7 +84,7 @@ def import_dataset(
                         ev = parse_line(text, routes)
                         batch.append(RegistryRow(file_event_id(digest, line_no), ev, dataset_id=dataset_id, line_number=line_no))
                     except ParseError as exc:
-                        rejects.append((line_no, text[:2000], exc.reason))
+                        rejects.append((line_no, reject_text(text), exc.reason))
                     if len(batch) + len(rejects) >= batch_size:
                         inserted_total += _commit_batch(conn, dataset_id, batch, rejects, line_no, size, fh.tell())
                         batch, rejects = [], []

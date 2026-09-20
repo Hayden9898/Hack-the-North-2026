@@ -30,6 +30,7 @@ TRUNCATE_ORDER = (
     "entity_stats",
     "run_late_events",
     "run_events",
+    "aggregate_refreshes",
     "runs",
     "models",
     "ingestion_rejects",

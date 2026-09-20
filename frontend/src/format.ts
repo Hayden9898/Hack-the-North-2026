@@ -185,10 +185,10 @@ export function fmtBytes(n: number | null | undefined): string {
   return `${(n / (1024 * 1024)).toFixed(1)} MiB`
 }
 
+/** `anomaly_percentile` arrives on the 0–100 scale from the API; a genuine 0.4th percentile must not be rescaled. */
 export function fmtPercentile(p: number | null | undefined): string {
   if (p === null || p === undefined) return '—'
-  const v = p <= 1 ? p * 100 : p
-  return `${v.toFixed(1)}th`
+  return `${p.toFixed(1)}th`
 }
 
 export function speedLabel(speed: number | null | undefined): string {

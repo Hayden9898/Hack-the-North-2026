@@ -37,7 +37,13 @@ FaultHook = Callable[[str, Event | None], None]  # (stage, event) -> may raise; 
 
 
 class PoisonRecord(RuntimeError):
-    pass
+    """A failure raised while processing ONE event, carrying that event's run_seq so the blame (attempt counter,
+    `failed` state, blocked_seq) lands on the poison record instead of on the first event of its microbatch."""
+
+    def __init__(self, seq: int, cause: BaseException) -> None:
+        super().__init__(f"run_seq {seq}: {type(cause).__name__}: {str(cause)[:500]}")
+        self.seq = seq
+        self.cause = cause
 
 
 @dataclass
@@ -77,28 +83,36 @@ class Detector:
 
     def _run_model(self, conn: psycopg.Connection[Any], run: dict[str, Any]) -> RunModel:
         rid = run["run_id"]
-        if rid in self._models:
-            return self._models[rid]
-        if not run.get("model_id"):
-            rm = RunModel(None, "rules_only", "no model configured for this run")
-        else:
-            with conn.cursor() as cur:
-                cur.execute("SELECT * FROM models WHERE model_id=%s", (run["model_id"],))
-                mrow = cur.fetchone()
-            try:
-                if mrow is None:
-                    raise ModelLoadError("model row missing")
-                m = load_model(self.settings.model_dir, run["model_id"], expected_sha256=mrow["artifact_sha256"],
-                               expected_reference_hash=(run["config"] or {}).get("reference_hash"))
-                rm = RunModel(m, "shadow" if mrow["status"] == "shadow" else "active", f"loaded {m.artifact_sha256[:12]}")
-            except (ModelLoadError, OSError, ValueError) as exc:
-                rm = RunModel(None, "degraded", f"{type(exc).__name__}: {exc}")
-                sentry.log_event("model_degraded", "warning", run_id=rid, reason=str(exc)[:200])
+        rm = self._models.get(rid)
+        if rm is None:
+            rm = self._load_run_model(conn, run)
+            self._models[rid] = rm
+        # Reconcile the persisted health on EVERY batch, not only on the cache miss: the run row is re-read (and
+        # locked) per batch, and if the batch that loaded the model rolled back, the cache keeps the model while the
+        # UPDATE was lost — `pending_load` would otherwise stay forever.
         if run.get("model_health") != rm.health:
             with conn.cursor() as cur:
                 cur.execute("UPDATE runs SET model_health=%s, updated_at=now() WHERE run_id=%s", (rm.health, rid))
-        self._models[rid] = rm
         return rm
+
+    def _load_run_model(self, conn: psycopg.Connection[Any], run: dict[str, Any]) -> RunModel:
+        rid = run["run_id"]
+        if not run.get("model_id"):
+            return RunModel(None, "rules_only", "no model configured for this run")
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM models WHERE model_id=%s", (run["model_id"],))
+            mrow = cur.fetchone()
+        try:
+            if mrow is None:
+                raise ModelLoadError("model row missing")
+            m = load_model(self.settings.model_dir, run["model_id"], expected_sha256=mrow["artifact_sha256"],
+                           expected_reference_hash=(run["config"] or {}).get("reference_hash"), cfg=self.cfg)
+            # Only an `active` registration may classify; candidate/shadow/rejected models are scored for visibility
+            # but never contribute to the threat class.
+            return RunModel(m, "active" if mrow["status"] == "active" else "shadow", f"loaded {m.artifact_sha256[:12]}")
+        except (ModelLoadError, OSError, ValueError) as exc:
+            sentry.log_event("model_degraded", "warning", run_id=rid, reason=str(exc)[:200])
+            return RunModel(None, "degraded", f"{type(exc).__name__}: {exc}")
 
     def _reference(self, run: dict[str, Any]) -> Reference:
         rid = run["run_id"]
@@ -144,7 +158,12 @@ class Detector:
         with sentry.span("detector.batch", run_id=run_id, size=len(rows)):
             for row in rows:
                 ev = Event.from_row(row)
-                self._process_event(conn, run, rm, ref, stats, ev, result, trace, buffers)
+                try:
+                    self._process_event(conn, run, rm, ref, stats, ev, result, trace, buffers)
+                except (PoisonRecord, psycopg.OperationalError):
+                    raise  # connection loss is not the record's fault; the caller reconnects
+                except Exception as exc:
+                    raise PoisonRecord(int(ev.run_seq), exc) from exc
                 last_time = ev.event_time
             with conn.cursor() as cur:
                 if buffers.feature_snapshots:
@@ -184,9 +203,8 @@ class Detector:
                     "incidents": [{k: v for k, v in i.items() if k != "summary"} for i in result.incidents],
                 }
                 cur.execute(
-                    """INSERT INTO ui_updates (run_id, update_seq, type, payload)
-                       VALUES (%s, (SELECT coalesce(max(update_seq), 0) + 1 FROM ui_updates WHERE run_id=%s), 'progress', %s)""",
-                    (run_id, run_id, jsonb(payload)),
+                    "INSERT INTO ui_updates (run_id, update_seq, type, payload) VALUES (%s, %s, 'progress', %s)",
+                    (run_id, outbox.next_update_seq(conn, run_id), jsonb(payload)),
                 )
         if self.fault_hook:
             self.fault_hook("before_commit", None)
@@ -280,25 +298,56 @@ class Detector:
         try:
             res = self.process_batch(conn, run_id)
             conn.commit()
+        except PoisonRecord as poison:
+            conn.rollback()
+            blocked = self._record_failure(conn, run_id, poison.cause, seq=poison.seq)
+            return BatchResult() if blocked else self._commit_healthy_prefix(conn, run_id, poison.seq)
         except Exception as exc:  # noqa: BLE001
             conn.rollback()
             self._record_failure(conn, run_id, exc)
             return BatchResult()
         if res.processed == 0:
             runs_mod.maybe_complete(conn, run_id)
+            # Live runs get no microbatch during silence; the digest window closes on wall time regardless.
+            outbox.promote_ready_if_live(conn, run_id)
             conn.commit()
         return res
 
-    def _record_failure(self, conn: psycopg.Connection[Any], run_id: str, exc: BaseException) -> None:
-        """Bounded retry bookkeeping in its own transaction; the failed batch itself was rolled back."""
+    def _commit_healthy_prefix(self, conn: psycopg.Connection[Any], run_id: str, poison_seq: int) -> BatchResult:
+        """After a poisoned microbatch rolled back, process only the events before the poison in a smaller batch so
+        they commit and the blocked sequence is exactly the failing record."""
+        run = runs_mod.get_run(conn, run_id)
+        conn.commit()
+        size = poison_seq - int(run["processed_seq"]) - 1 if run else 0
+        if size <= 0:
+            return BatchResult()
+        try:
+            res = self.process_batch(conn, run_id, batch_size=size)
+            conn.commit()
+            return res
+        except PoisonRecord as poison:  # a second poison inside the prefix carries its own blame
+            conn.rollback()
+            self._record_failure(conn, run_id, poison.cause, seq=poison.seq)
+        except Exception as exc:  # noqa: BLE001
+            conn.rollback()
+            self._record_failure(conn, run_id, exc)
+        return BatchResult()
+
+    def _record_failure(self, conn: psycopg.Connection[Any], run_id: str, exc: BaseException, seq: int | None = None) -> bool:
+        """Bounded retry bookkeeping in its own transaction; the failed batch itself was rolled back.
+
+        `seq` is the run_seq to blame (the poison record). Without it — a failure outside per-event processing —
+        the head of the batch is blamed. Returns True when the run is now blocked."""
         max_attempts = int(self.cfg.policy["replay"]["max_attempts"])
+        blocked = False
         with conn.cursor() as cur:
             cur.execute("SELECT processed_seq FROM runs WHERE run_id=%s FOR UPDATE", (run_id,))
             row = cur.fetchone()
             if row is None:
                 conn.commit()
-                return
-            seq = int(row["processed_seq"]) + 1
+                return False
+            if seq is None or seq <= int(row["processed_seq"]):
+                seq = int(row["processed_seq"]) + 1
             cur.execute(
                 "UPDATE run_events SET attempts = attempts + 1, last_error=%s WHERE run_id=%s AND run_seq=%s RETURNING attempts",
                 (f"{type(exc).__name__}: {str(exc)[:500]}", run_id, seq),
@@ -306,20 +355,22 @@ class Detector:
             r = cur.fetchone()
             attempts = int(r["attempts"]) if r else max_attempts
             if attempts >= max_attempts:
+                blocked = True
                 cur.execute(
                     "UPDATE runs SET state='blocked', block_reason=%s, blocked_seq=%s, updated_at=now() WHERE run_id=%s",
                     (f"{type(exc).__name__} after {attempts} attempts at run_seq {seq}", seq, run_id),
                 )
                 cur.execute("UPDATE run_events SET processing_state='failed' WHERE run_id=%s AND run_seq=%s", (run_id, seq))
                 cur.execute(
-                    "INSERT INTO ui_updates (run_id, update_seq, type, payload) VALUES (%s, (SELECT coalesce(max(update_seq),0)+1 FROM ui_updates WHERE run_id=%s), 'run_state', %s)",
-                    (run_id, run_id, jsonb({"state": "blocked", "blocked_seq": seq, "reason": type(exc).__name__})),
+                    "INSERT INTO ui_updates (run_id, update_seq, type, payload) VALUES (%s, %s, 'run_state', %s)",
+                    (run_id, outbox.next_update_seq(conn, run_id), jsonb({"state": "blocked", "blocked_seq": seq, "reason": type(exc).__name__})),
                 )
                 sentry.log_event("run_blocked", "error", run_id=run_id, run_seq=seq, error=type(exc).__name__)
                 sentry.capture_exception(exc, run_id=run_id)
             else:
                 log.warning("run %s: attempt %d failed at seq %d: %s", run_id, attempts, seq, type(exc).__name__)
         conn.commit()
+        return blocked
 
     def run_forever(self, poll_seconds: float = 0.25, stop: Callable[[], bool] | None = None) -> None:
         sentry.init("detector", self.settings)

@@ -17,6 +17,7 @@ import psycopg
 
 from app.config import DetectionConfig, get_config
 from app.db.engine import connect_direct, jsonb
+from app.notifications import outbox
 from app.notifications.slack import DeliveryResult, PreviewAdapter, SlackWebhookAdapter
 from app.observability import sentry
 from app.settings import Settings, get_settings
@@ -166,9 +167,12 @@ class SideEffectWorker:
                                delivery_ambiguous = delivery_ambiguous OR %s, lease_owner=NULL, lease_expires_at=NULL, updated_at=now() WHERE idempotency_key=%s""",
                         (attempts, res.error, jsonb(resp), now + timedelta(seconds=delay), ambiguous, key),
                     )
+            # Allocate under the run lock: an unlocked max+1 collides with the detector's own progress update and the
+            # PK error would roll back the whole outcome (lease lost → the message is delivered again).
+            seq = outbox.next_update_seq(conn, row["run_id"])
             cur.execute(
-                "INSERT INTO ui_updates (run_id, update_seq, type, payload) VALUES (%s, (SELECT coalesce(max(update_seq),0)+1 FROM ui_updates WHERE run_id=%s), 'delivery', %s)",
-                (row["run_id"], row["run_id"], jsonb({"incident_id": row["incident_id"], "idempotency_key": key, "outcome": res.outcome, "attempts": attempts})),
+                "INSERT INTO ui_updates (run_id, update_seq, type, payload) VALUES (%s, %s, 'delivery', %s)",
+                (row["run_id"], seq, jsonb({"incident_id": row["incident_id"], "idempotency_key": key, "outcome": res.outcome, "attempts": attempts})),
             )
         conn.commit()
 

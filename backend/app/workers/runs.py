@@ -14,16 +14,29 @@ import psycopg
 
 from app.config import DetectionConfig
 from app.db.engine import jsonb, one
-from app.features.reference import Reference, build_reference
+from app.features.reference import Reference, build_reference, utc
 from app.observability import sentry
 
 CONTROL_STATES = {"created", "warming", "running", "paused", "completed", "blocked"}
 
 
-def active_model_id(conn: psycopg.Connection[Any]) -> str | None:
-    """The newest model marked active, or None. Runs default to it so ML scoring is never silently skipped."""
+def active_model_id(conn: psycopg.Connection[Any], reference_hash: str | None = None) -> str | None:
+    """The newest model marked active, or None. Runs default to it so ML scoring is never silently skipped.
+
+    With `reference_hash` (the run's frozen familiarity reference) only a model trained against that reference
+    qualifies: the loader refuses any other artifact, so attaching it would surface as `degraded` instead of the
+    honest `rules_only`. A registration without a recorded reference hash stays eligible but ranks after an exact
+    match."""
     with conn.cursor() as cur:
-        cur.execute("SELECT model_id FROM models WHERE status='active' ORDER BY created_at DESC, model_id DESC LIMIT 1")
+        if reference_hash is None:
+            cur.execute("SELECT model_id FROM models WHERE status='active' ORDER BY created_at DESC, model_id DESC LIMIT 1")
+        else:
+            cur.execute(
+                """SELECT model_id FROM models
+                   WHERE status='active' AND (reference_hash = %s OR reference_hash IS NULL)
+                   ORDER BY (reference_hash IS NOT NULL) DESC, created_at DESC, model_id DESC LIMIT 1""",
+                (reference_hash,),
+            )
         row = cur.fetchone()
     return row["model_id"] if row else None
 
@@ -47,13 +60,25 @@ def create_run(
     """Create an isolated run. Every run scores with rules AND the newest active model; `model_id` only pins a
     specific registered model (tests, evaluation). The run is rules-only solely when no active model exists yet."""
     run_id = str(uuid.uuid4())
-    if model_id is None:
-        model_id = active_model_id(conn)
+    # API payloads may carry naive datetimes ("2026-03-01" parses naive); treat them as UTC so comparisons with the
+    # tz-aware partition boundaries never raise.
+    visible_start = utc(visible_start) if visible_start is not None else None
+    range_start = utc(range_start) if range_start is not None else None
+    range_end = utc(range_end) if range_end is not None else None
     if reference is None:
         if dataset_id:
             reference = build_reference(conn, dataset_id, cfg)
         else:
             reference = Reference.empty()
+    model_reason: str | None = None
+    if model_id is None:
+        model_id = active_model_id(conn, reference.hash)
+        if model_id is None:
+            model_reason = (
+                "no active model trained against this run's familiarity reference; rules-only"
+                if active_model_id(conn) is not None
+                else "no active model registered; rules-only"
+            )
     config = {
         "policy": cfg.policy,
         "routes_version": cfg.routes.version,
@@ -62,6 +87,8 @@ def create_run(
         "reference_hash": reference.hash,
         "pause_at_visible_start": pause_at_visible_start,
     }
+    if model_reason:
+        config["model_reason"] = model_reason
     if visible_start is None:
         visible_start = cfg.partitions["evaluation"].start if dataset_id else datetime.now(UTC)
     if mode == "live":
@@ -69,6 +96,12 @@ def create_run(
     else:
         phase = "warmup" if (range_start or datetime.min.replace(tzinfo=UTC)) < visible_start else "visible"
     model_health = "rules_only" if model_id is None else "pending_load"
+    if phase == "visible":
+        # The virtual clock starts where admission starts: a range beginning after visible_start must not stall
+        # until the clock crawls up to the first admissible event.
+        virtual_time: datetime | None = max(visible_start, range_start) if range_start is not None else visible_start
+    else:
+        virtual_time = range_start
     with conn.cursor() as cur:
         cur.execute(
             """INSERT INTO runs (run_id, name, dataset_id, source_id, mode, phase, model_id, model_health, config_hash, config,
@@ -77,7 +110,7 @@ def create_run(
                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'created', %s, %s, 0) RETURNING *""",
             (run_id, name, dataset_id, source_id, mode, phase, model_id, model_health, cfg.config_hash, jsonb(config), cfg.feature_version,
              visible_start, range_start, range_end, float(cfg.policy["replay"]["default_speed"]) if speed is None else float(speed),
-             visible_start if phase == "visible" else range_start, range_start or datetime(1970, 1, 1, tzinfo=UTC)),
+             virtual_time, range_start or datetime(1970, 1, 1, tzinfo=UTC)),
         )
         row = dict(one(cur))
     return row
@@ -240,7 +273,7 @@ def maybe_complete(conn: psycopg.Connection[Any], run_id: str) -> bool:
         flushed = outbox.flush_all(conn, run_id)
         cur.execute("UPDATE runs SET state='completed', virtual_time=last_processed_time, virtual_anchor_wall=NULL, updated_at=now() WHERE run_id=%s", (run_id,))
         cur.execute(
-            "INSERT INTO ui_updates (run_id, update_seq, type, payload) VALUES (%s, (SELECT coalesce(max(update_seq),0)+1 FROM ui_updates WHERE run_id=%s), 'run_state', %s)",
-            (run_id, run_id, jsonb({"state": "completed", "flushed_digests": flushed})),
+            "INSERT INTO ui_updates (run_id, update_seq, type, payload) VALUES (%s, %s, 'run_state', %s)",
+            (run_id, outbox.next_update_seq(conn, run_id), jsonb({"state": "completed", "flushed_digests": flushed})),
         )
     return True

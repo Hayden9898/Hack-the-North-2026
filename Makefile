@@ -3,10 +3,22 @@
 PY ?= python
 DATASET_PATH ?= ./htn_challenge_logs_2026.txt
 
-.PHONY: dev migrate import train calibrate evaluate adversarial-evaluate replay-demo test benchmark build lint typecheck db-up db-down investigate demo-inject
+.PHONY: dev doctor verify verify-frontend verify-backend verify-live verify-report migrate import train calibrate evaluate adversarial-evaluate replay-demo test benchmark build lint typecheck db-up db-down investigate demo-inject
 
 dev:
 	$(PY) tasks.py dev
+doctor:
+	$(PY) tasks.py doctor
+verify:
+	$(PY) tasks.py verify
+verify-frontend:
+	$(PY) tasks.py verify-frontend
+verify-backend:
+	$(PY) tasks.py verify-backend
+verify-live:
+	$(PY) tasks.py verify-live RUN_ID=$(RUN_ID)
+verify-report:
+	$(PY) tasks.py verify-report
 db-up:
 	$(PY) tasks.py db-up
 db-down:

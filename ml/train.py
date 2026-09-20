@@ -18,6 +18,7 @@ from sklearn.ensemble import IsolationForest
 
 from app.config import get_config
 from app.db.engine import connect_direct, jsonb
+from app.detection.model import feature_config_hash
 from app.detection.preprocess import PREPROCESSING_VERSION, build_pipeline, domain_of
 from app.features.vector import FEATURE_NAMES, FEATURE_VERSION
 from app.settings import get_settings
@@ -39,13 +40,15 @@ def main() -> int:
     model_dir = Path(settings.model_dir)
     model_id = args.model_id or f"if_{FEATURE_VERSION}_{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}"
     out = model_dir / model_id
-    out.mkdir(parents=True, exist_ok=False)
+    if out.exists():
+        raise SystemExit(f"model dir {out} already exists; pick another --model-id")
 
     conn = connect_direct(args.database_url or settings.database_url)
     run = pick_source_run(conn, args.source_run, cfg)
     train = load_matrix(conn, run["run_id"], cfg, "train")
     cal = load_matrix(conn, run["run_id"], cfg, "calibration")
     print(f"source run {run['run_id']} train={train.X.shape} calibration={cal.X.shape}")
+    out.mkdir(parents=True, exist_ok=False)  # only once the source run and partitions are validated
 
     t0 = time.perf_counter()
     forest = IsolationForest(
@@ -84,6 +87,7 @@ def main() -> int:
         "feature_version": FEATURE_VERSION,
         "feature_names": list(FEATURE_NAMES),
         "config_hash": cfg.config_hash,
+        "feature_config_hash": feature_config_hash(cfg),  # policy.features + routes: what the vector depends on
         "reference_hash": (run["config"] or {}).get("reference_hash"),
         "source_run_id": run["run_id"],
         "dataset_id": run["dataset_id"],

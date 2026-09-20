@@ -90,6 +90,7 @@ export function RunConsole() {
         case 'explanation':
         case 'delivery':
         case 'feedback':
+        case 'action': // containment taken in another tab: the run's containment counts and the incident list change
           refreshIncidents()
           refreshRun()
           break
@@ -146,7 +147,18 @@ export function RunConsole() {
       <div className="crumbs">
         <Link to="/">Runs</Link> / <span className="mono">{shortId(merged.run_id, 18)}</span>
       </div>
-      <RunHeader run={merged} updates={updates} resyncs={resyncs} onRunChanged={(u) => run.set(() => u)} error={run.error} />
+      <RunHeader
+        run={merged}
+        updates={updates}
+        resyncs={resyncs}
+        onRunChanged={(u) => {
+          // The replay-control response carries the run without `counts`; keep the last fetched counts so the
+          // counts table and Containment block do not vanish while paused (no SSE event arrives to restore them).
+          run.set((prev) => ({ ...u, counts: u.counts ?? prev?.counts }))
+          void run.reload()
+        }}
+        error={run.error}
+      />
       <ModelHealthBanner health={merged.model_health} />
       <div className="grid-2">
         <EventsFeed runId={runId} tick={tick} cutoff={merged.processed_seq} />

@@ -85,6 +85,34 @@ def enqueue_for_version(
     return None
 
 
+def next_update_seq(conn: psycopg.Connection[Any], run_id: str) -> int:
+    """Allocate the next durable `ui_updates.update_seq` for a run while holding the run row lock.
+
+    Every writer (detector microbatch, delivery outcome, explanation job, analyst feedback) must allocate through
+    the run lock: a bare `max+1` races the detector, which holds `runs FOR UPDATE` for its whole microbatch and
+    inserts its own `max+1` at commit. The PK collision would roll the *writer's* transaction back, e.g. losing a
+    `sent` outcome so the message is delivered again. Re-taking FOR UPDATE inside a transaction that already holds
+    the lock is a no-op, so the detector uses the same helper."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT 1 FROM runs WHERE run_id=%s FOR UPDATE", (run_id,))
+        cur.execute("SELECT coalesce(max(update_seq), 0) + 1 AS n FROM ui_updates WHERE run_id=%s", (run_id,))
+        row = cur.fetchone()
+    return int(row["n"]) if row else 1
+
+
+def promote_ready_if_live(conn: psycopg.Connection[Any], run_id: str) -> int:
+    """Idle-step promotion for live runs: a burst followed by silence must still release its digest once the wall
+    clock window closes, even though no microbatch runs. One indexed query; a no-op for replay runs."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """UPDATE notification_outbox n SET state='pending', updated_at=now()
+               FROM runs r
+               WHERE n.run_id=%s AND n.state='debounce' AND n.next_attempt_at <= now() AND r.run_id = n.run_id AND r.mode='live'""",
+            (run_id,),
+        )
+        return cur.rowcount
+
+
 def promote_ready(conn: psycopg.Connection[Any], run_id: str, current_event_time: datetime | None, live: bool) -> int:
     """Move debounced digests whose window has closed into `pending` (event time for replay; wall time for live)."""
     with conn.cursor() as cur:

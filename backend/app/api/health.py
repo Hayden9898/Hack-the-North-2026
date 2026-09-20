@@ -40,7 +40,18 @@ def ready(response: Response) -> dict[str, Any]:
         config_hash = get_config(settings.config_dir).config_hash
     except Exception:  # noqa: BLE001
         config_ok = False
-    status = "ready" if (db_ok and migrations["ok"] and config_ok) else "not_ready"
+    # A non-loopback bind without both secrets is a deployment that answers 503 to every mutation: not ready, and say why.
+    auth_ok = settings.loopback_only or bool(settings.app_auth_secret and settings.ingest_token)
+    blocking: list[str] = []
+    if not db_ok:
+        blocking.append("database_unavailable")
+    elif not migrations["ok"]:
+        blocking.append("migrations_behind")
+    if not config_ok:
+        blocking.append("config_invalid")
+    if not auth_ok:
+        blocking.append("auth_secrets_missing")
+    status = "ready" if not blocking else "not_ready"
     degraded: list[str] = []
     integrations = settings.integration_status()
     if integrations["sentry"] != "enabled":
@@ -73,4 +84,5 @@ def ready(response: Response) -> dict[str, Any]:
         "integrations": integrations,
         "sentry_active": sentry.enabled(),
         "degraded_modes": degraded,
+        "not_ready_reasons": blocking,
     }

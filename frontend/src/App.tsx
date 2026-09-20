@@ -13,7 +13,10 @@ export default function App() {
 
   const healthErr = health.error ? describeError(health.error) : null
   const notReady = !!health.data && health.data.status !== 'ready'
-  const showDbBanner = dbDown || healthErr?.status === 503 || (health.data ? !health.data.database.ok : false)
+  // /health/ready answers 503 for every not-ready reason; api.health() still returns the health object for those, so
+  // the database banner is driven by the database field itself. A 503 without a health body (proxy, crashed API) or a
+  // 503 from any other endpoint still counts as the database being unavailable.
+  const showDbBanner = health.data ? health.data.database.ok === false : dbDown || healthErr?.status === 503
 
   return (
     <div className="app">
@@ -28,7 +31,7 @@ export default function App() {
         </nav>
         <span className="spacer" />
         <MonitoringCheck />
-        {health.data?.auth?.operator_required ? <OperatorToken /> : null}
+        {health.data ? <OperatorToken required={health.data.auth?.operator_required ?? false} /> : null}
         <HealthChip health={health.data} error={health.error} loading={health.loading} onRetry={() => void health.reload()} />
       </header>
 
@@ -53,9 +56,10 @@ export default function App() {
 
       {!showDbBanner && notReady && health.data ? (
         <div className="banner banner-danger" role="alert">
-          <strong>API not ready</strong> — status {health.data.status}. database ok: {String(health.data.database.ok)}; migrations ok:{' '}
-          {String(health.data.migrations.ok)} ({health.data.migrations.current ?? '?'} / {health.data.migrations.head ?? '?'}); config ok:{' '}
-          {String(health.data.config.ok)}.
+          <strong>API not ready</strong> — status {health.data.status}
+          {health.data.not_ready_reasons?.length ? ` (${health.data.not_ready_reasons.map((r) => r.replaceAll('_', ' ')).join(', ')})` : ''}. database ok:{' '}
+          {String(health.data.database.ok)}; migrations ok: {String(health.data.migrations.ok)} ({health.data.migrations.current ?? '?'} /{' '}
+          {health.data.migrations.head ?? '?'}); config ok: {String(health.data.config.ok)}.
         </div>
       ) : null}
 
@@ -82,7 +86,7 @@ export default function App() {
  * Shared deployments require an operator bearer token for mutations (creating runs, replay control, feedback,
  * aggregate refresh). Reads are open. The token stays in this tab and is sent only as an Authorization header.
  */
-function OperatorToken() {
+function OperatorToken({ required }: { required: boolean }) {
   const [present, setPresent] = useState(false)
   const [open, setOpen] = useState(false)
   const [value, setValue] = useState('')
@@ -99,11 +103,17 @@ function OperatorToken() {
     return (
       <button
         type="button"
-        className={`conn ${present ? 'conn-live' : 'conn-disconnected'}`}
+        className={`conn ${present ? 'conn-live' : required ? 'conn-disconnected' : ''}`}
         onClick={() => setOpen(true)}
-        title={present ? 'Operator token set for this tab; click to replace or clear it' : 'Mutations need an operator token on this deployment'}
+        title={
+          present
+            ? 'Operator token set for this tab; click to replace or clear it'
+            : required
+              ? 'Mutations need an operator token on this deployment'
+              : 'This deployment accepts local mutations without a token; set one if the API rejects them'
+        }
       >
-        <span className="dot" /> operator {present ? 'authenticated' : 'token required'}
+        <span className="dot" /> operator {present ? 'authenticated' : required ? 'token required' : 'no token'}
       </button>
     )
   }
