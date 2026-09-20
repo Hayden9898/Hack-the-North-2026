@@ -1,4 +1,4 @@
-import { ArrowRight, Database, Plus } from 'lucide-react'
+import { ArrowRight, CircleSlash, Database, FlaskConical, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, describeError, type Dataset, type Run, type RunCreateBody } from '../api'
@@ -102,14 +102,16 @@ function LeadRunCard({ run }: { run: Run }) {
         </span>
         {isFaultRun(run.name) ? (
           <span
-            className="state-hatch rounded-sm border border-late/50 px-1.5 py-0.5 text-[0.6875rem] font-medium text-late uppercase"
+            className="inline-flex items-center gap-1 rounded-sm border border-late/50 px-1.5 py-0.5 text-[0.6875rem] font-medium text-late uppercase"
             title="This run deliberately submits an invalid AI proposal to demonstrate the validator rejecting it. A run configuration, not a threat level."
           >
+            <FlaskConical className="size-3" aria-hidden />
             fault injection
           </span>
         ) : null}
         {run.model_health !== 'active' ? (
-          <span className="state-hatch rounded-sm border border-pending/45 px-1.5 py-0.5 text-[0.6875rem] font-medium text-pending uppercase">
+          <span className="inline-flex items-center gap-1 rounded-sm border border-pending/45 px-1.5 py-0.5 text-[0.6875rem] font-medium text-pending uppercase">
+            <CircleSlash className="size-3" aria-hidden />
             {modelHealthLabel(run.model_health)}
           </span>
         ) : null}
@@ -166,7 +168,8 @@ function RunRow({ run }: { run: Run }) {
       <span className="text-body text-fg">{run.name || shortId(run.run_id, 14)}</span>
       <StatePill run={run} />
       {isFaultRun(run.name) ? (
-        <span className="state-hatch rounded-sm border border-late/50 px-1.5 py-0.5 text-[0.6875rem] font-medium text-late uppercase">
+        <span className="inline-flex items-center gap-1 rounded-sm border border-late/50 px-1.5 py-0.5 text-[0.6875rem] font-medium text-late uppercase">
+          <FlaskConical className="size-3" aria-hidden />
           fault injection
         </span>
       ) : null}
@@ -175,7 +178,8 @@ function RunRow({ run }: { run: Run }) {
       </span>
       <span className="font-mono text-mono text-fg-muted">{speedLabel(run.speed)}</span>
       {run.model_health !== 'active' ? (
-        <span className="state-hatch rounded-sm border border-pending/45 px-1.5 py-0.5 text-[0.6875rem] font-medium text-pending uppercase">
+        <span className="inline-flex items-center gap-1 rounded-sm border border-pending/45 px-1.5 py-0.5 text-[0.6875rem] font-medium text-pending uppercase">
+          <CircleSlash className="size-3" aria-hidden />
           {modelHealthLabel(run.model_health)}
         </span>
       ) : null}

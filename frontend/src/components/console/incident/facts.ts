@@ -87,6 +87,8 @@ export interface ClaimView {
    * quantities and durations.
    */
   isIdentifier: boolean
+  /** true when the figure is a yes/no, which should not wear the display numeral */
+  isBoolean: boolean
 }
 
 function str(v: unknown): string {
@@ -113,6 +115,7 @@ export function claimView(f: Fact): ClaimView {
         recomputable,
         emphasisZero: false,
         isIdentifier: false,
+        isBoolean: false,
       }
     case 'prior_successes_count':
       return {
@@ -122,6 +125,7 @@ export function claimView(f: Fact): ClaimView {
         recomputable,
         emphasisZero: true,
         isIdentifier: false,
+        isBoolean: false,
       }
     case 'first_success_after_denials':
       return {
@@ -131,6 +135,7 @@ export function claimView(f: Fact): ClaimView {
         recomputable,
         emphasisZero: false,
         isIdentifier: false,
+        isBoolean: typeof v === 'boolean',
       }
     case 'auth_failures_in_window':
       return {
@@ -140,6 +145,7 @@ export function claimView(f: Fact): ClaimView {
         recomputable,
         emphasisZero: false,
         isIdentifier: false,
+        isBoolean: false,
       }
     case 'time_delta_seconds': {
       const n = Number(v)
@@ -150,6 +156,7 @@ export function claimView(f: Fact): ClaimView {
         recomputable,
         emphasisZero: false,
         isIdentifier: false,
+        isBoolean: false,
       }
     }
     case 'same_object':
@@ -160,6 +167,7 @@ export function claimView(f: Fact): ClaimView {
         recomputable,
         emphasisZero: false,
         isIdentifier: true,
+        isBoolean: false,
       }
     case 'source_familiarity':
       return {
@@ -169,6 +177,7 @@ export function claimView(f: Fact): ClaimView {
         recomputable,
         emphasisZero: false,
         isIdentifier: false,
+        isBoolean: false,
       }
     default:
       return {
@@ -183,6 +192,7 @@ export function claimView(f: Fact): ClaimView {
         recomputable,
         emphasisZero: false,
         isIdentifier: false,
+        isBoolean: false,
       }
   }
 }

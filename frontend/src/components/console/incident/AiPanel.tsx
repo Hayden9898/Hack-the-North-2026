@@ -51,11 +51,12 @@ function AiStateChip({ state }: { state: string | null }) {
   const map: Record<string, { label: string; tone: string }> = {
     validated: { label: 'suggestions validated', tone: 'text-normal border-normal/35 bg-normal-wash' },
     fallback: { label: 'no AI review', tone: 'text-fg-muted border-border' },
-    rejected: { label: 'proposal rejected', tone: 'state-hatch text-blocked border-blocked/50' },
+    rejected: { label: 'proposal rejected', tone: 'text-blocked border-blocked/50' },
   }
   const m = map[state ?? ''] ?? { label: 'no AI review', tone: 'text-fg-muted border-border' }
   return (
-    <span className={cn('inline-flex w-fit items-center rounded-sm border px-2 py-1 text-caption font-medium', m.tone)}>
+    <span className={cn('inline-flex w-fit items-center gap-1.5 rounded-sm border px-2 py-1 text-caption font-medium', m.tone)}>
+      {state === 'rejected' ? <ShieldX className="size-3.5 shrink-0" aria-hidden /> : null}
       {m.label}
     </span>
   )

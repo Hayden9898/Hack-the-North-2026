@@ -75,6 +75,8 @@ export function EventPage() {
         {/* wrap="always": this is the one screen whose entire job is showing the exact line,
             so it must be visible in full without a scroll. Agent A's wrap breaks at spaces
             rather than mid-token, so byte fidelity survives the wrap. */}
+        <p className="max-w-[72ch] text-heading text-balance text-fg">{verdictSentence(e)}</p>
+
         <CodeBlock
           code={e.raw_line}
           wrap="always"
@@ -199,6 +201,23 @@ export function EventPage() {
       ) : null}
     </div>
   )
+}
+
+/**
+ * One sentence naming what this event is and why it carries its class, so the page leads with
+ * the verdict rather than with the raw line.
+ */
+function verdictSentence(e: EventDetail): string {
+  const names = e.rule_ids.map((r) => ruleReference(r)?.name ?? r).join(' and ')
+  if (e.threat_class === 'high_risk') {
+    return names
+      ? `Flagged high risk: ${names} matched this request. Investigate urgently — this is a priority signal, not a finding of wrongdoing.`
+      : 'Flagged high risk. Investigate urgently — this is a priority signal, not a finding of wrongdoing.'
+  }
+  if (e.threat_class === 'suspicious') {
+    return names ? `Flagged suspicious: ${names} matched this request.` : 'Flagged suspicious.'
+  }
+  return 'No configured detector flagged this request.'
 }
 
 function KeyNumbers({ title, data }: { title: string; data: Record<string, unknown> }) {

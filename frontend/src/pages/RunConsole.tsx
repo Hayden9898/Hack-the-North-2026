@@ -1,4 +1,4 @@
-import { ChevronRight, TriangleAlert } from 'lucide-react'
+import { ChevronRight, FlaskConical, TriangleAlert } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
@@ -207,9 +207,10 @@ function RunHeaderBand({
         <PhaseChip phase={run.phase} />
         {isFaultRun(run.name) ? (
           <span
-            className="state-hatch rounded-sm border border-late/50 px-1.5 py-0.5 text-[0.6875rem] font-medium text-late uppercase"
+            className="inline-flex items-center gap-1 rounded-sm border border-late/50 px-1.5 py-0.5 text-[0.6875rem] font-medium text-late uppercase"
             title="This run deliberately submits an invalid AI proposal to demonstrate the validator rejecting it. A run configuration, not a threat level."
           >
+            <FlaskConical className="size-3" aria-hidden />
             fault injection
           </span>
         ) : null}

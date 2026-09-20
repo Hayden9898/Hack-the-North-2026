@@ -92,12 +92,14 @@ function ClaimCard({ fact, onShowEvidence }: { fact: Fact; onShowEvidence: (f: F
           className={cn(
             'w-[5.5rem] shrink-0 text-right leading-none tabular-nums',
             // Never a verdict token: this is a counted value, not a classification.
-            v.isIdentifier
+            // The display numeral is for magnitudes. An identifier is not one, and neither is
+            // a yes/no -- "yes" at 32px was louder than the counts it depends on.
+            v.isIdentifier || v.isBoolean
               ? 'font-mono text-mono text-fg-muted'
               : 'font-sans text-[2rem] font-semibold tracking-tight text-fg',
           )}
         >
-          {v.isIdentifier ? `#${v.figure}` : v.figure}
+          {v.isIdentifier ? `#${v.figure}` : v.isBoolean ? (v.figure === 'yes' ? '✓ yes' : '✗ no') : v.figure}
         </span>
       ) : null}
 
