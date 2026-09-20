@@ -173,13 +173,20 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   return <h3 className="mb-3 text-caption text-fg-muted uppercase">{children}</h3>
 }
 
-/** The reproducibility claim, stated plainly. */
+/**
+ * The reproducibility claim, stated plainly.
+ *
+ * Deliberately NOT green. The same page de-greened "all rule legs present" and "evaluation
+ * complete" because green reassurance 40px under a red verdict reads as "this is fine", and a
+ * recount match is the same class of integrity statement. The rule here is: colour only when
+ * something is wrong. A match states itself in words and a check glyph; a MISMATCH shouts.
+ */
 function ProofSeal({ recomputed, recorded }: { recomputed?: number; recorded?: unknown }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-lg border border-normal/35 bg-normal-wash px-3 py-2">
-      <Check className="size-4 shrink-0 text-normal" aria-hidden />
+    <div className="flex items-center gap-2.5 rounded-lg border border-border-strong bg-surface-raised px-3 py-2">
+      <Check className="size-4 shrink-0 text-fg" aria-hidden />
       <div className="text-caption leading-snug">
-        <div className="font-semibold text-normal normal-case tracking-normal">Recounted now, same answer</div>
+        <div className="font-semibold text-fg normal-case tracking-normal">Recounted now, same answer</div>
         <div className="font-mono text-fg-muted normal-case tracking-normal">
           recomputed {fmtNum(recomputed)} = recorded {String(recorded)}
         </div>

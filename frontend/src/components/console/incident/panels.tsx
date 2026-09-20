@@ -22,6 +22,7 @@ import { cn } from '@/lib/cn'
 import { Button } from '@/components/ui/button'
 import { StatusChip } from '@/components/ui/status-chip'
 import { axisTicks, bandScale, tickCount } from '../../charts/scale'
+import { splitInvariants } from '../invariants'
 
 /* ------------------------------------------------------------------ unknowns */
 
@@ -165,7 +166,25 @@ export function TimelinePanel({
   triggerSeq: number
 }) {
   if (timeline.length === 0) return <Empty>No evidence events under the current cutoff.</Empty>
+
+  // Same treatment as the evidence drawer. Before this, the drawer hoisted its invariants and
+  // this table -- one scroll down the same page -- still printed the account, path, status and
+  // relation identically on all 81 rows while truncating the path mid-token.
+  const { constant, varies } = splitInvariants(timeline, [
+    { key: 'account', label: 'account', get: (t) => `${t.username}@${t.ip_raw}` },
+    { key: 'request', label: 'request', get: (t) => `${t.method} ${t.path}` },
+    { key: 'status', label: 'status', get: (t) => String(t.status) },
+    { key: 'relation', label: 'relation', get: (t) => `${t.relation_type}${t.rule_id ? ` ${t.rule_id}` : ''}` },
+  ])
+
   return (
+    <div className="space-y-2">
+      {constant.length > 0 ? (
+        <p className="rounded-md border border-border bg-surface-raised px-3 py-2 font-mono text-mono text-fg-muted">
+          <span>all {fmtNum(timeline.length)}: </span>
+          <span className="break-all text-fg">{constant.map((c) => c.value).join(' · ')}</span>
+        </p>
+      ) : null}
     <div
       className="overflow-x-auto rounded-lg border border-border"
       tabIndex={0}
@@ -177,10 +196,10 @@ export function TimelinePanel({
           <tr className="border-b border-border bg-surface-raised text-left">
             <Th className="text-right">seq</Th>
             <Th>time (UTC)</Th>
-            <Th>account@ip</Th>
-            <Th>request</Th>
-            <Th className="text-right">status</Th>
-            <Th>relation</Th>
+            {varies.has('account') ? <Th>account@ip</Th> : null}
+            {varies.has('request') ? <Th>request</Th> : null}
+            {varies.has('status') ? <Th className="text-right">status</Th> : null}
+            {varies.has('relation') ? <Th>relation</Th> : null}
             <Th>class</Th>
           </tr>
         </thead>
@@ -201,17 +220,27 @@ export function TimelinePanel({
                   </Link>
                 </Td>
                 <Td className="whitespace-nowrap tabular-nums text-fg-muted">{fmtTime(t.event_time)}</Td>
-                <Td className="whitespace-nowrap">
-                  {t.username}@{t.ip_raw}
-                </Td>
-                <Td className="max-w-[28ch] truncate" title={`${t.method} ${t.path}`}>
-                  {t.method} {t.path}
-                </Td>
-                <Td className="text-right tabular-nums">{t.status}</Td>
-                <Td className="text-fg-muted">
-                  {t.relation_type}
-                  {t.rule_id ? <span className="ms-1 text-accent">{t.rule_id}</span> : null}
-                </Td>
+                {varies.has('account') ? (
+                  <Td className="whitespace-nowrap">
+                    {t.username}@{t.ip_raw}
+                  </Td>
+                ) : null}
+                {varies.has('request') ? (
+                  // Truncate with a title here, not break-all: this table is a scannable
+                  // overview and wrapping 81 long paths made it 12,000px tall. The drawer is
+                  // where a full line is read, and it hoists the path out entirely when the
+                  // rows share one.
+                  <Td className="max-w-[34ch] truncate" title={`${t.method} ${t.path}`}>
+                    {t.method} {t.path}
+                  </Td>
+                ) : null}
+                {varies.has('status') ? <Td className="text-right tabular-nums">{t.status}</Td> : null}
+                {varies.has('relation') ? (
+                  <Td className="text-fg-muted">
+                    {t.relation_type}
+                    {t.rule_id ? <span className="ms-1 text-accent">{t.rule_id}</span> : null}
+                  </Td>
+                ) : null}
                 <Td>
                   {t.threat_class ? <StatusChip verdict={t.threat_class} size="sm" /> : <span className="text-fg-muted">—</span>}
                 </Td>
@@ -220,6 +249,7 @@ export function TimelinePanel({
           })}
         </tbody>
       </table>
+    </div>
     </div>
   )
 }
@@ -477,7 +507,10 @@ export function DispositionPanel({
     }
   }
 
-  const field = 'w-full rounded-md border border-border bg-surface-raised px-2.5 py-1.5 text-body text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none'
+  // border-strong, not the decorative hairline: WCAG 1.4.11 wants 3:1 on a control boundary,
+  // and the hairline measured 1.32:1 against the card in dark.
+  const field =
+    'w-full rounded-md border border-border-strong bg-surface-raised px-2.5 py-1.5 text-body text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none'
 
   return (
     <div className="space-y-3">

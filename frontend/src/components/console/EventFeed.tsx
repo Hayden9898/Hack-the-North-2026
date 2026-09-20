@@ -99,7 +99,7 @@ export function EventFeed({ runId, tick, cutoff }: { runId: string; tick: number
   const errText = error ? describeError(error) : null
   const active = !!(filters.threat_class || filters.phase || filters.account)
   const select =
-    'rounded-md border border-border bg-surface-raised px-2 py-1 text-caption text-fg normal-case tracking-normal focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none'
+    'rounded-md border border-border-strong bg-surface-raised px-2 py-1 text-caption text-fg normal-case tracking-normal focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none'
 
   return (
     <section aria-labelledby="feed" className="rounded-lg border border-border bg-surface">
@@ -148,7 +148,7 @@ export function EventFeed({ runId, tick, cutoff }: { runId: string; tick: number
               onChange={(e) => setAccountDraft(e.target.value)}
               placeholder="account"
               aria-label="Filter by account"
-              className="w-24 rounded-md border border-border bg-surface-raised px-2 py-1 font-mono text-mono text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+              className="w-24 rounded-md border border-border-strong bg-surface-raised px-2 py-1 font-mono text-mono text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
             />
             <Button type="submit" variant="outline" size="sm">
               Filter

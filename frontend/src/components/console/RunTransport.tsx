@@ -58,9 +58,9 @@ export function RunTransport({ run, onChanged }: { run: Run; onChanged: (r: Run)
           min={0}
           step="any"
           value={speed}
-          disabled={terminal}
+          disabled={terminal || busy !== null}
           onChange={(ev) => setSpeedDraft(ev.target.value)}
-          className="w-20 rounded-md border border-border bg-surface-raised px-2 py-1 font-mono text-mono text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+          className="w-20 rounded-md border border-border-strong bg-surface-raised px-2 py-1 font-mono text-mono text-fg disabled:border-border disabled:text-fg-muted focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
         />
         <Button
           size="sm"

@@ -1,4 +1,5 @@
 import { ChevronDown } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import type { IncidentCore, IncidentVersion, IncidentVersionFull } from '../../../api'
 import { fmtNum, fmtTime, ruleReference } from '../../../format'
 import { StatusChip } from '@/components/ui/status-chip'
@@ -32,10 +33,12 @@ export function VerdictBand({
     <header className="rounded-xl border border-border bg-surface px-6 py-6 sm:px-8 sm:py-7">
       <div className="flex flex-wrap items-center gap-2">
         <StatusChip verdict={version.threat_class} />
-        <span className="text-caption text-fg-muted uppercase">{incident.status}</span>
-        <Dot />
-        <PhaseChip phase={incident.phase} />
-        <Dot />
+        {/* Status and phase travel together so a wrap can never strand a bare separator. */}
+        <span className="flex items-center gap-2">
+          <span className="text-caption text-fg-muted uppercase">{incident.status}</span>
+          <Dot />
+          <PhaseChip phase={incident.phase} />
+        </span>
         <span className="flex gap-1">
           {version.rule_ids.map((r) => {
             const ref = ruleReference(r)
@@ -86,10 +89,15 @@ export function VerdictBand({
         </Meta>
         <Meta label="evidence">{fmtNum(evidenceCount)} events</Meta>
         <Meta label="trigger">
-          <span className="font-mono">run_seq {fmtNum(version.trigger_seq)}</span>
+          <Link
+            to={`/app/runs/${encodeURIComponent(incident.run_id)}/events/${version.trigger_seq}`}
+            className="font-mono text-accent underline decoration-transparent underline-offset-2 hover:decoration-current focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+          >
+            run_seq {fmtNum(version.trigger_seq)} →
+          </Link>
         </Meta>
 
-        <div className="ms-auto flex items-center gap-2">
+        <div className="flex w-full items-center gap-2 md:ms-auto md:w-auto">
           {!isCurrent ? (
             <span className="rounded-sm border border-late/45 px-1.5 py-0.5 text-[0.6875rem] font-medium text-late">
               older version
@@ -101,7 +109,7 @@ export function VerdictBand({
               <select
                 value={String(version.version)}
                 onChange={(e) => onVersionChange(Number(e.target.value))}
-                className="appearance-none rounded-md border border-border bg-surface-raised py-1 ps-2 pe-7 font-mono text-mono text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+                className="appearance-none rounded-md border border-border-strong bg-surface-raised py-1 ps-2 pe-7 font-mono text-mono text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
               >
                 {versions.map((v) => (
                   <option key={v.version} value={String(v.version)}>

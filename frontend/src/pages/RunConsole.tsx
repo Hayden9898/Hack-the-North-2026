@@ -213,7 +213,7 @@ function RunHeaderBand({
             fault injection
           </span>
         ) : null}
-        <span className="ms-auto">
+        <span className="w-full md:ms-auto md:w-auto">
           <ConnectionDot
             status={status}
             attempts={attempts}
@@ -233,15 +233,28 @@ function RunHeaderBand({
         <p className="mt-4 flex items-start gap-2 border-t border-border pt-3 text-caption text-pending normal-case tracking-normal">
           <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
           <span>
-            <span className="font-medium">{modelHealthLabel(run.model_health)}.</span>{' '}
+            <span className="font-medium">{modelHealthLabel(run.model_health)}</span>
             <span className="text-fg-muted">
-              {modelHealthExplanation(run.model_health) ?? 'Rule detections still apply; no model score is available.'}
+              {' — '}
+              {stripRestatement(modelHealthExplanation(run.model_health), modelHealthLabel(run.model_health)) ??
+                'no model artifact is scoring events. ML scores are null; rule detections still apply.'}
             </span>
           </span>
         </p>
       ) : null}
     </header>
   )
+}
+
+/**
+ * The health label was being restated as the first words of its own explanation
+ * ("rules-only. Rules-only mode: no model artifact is scoring events."). Drop the echo.
+ */
+function stripRestatement(detail: string | null, label: string): string | null {
+  if (!detail) return null
+  const lead = new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s:,-]*(mode)?[\\s:,-]*`, 'i')
+  const out = detail.replace(lead, '')
+  return out.charAt(0).toLowerCase() + out.slice(1)
 }
 
 function RunStatePill({ state }: { state: RunState }) {

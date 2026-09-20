@@ -106,11 +106,15 @@ function ClaimCard({ fact, onShowEvidence }: { fact: Fact; onShowEvidence: (f: F
           <span className="text-heading text-fg">{v.label}</span>
           {v.recomputable ? <ProvableTag /> : null}
         </span>
-        {v.detail ? <span className="mt-1 block max-w-[62ch] text-body text-fg-muted">{v.detail}</span> : null}
+        {v.detail ? (
+          <span className="mt-1 block max-w-[62ch] text-body text-fg-muted">
+            <EvidenceText text={v.detail} args={fact.args} />
+          </span>
+        ) : null}
       </span>
 
       {hasEvidence ? (
-        <span className="flex shrink-0 items-center gap-1.5 text-caption text-fg-muted normal-case tracking-normal group-hover/claim:text-accent">
+        <span className="flex shrink-0 items-center gap-1.5 text-caption text-accent normal-case tracking-normal underline decoration-transparent underline-offset-2 group-hover/claim:decoration-current">
           {evidenceLabel(fact)}
           <ArrowRight className="size-3.5" aria-hidden />
         </span>
@@ -138,11 +142,46 @@ function evidenceLabel(fact: Fact): string {
   return n > 0 ? `${fmtNum(n)} ${n === 1 ? 'line' : 'lines'}` : 'proof'
 }
 
+/**
+ * Renders a claim sentence with the log-derived values set in mono.
+ *
+ * The rule across this product is that anything appearing verbatim in the source log — account,
+ * path, method, status, seq, hash — is mono. Claim descriptions were breaking it: the same path
+ * that is mono on the findings card and mono in the drawer's hoisted line was proportional sans
+ * here, which tells a reader the mono is decorative rather than a rule.
+ */
+function EvidenceText({ text, args }: { text: string; args: Record<string, unknown> }) {
+  const values = Object.values(args ?? {})
+    .filter((v): v is string | number => typeof v === 'string' || typeof v === 'number')
+    .map(String)
+    .filter((v) => v.length >= 3)
+    .sort((a, b) => b.length - a.length)
+  if (values.length === 0) return <>{text}</>
+
+  const escaped = values.map((v) => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  const parts = text.split(new RegExp(`(${escaped.join('|')})`, 'g'))
+  const isValue = new Set(values)
+  return (
+    <>
+      {parts.map((part, i) =>
+        isValue.has(part) ? (
+          // eslint-disable-next-line react/no-array-index-key
+          <span key={i} className="font-mono text-[0.92em] text-fg">
+            {part}
+          </span>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  )
+}
+
 /** Marks a fact the API can recount live against the raw rows — the reproducibility claim. */
 function ProvableTag() {
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-sm border border-accent/35 px-1.5 py-0.5 text-[0.6875rem] font-medium text-accent"
+      className="inline-flex items-center gap-1 rounded-sm border border-border-strong px-1.5 py-0.5 text-[0.6875rem] font-medium text-fg-muted"
       title="This value carries a query the API can replay against the raw rows under the same cutoff."
     >
       <Sigma className="size-3" aria-hidden />

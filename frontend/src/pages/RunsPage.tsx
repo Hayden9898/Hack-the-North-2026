@@ -276,7 +276,7 @@ function NewRunDialog({ datasets, onCreated }: { datasets: Dataset[]; onCreated:
   }
 
   const field =
-    'w-full rounded-md border border-border bg-surface-raised px-2.5 py-1.5 text-body text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none'
+    'w-full rounded-md border border-border-strong bg-surface-raised px-2.5 py-1.5 text-body text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none'
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

@@ -70,7 +70,7 @@ export function ActivityPanel({ runId, processedSeq, run }: { runId: string; pro
               onChange={(e) => setAccountDraft(e.target.value)}
               placeholder="all accounts"
               aria-label="Filter by account"
-              className="w-32 rounded-md border border-border bg-surface-raised px-2 py-1 font-mono text-mono text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+              className="w-32 rounded-md border border-border-strong bg-surface-raised px-2 py-1 font-mono text-mono text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
             />
             <Button type="submit" variant="outline" size="sm">
               Filter
