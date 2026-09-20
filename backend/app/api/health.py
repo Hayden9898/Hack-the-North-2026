@@ -68,6 +68,8 @@ def ready(response: Response) -> dict[str, Any]:
         "migrations": migrations,
         "config": {"ok": config_ok, "hash": config_hash},
         "models": {"artifacts": manifests, "active": active_model},
+        # Whether a browser must present an operator bearer token for mutations. Never the token itself.
+        "auth": {"operator_required": settings.operator_auth_required, "ingest_required": settings.ingest_auth_required},
         "integrations": integrations,
         "sentry_active": sentry.enabled(),
         "degraded_modes": degraded,

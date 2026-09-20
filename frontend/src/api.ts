@@ -1,7 +1,11 @@
 /**
  * Typed client for the Log & Order API. Shapes mirror the dict keys returned by
  * backend/app/api/{runs,incidents,updates,datasets,health}.py exactly.
- * Same-origin only: `/api/v1/...` and `/health/...`; no tokens, no query-string secrets.
+ * Same-origin only: `/api/v1/...` and `/health/...`; no query-string secrets.
+ *
+ * On a shared deployment the API requires an operator bearer token for mutations. The token is entered by the
+ * operator, kept in this browser (sessionStorage) and sent only as an `Authorization` header on same-origin
+ * requests — never in a URL, never logged, never persisted server-side.
  */
 
 export type ThreatClass = 'normal' | 'suspicious' | 'high_risk'
@@ -24,6 +28,8 @@ export interface Health {
   migrations: { current: string | null; head: string | null; ok: boolean; error?: string }
   config: { ok: boolean; hash: string | null }
   models: { artifacts: string[]; active: string | null }
+  /** Present from the shared-deployment build onward; absent on older API builds (treat as not required). */
+  auth?: { operator_required: boolean; ingest_required: boolean }
   integrations: Integrations
   sentry_active: boolean
   degraded_modes: string[]
@@ -654,6 +660,44 @@ function setDbDown(v: boolean) {
   for (const cb of dbListeners) cb(v)
 }
 
+// Operator bearer token for shared deployments. Kept in sessionStorage (cleared when the tab closes), sent only
+// as a header. The loopback demo needs none: the API accepts local mutations without one.
+const TOKEN_KEY = 'logorder.operator_token'
+type TokenListener = (present: boolean) => void
+const tokenListeners = new Set<TokenListener>()
+let operatorToken = readStoredToken()
+
+function readStoredToken(): string {
+  try {
+    return sessionStorage.getItem(TOKEN_KEY) ?? ''
+  } catch {
+    return '' // storage blocked (private mode): the token simply lives in memory for this page
+  }
+}
+
+export function hasOperatorToken(): boolean {
+  return operatorToken !== ''
+}
+
+export function setOperatorToken(token: string): void {
+  operatorToken = token.trim()
+  try {
+    if (operatorToken) sessionStorage.setItem(TOKEN_KEY, operatorToken)
+    else sessionStorage.removeItem(TOKEN_KEY)
+  } catch {
+    /* ignore: in-memory only */
+  }
+  for (const cb of tokenListeners) cb(operatorToken !== '')
+}
+
+export function subscribeOperatorToken(cb: TokenListener): () => void {
+  tokenListeners.add(cb)
+  cb(operatorToken !== '')
+  return () => {
+    tokenListeners.delete(cb)
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response
   try {
@@ -663,6 +707,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
         Accept: 'application/json',
         // Let the browser provide the multipart boundary for streamed file uploads.
         ...(init?.body && !(init.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
+        ...(operatorToken ? { Authorization: `Bearer ${operatorToken}` } : {}),
         ...((init?.headers as Record<string, string>) ?? {}),
       },
     })
