@@ -22,7 +22,14 @@ export function RunsPage() {
   const runs = useFetch<Run[]>(() => api.listRuns(), [])
   const datasets = useFetch<Dataset[]>(() => api.listDatasets(), [])
   const models = useFetch<Model[]>(() => api.listModels(), [])
-  useInterval(() => void runs.reload(), 5_000)
+  // Imports are asynchronous, so the dataset list and the model registry have to be polled too:
+  // without this a freshly uploaded dataset stays at "importing" and stays out of the run dialog
+  // until the operator reloads the page.
+  useInterval(() => {
+    void runs.reload()
+    void datasets.reload()
+    void models.reload()
+  }, 5_000)
 
   const items = runs.data ?? []
   const [lead, ...rest] = pickLead(items)

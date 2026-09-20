@@ -43,7 +43,7 @@
   --ai: var(--color-accent);
   --ai-bg: var(--color-surface-raised);
   --mono: ui-monospace, 'Cascadia Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
-  --sans: system-ui, -apple-system, 'Segoe UI', Roboto, Inter, sans-serif;
+  --sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --radius: 6px;
 }
 
@@ -243,6 +243,19 @@ button.link {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+.setup-hint {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border-left: 2px solid var(--accent-2);
+  color: var(--fg-2);
+  background: color-mix(in srgb, var(--bg-2) 84%, var(--accent-2));
+  border-radius: 0 var(--radius) var(--radius) 0;
+  font-size: 12px;
+}
+.setup-hint strong {
+  color: var(--fg);
 }
 .row {
   display: flex;
@@ -815,6 +828,11 @@ ul.bul {
   width: 100%;
   height: auto;
   display: block;
+  overflow: visible;
+  border: 1px solid color-mix(in srgb, var(--line) 80%, var(--accent-2));
+  border-radius: calc(var(--radius) + 2px);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-3) 70%, transparent), var(--bg-2));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.025), 0 10px 28px rgb(0 0 0 / 0.18);
 }
 .conn {
   display: inline-flex;
