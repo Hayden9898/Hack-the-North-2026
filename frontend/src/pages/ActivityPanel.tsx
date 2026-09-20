@@ -119,7 +119,7 @@ export function ActivityPanel({ runId, processedSeq, run }: { runId: string; pro
 
 /**
  * Operator-only actions. Behind the provenance disclosure on purpose — a judge reading the
- * chart should not be one click from re-materialising the aggregate.
+ * chart should not be one click from re-materializing the aggregate.
  */
 function OperatorTools({ runId, disabled, onRefreshed }: { runId: string; disabled: boolean; onRefreshed: () => void }) {
   const [refresh, setRefresh] = useState<{ busy: boolean; result: RefreshResponse | null; error: unknown }>({
@@ -157,7 +157,7 @@ function OperatorTools({ runId, disabled, onRefreshed }: { runId: string; disabl
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" disabled={refresh.busy || disabled} onClick={() => void doRefresh()}>
-          {refresh.busy ? 'Refreshing…' : 'Re-materialise aggregate'}
+          {refresh.busy ? 'Refreshing…' : 'Re-materialize aggregate'}
         </Button>
         <Button variant="outline" size="sm" disabled={bench.busy} onClick={() => void doBench()}>
           {bench.busy ? 'Measuring…' : 'Benchmark aggregate vs raw'}

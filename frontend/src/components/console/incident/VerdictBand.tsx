@@ -2,6 +2,7 @@ import { ChevronDown } from 'lucide-react'
 import type { IncidentCore, IncidentVersion, IncidentVersionFull } from '../../../api'
 import { fmtNum, fmtTime } from '../../../format'
 import { StatusChip } from '@/components/ui/status-chip'
+import { PhaseChip } from '../PhaseChip'
 
 /**
  * The primary read: verdict, what happened, and the qualifier that stops "high risk" being
@@ -33,9 +34,7 @@ export function VerdictBand({
         <StatusChip verdict={version.threat_class} />
         <span className="text-caption text-fg-muted uppercase">{incident.status}</span>
         <Dot />
-        <span className="text-caption text-fg-muted uppercase">
-          {incident.phase === 'warmup' ? 'historical warmup' : 'visible window'}
-        </span>
+        <PhaseChip phase={incident.phase} />
         <Dot />
         <span className="flex gap-1">
           {version.rule_ids.map((r) => (
@@ -45,8 +44,8 @@ export function VerdictBand({
           ))}
         </span>
         {escalated ? (
-          <span className="rounded-sm border border-high-risk/40 bg-high-risk-wash px-1.5 py-0.5 text-[0.6875rem] font-medium text-high-risk">
-            escalated from {versions[0].threat_class.replace('_', ' ')}
+          <span className="text-caption text-fg-muted normal-case tracking-normal">
+            escalated from {versions[0].threat_class.replace('_', ' ')} at v{version.version}
           </span>
         ) : null}
       </div>

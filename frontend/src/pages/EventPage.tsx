@@ -7,6 +7,7 @@ import { CodeBlock } from '@/components/ui/code-block'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatusChip, resolveStatus } from '@/components/ui/status-chip'
+import { PhaseChip } from '../components/console/PhaseChip'
 
 /**
  * Single event.
@@ -63,11 +64,7 @@ export function EventPage() {
       <header className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <StatusChip {...status} />
-          {e.phase === 'warmup' ? (
-            <span className="rounded-sm border border-border px-1.5 py-0.5 text-[0.6875rem] text-fg-muted uppercase">
-              historical warmup — state-building, not a live decision
-            </span>
-          ) : null}
+          <PhaseChip phase={e.phase} />
           {e.rule_ids.map((r) => (
             <span key={r} className="rounded-sm border border-accent/35 px-1.5 py-0.5 font-mono text-[0.6875rem] text-accent">
               {r}

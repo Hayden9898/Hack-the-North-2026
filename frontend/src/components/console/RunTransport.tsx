@@ -109,14 +109,22 @@ export function ConnectionDot({
   attempts,
   lastId,
   resyncs,
+  terminal = false,
 }: {
   status: string
   attempts: number
   lastId: number | null
   resyncs: number
+  /** run has finished or is blocked, so no further updates are expected */
+  terminal?: boolean
 }) {
-  const label =
-    status === 'live'
+  // On a finished run the stream has nothing left to deliver, so a permanent "connecting"
+  // is misleading -- it reads as a broken transport rather than a run that is simply done.
+  const label = terminal
+    ? status === 'live'
+      ? 'stream open · run finished, no further updates'
+      : 'run finished · no further updates expected'
+    : status === 'live'
       ? 'live'
       : status === 'connecting'
         ? 'connecting'
@@ -125,8 +133,13 @@ export function ConnectionDot({
           : status === 'polling'
             ? `stream unavailable · polling every 2 s`
             : 'disconnected'
-  const tone =
-    status === 'live' ? 'text-normal' : status === 'connecting' ? 'text-fg-muted' : 'text-late'
+  const tone = terminal
+    ? 'text-fg-muted'
+    : status === 'live'
+      ? 'text-normal'
+      : status === 'connecting'
+        ? 'text-fg-muted'
+        : 'text-late'
 
   return (
     <span
@@ -137,7 +150,7 @@ export function ConnectionDot({
         aria-hidden
         className={cn(
           'inline-block size-1.5 rounded-full',
-          status === 'live' ? 'bg-normal' : status === 'connecting' ? 'bg-fg-subtle' : 'bg-late',
+          terminal ? 'bg-fg-subtle' : status === 'live' ? 'bg-normal' : status === 'connecting' ? 'bg-fg-subtle' : 'bg-late',
         )}
       />
       {label}

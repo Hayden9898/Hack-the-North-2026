@@ -79,6 +79,14 @@ export interface ClaimView {
   recomputable: boolean
   /** a zero count is evidence too, and must not look like missing data */
   emphasisZero: boolean
+  /**
+   * True when the figure identifies something rather than counting it.
+   *
+   * A forum object id set in a 32px display numeral reads as "1042 shared forum objects".
+   * Identifiers render as mono at body size instead, so the display slot stays reserved for
+   * quantities and durations.
+   */
+  isIdentifier: boolean
 }
 
 function str(v: unknown): string {
@@ -104,6 +112,7 @@ export function claimView(f: Fact): ClaimView {
         detail: `${str(a.account)} was refused ${str(a.path)} with ${str(a.status) || '403'} this many times before the request that triggered this incident`,
         recomputable,
         emphasisZero: false,
+        isIdentifier: false,
       }
     case 'prior_successes_count':
       return {
@@ -112,6 +121,7 @@ export function claimView(f: Fact): ClaimView {
         detail: `the same account had never been served ${str(a.path)} before — this is what makes the successful response a change`,
         recomputable,
         emphasisZero: true,
+        isIdentifier: false,
       }
     case 'first_success_after_denials':
       return {
@@ -120,6 +130,7 @@ export function claimView(f: Fact): ClaimView {
         detail: 'the successful response is the first of its kind for this account and resource under the cutoff',
         recomputable,
         emphasisZero: false,
+        isIdentifier: false,
       }
     case 'auth_failures_in_window':
       return {
@@ -128,6 +139,7 @@ export function claimView(f: Fact): ClaimView {
         detail: `for ${str(a.pair)} within ${str(a.window_seconds)} s. Repeated failures show attempts, not who made them.`,
         recomputable,
         emphasisZero: false,
+        isIdentifier: false,
       }
     case 'time_delta_seconds': {
       const n = Number(v)
@@ -137,6 +149,7 @@ export function claimView(f: Fact): ClaimView {
         detail: 'recorded time between the two requests this incident links. Proximity in time is not causation.',
         recomputable,
         emphasisZero: false,
+        isIdentifier: false,
       }
     }
     case 'same_object':
@@ -146,6 +159,7 @@ export function claimView(f: Fact): ClaimView {
         detail: 'both requests reference the same forum object id',
         recomputable,
         emphasisZero: false,
+        isIdentifier: true,
       }
     case 'source_familiarity':
       return {
@@ -154,6 +168,7 @@ export function claimView(f: Fact): ClaimView {
         detail: `${str(a.pair) || 'this account/source pair'} measured against the frozen August reference`,
         recomputable,
         emphasisZero: false,
+        isIdentifier: false,
       }
     default:
       return {
@@ -167,6 +182,7 @@ export function claimView(f: Fact): ClaimView {
         detail: '',
         recomputable,
         emphasisZero: false,
+        isIdentifier: false,
       }
   }
 }

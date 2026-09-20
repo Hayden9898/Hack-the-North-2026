@@ -46,7 +46,7 @@ export function FreshnessDetail({ freshness }: { freshness: Freshness }) {
     <div className="space-y-1.5">
       <p className="max-w-[72ch] text-body text-fg-muted">{f.detail}</p>
       <dl className="flex flex-wrap gap-x-5 gap-y-1 font-mono text-mono text-fg-subtle">
-        {f.materializedThrough ? <Pair k="materialised through" v={f.materializedThrough} /> : null}
+        {f.materializedThrough ? <Pair k="materialized through" v={f.materializedThrough} /> : null}
         {f.materializedBuckets !== null ? <Pair k="aggregate buckets" v={f.materializedBuckets.toLocaleString()} /> : null}
         {f.rawTailBuckets !== null ? <Pair k="raw tail buckets" v={f.rawTailBuckets.toLocaleString()} /> : null}
         {f.bucketMinutes !== null ? <Pair k="bucket" v={`${f.bucketMinutes} min`} /> : null}

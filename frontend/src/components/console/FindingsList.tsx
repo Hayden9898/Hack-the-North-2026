@@ -4,6 +4,7 @@ import type { IncidentRow } from '../../api'
 import { fmtNum, fmtTime, shortId } from '../../format'
 import { cn } from '@/lib/cn'
 import { StatusChip } from '@/components/ui/status-chip'
+import { PhaseChip } from './PhaseChip'
 
 /**
  * The findings. This is the answer the run console exists to give, so it is the primary read —
@@ -48,11 +49,7 @@ function FindingCard({ incident: i, runId }: { incident: IncidentRow; runId: str
     >
       <div className="flex flex-wrap items-center gap-2">
         <StatusChip verdict={i.current_class} size={high ? 'md' : 'sm'} />
-        {i.phase === 'warmup' ? (
-          <span className="rounded-sm border border-border px-1.5 py-0.5 text-[0.6875rem] text-fg-muted uppercase">
-            historical warmup
-          </span>
-        ) : null}
+        {i.phase === 'warmup' ? <PhaseChip phase="warmup" /> : null}
         {i.rule_ids.map((r) => (
           <span key={r} className="rounded-sm border border-border px-1.5 py-0.5 font-mono text-[0.6875rem] text-fg-muted">
             {r}
@@ -72,7 +69,13 @@ function FindingCard({ incident: i, runId }: { incident: IncidentRow; runId: str
       {/* Not routed through cn(): tailwind-merge groups the custom `text-<size>` tokens with
           `text-<colour>` and drops one, which silently stripped `text-fg` here and left the
           heading inheriting the legacy anchor colour at 2.0:1. Filed as R4 to Agent A. */}
-      <h3 className={high ? 'mt-2.5 max-w-[54ch] text-balance text-heading text-fg' : 'mt-2.5 max-w-[64ch] text-balance text-body text-fg'}>
+      <h3
+        className={
+          high
+            ? 'mt-2.5 max-w-[52ch] text-balance text-[1.25rem] leading-snug font-semibold tracking-tight text-fg'
+            : 'mt-2.5 max-w-[60ch] text-balance text-heading text-fg'
+        }
+      >
         {i.summary?.headline ?? i.primary_rule_id}
       </h3>
 
@@ -94,7 +97,7 @@ function FindingCard({ incident: i, runId }: { incident: IncidentRow; runId: str
         <span>{fmtNum(i.evidence_count)} evidence</span>
         <span>v{i.current_version}</span>
         {i.explanation_state === 'rejected' ? (
-          <span className="font-medium text-high-risk">AI proposal rejected</span>
+          <span className="font-medium text-blocked">AI proposal rejected by the validator</span>
         ) : null}
         <span className="ms-auto font-mono text-fg-subtle">{shortId(i.incident_id, 12)}</span>
       </div>

@@ -8,6 +8,7 @@ import {
   type Delivery,
   type Disposition,
   type EvidenceStrength,
+  type Fact,
   type FeedbackRow,
   type Playbook,
   type PlaybooksBlock,
@@ -16,6 +17,7 @@ import {
   type TimelineEntry,
 } from '../../../api'
 import { DELIVERY_STATE_LABEL, DISPOSITIONS, fmtNum, fmtTime, shortId, unknownLabel } from '../../../format'
+import { scopeStatements } from './facts'
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/ui/button'
 import { StatusChip } from '@/components/ui/status-chip'
@@ -27,24 +29,83 @@ import { axisTicks, bandScale, tickCount } from '../../charts/scale'
  * What the logs cannot establish. The third category alongside observed fact and AI suggestion,
  * and it must never be mistaken for either — so: no verdict colour, no finding styling.
  */
-export function UnknownsPanel({ strength, summary }: { strength: EvidenceStrength; summary: Summary }) {
-  const codes = [...new Set([...(strength.missing_evidence ?? []), ...(summary.unknowns ?? [])])]
-  if (codes.length === 0) return null
+/**
+ * The limits of this incident, stated once.
+ *
+ * There were two of these: a dashed "does not assert" box in the main column and a solid
+ * "cannot establish" box in the rail, both listing "who created the forum object". The
+ * epistemic restraint is the best idea in the product and it was shipped twice in two styles
+ * instead of once, well. Merged here into one block with two labelled groups, because the two
+ * kinds of limit are genuinely different:
+ *
+ *   - not recorded  — a data-availability limit; the logs do not contain it
+ *   - not asserted  — a scope limit; the detector deliberately makes no claim
+ *
+ * Never a verdict colour and never styled as a finding: this is the honesty surface, and
+ * dressing it as evidence would invert its meaning.
+ */
+export function UnknownsPanel({
+  strength,
+  summary,
+  scope,
+}: {
+  strength: EvidenceStrength
+  summary: Summary
+  scope: Fact | null
+}) {
+  const notRecorded = [...new Set([...(strength.missing_evidence ?? []), ...(summary.unknowns ?? [])])].map(unknownLabel)
+  const asserted = scopeStatements(scope).map((t) => `This incident does not assert ${t}.`)
+
+  // The same gap can surface in both lists; say it once, under the stronger claim.
+  const seen = new Set(notRecorded.map(norm))
+  const notAsserted = asserted.filter((t) => !seen.has(norm(t)))
+
+  if (notRecorded.length === 0 && notAsserted.length === 0) return null
+
   return (
-    <section aria-labelledby="unknowns" className="rounded-lg border border-border bg-surface px-4 py-3.5">
-      <h3 id="unknowns" className="flex items-center gap-2 text-caption text-fg-muted uppercase">
+    <section aria-labelledby="limits" className="rounded-lg border border-border bg-surface px-4 py-3.5">
+      <h3 id="limits" className="flex items-center gap-2 text-caption text-fg-muted uppercase">
         <CircleHelp className="size-3.5" aria-hidden />
-        What these logs cannot establish
+        What this cannot establish
       </h3>
-      <ul className="mt-2.5 grid gap-1.5">
-        {codes.map((c) => (
-          <li key={c} className="text-body text-fg-muted">
-            {unknownLabel(c)}
-          </li>
-        ))}
-      </ul>
+
+      {notRecorded.length > 0 ? (
+        <div className="mt-3">
+          <h4 className="text-caption text-fg-subtle normal-case tracking-normal">Not recorded in these logs</h4>
+          <ul className="mt-1.5 grid gap-1.5">
+            {notRecorded.map((t) => (
+              <li key={t} className="text-body text-fg-muted">
+                {t}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {notAsserted.length > 0 ? (
+        <div className="mt-3 border-t border-border pt-3">
+          <h4 className="text-caption text-fg-subtle normal-case tracking-normal">Not asserted by this detector</h4>
+          <ul className="mt-1.5 grid gap-1.5">
+            {notAsserted.map((t) => (
+              <li key={t} className="text-body text-fg-muted">
+                {t}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </section>
   )
+}
+
+/** Loose match so "who created the forum object" and "Who created the forum object is not recorded" collapse. */
+function norm(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z ]/g, '')
+    .replace(/\b(this incident does not assert|is not recorded|are not recorded|is not available|that|any|the)\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 /* ------------------------------------------------------------------ evidence strength */

@@ -129,7 +129,7 @@ export function IncidentPage() {
         </main>
 
         <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
-          <UnknownsPanel strength={v.evidence_strength} summary={v.summary} />
+          <UnknownsPanel strength={v.evidence_strength} summary={v.summary} scope={grouped.scope} />
           <SideSection title="Notification">
             <DeliveryPanel deliveries={d.deliveries} />
           </SideSection>

@@ -101,7 +101,10 @@ function LeadRunCard({ run }: { run: Run }) {
           {run.mode === 'replay' ? 'historical replay' : 'live'}
         </span>
         {isFaultRun(run.name) ? (
-          <span className="rounded-sm border border-high-risk/45 bg-high-risk-wash px-1.5 py-0.5 text-[0.6875rem] font-medium text-high-risk">
+          <span
+            className="state-hatch rounded-sm border border-late/50 px-1.5 py-0.5 text-[0.6875rem] font-medium text-late uppercase"
+            title="This run deliberately submits an invalid AI proposal to demonstrate the validator rejecting it. A run configuration, not a threat level."
+          >
             fault injection
           </span>
         ) : null}
@@ -130,10 +133,25 @@ function LeadRunCard({ run }: { run: Run }) {
         </Button>
       </div>
 
-      <div className="mt-4" aria-hidden>
-        <div className="h-1 w-full overflow-hidden rounded-full bg-surface-raised">
-          <div className="h-full rounded-full bg-accent" style={{ width: `${Math.min(100, pct)}%` }} />
+      <div className="mt-4 flex items-center gap-3">
+        <div
+          className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-raised"
+          role="progressbar"
+          aria-valuenow={pct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Events evaluated as a share of events admitted"
+        >
+          <div
+            className={cn('h-full rounded-full', run.state === 'running' || run.state === 'warming' ? 'bg-accent' : 'bg-fg-subtle')}
+            style={{ width: `${Math.min(100, pct)}%` }}
+          />
         </div>
+        {/* A full bar does not mean finished -- a paused run can be caught up on its backlog
+            and still have most of the dataset ahead of it. Say which. */}
+        <span className="shrink-0 font-mono text-mono text-fg-subtle">
+          {run.state === 'completed' ? 'all admitted events evaluated' : `${runStateLabel(run.state)} · caught up to ${fmtNum(run.admitted_seq)} admitted`}
+        </span>
       </div>
     </article>
   )
@@ -148,7 +166,7 @@ function RunRow({ run }: { run: Run }) {
       <span className="text-body text-fg">{run.name || shortId(run.run_id, 14)}</span>
       <StatePill run={run} />
       {isFaultRun(run.name) ? (
-        <span className="rounded-sm border border-high-risk/45 px-1.5 py-0.5 text-[0.6875rem] font-medium text-high-risk">
+        <span className="state-hatch rounded-sm border border-late/50 px-1.5 py-0.5 text-[0.6875rem] font-medium text-late uppercase">
           fault injection
         </span>
       ) : null}
@@ -156,6 +174,11 @@ function RunRow({ run }: { run: Run }) {
         {fmtNum(run.processed_seq)} / {fmtNum(run.admitted_seq)}
       </span>
       <span className="font-mono text-mono text-fg-subtle">{speedLabel(run.speed)}</span>
+      {run.model_health !== 'active' ? (
+        <span className="state-hatch rounded-sm border border-pending/45 px-1.5 py-0.5 text-[0.6875rem] font-medium text-pending uppercase">
+          {modelHealthLabel(run.model_health)}
+        </span>
+      ) : null}
       <span className="ms-auto flex items-center gap-1.5 text-caption text-fg-muted normal-case tracking-normal">
         open <ArrowRight className="size-3.5" aria-hidden />
       </span>

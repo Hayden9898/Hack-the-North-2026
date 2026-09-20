@@ -1,8 +1,8 @@
-import { ArrowRight, Ban, ChevronRight, Sigma } from 'lucide-react'
+import { ArrowRight, ChevronRight, Sigma } from 'lucide-react'
 import type { Fact } from '../../../api'
 import { fmtNum } from '../../../format'
 import { cn } from '@/lib/cn'
-import { claimView, scopeStatements, type GroupedFacts } from './facts'
+import { claimView, type GroupedFacts } from './facts'
 
 /**
  * The argument, ranked.
@@ -37,8 +37,6 @@ export function ProofRail({
           </ul>
         </section>
       ) : null}
-
-      {scope ? <ScopePanel scope={scope} /> : null}
 
       {context.length > 0 ? (
         <section aria-labelledby="proof-context">
@@ -86,21 +84,25 @@ function ClaimCard({ fact, onShowEvidence }: { fact: Fact; onShowEvidence: (f: F
           'cursor-pointer transition-colors hover:border-border-strong hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
       )}
     >
+      {/* Fixed-width, right-aligned, tabular: an auto-width numeral column shifted every
+          label by a few px and broke the strongest vertical edge on the page. Identifiers are
+          excluded — see below. */}
       {v.figure !== null ? (
         <span
           className={cn(
-            'min-w-[4.25rem] shrink-0 font-sans text-[2rem] leading-none font-semibold tracking-tight text-fg',
-            // Never a verdict token here: this is a counted value, not a classification.
-            // Colouring it `suspicious` would make a status colour impersonate data.
-            v.emphasisZero && 'text-fg',
+            'w-[5.5rem] shrink-0 text-right leading-none tabular-nums',
+            // Never a verdict token: this is a counted value, not a classification.
+            v.isIdentifier
+              ? 'self-center font-mono text-mono text-fg-muted'
+              : 'font-sans text-[2rem] font-semibold tracking-tight text-fg',
           )}
         >
-          {v.figure}
+          {v.isIdentifier ? `#${v.figure}` : v.figure}
         </span>
       ) : null}
 
       <span className="min-w-0 flex-1">
-        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <span className="text-heading text-fg">{v.label}</span>
           {v.recomputable ? <ProvableTag /> : null}
         </span>
@@ -109,12 +111,28 @@ function ClaimCard({ fact, onShowEvidence }: { fact: Fact; onShowEvidence: (f: F
 
       {hasEvidence ? (
         <span className="mt-1 flex shrink-0 items-center gap-1.5 text-caption text-fg-muted normal-case tracking-normal group-hover/claim:text-accent">
-          {fact.evidence_event_ids.length > 0 ? `${fmtNum(fact.evidence_event_ids.length)} lines` : 'proof'}
+          {evidenceLabel(fact)}
           <ArrowRight className="size-3.5" aria-hidden />
         </span>
       ) : null}
     </Wrapper>
   )
+}
+
+/**
+ * What the drawer will actually page through.
+ *
+ * `evidence_event_ids` for the 77-denial fact holds 78 ids — the 77 denials plus the request
+ * that triggered the incident — while the drawer pages the recomputed aggregate, which is 77.
+ * Showing 78 on the button that opens a panel saying 77 undermines the one guarantee this
+ * product makes, so a recountable count labels itself with its own value.
+ */
+function evidenceLabel(fact: Fact): string {
+  if (fact.query && typeof fact.value === 'number') {
+    return `${fmtNum(fact.value)} ${fact.value === 1 ? 'line' : 'lines'}`
+  }
+  const n = fact.evidence_event_ids.length
+  return n > 0 ? `${fmtNum(n)} ${n === 1 ? 'line' : 'lines'}` : 'proof'
 }
 
 /** Marks a fact the API can recount live against the raw rows — the reproducibility claim. */
@@ -127,35 +145,6 @@ function ProvableTag() {
       <Sigma className="size-3" aria-hidden />
       recountable
     </span>
-  )
-}
-
-/**
- * What the incident explicitly does not assert.
- *
- * Deliberately not styled as a finding and never in a verdict colour: it is the product's
- * honesty surface, and dressing it up as evidence would invert its meaning.
- */
-function ScopePanel({ scope }: { scope: Fact }) {
-  const statements = scopeStatements(scope)
-  if (statements.length === 0) return null
-  return (
-    <section aria-labelledby="proof-scope" className="rounded-lg border border-dashed border-border-strong bg-surface px-4 py-3.5">
-      <h3 id="proof-scope" className="flex items-center gap-2 text-caption text-fg-muted uppercase">
-        <Ban className="size-3.5" aria-hidden />
-        This incident does not assert
-      </h3>
-      <ul className="mt-2.5 grid gap-1.5">
-        {statements.map((s) => (
-          <li key={s} className="flex gap-2 text-body text-fg-muted">
-            <span aria-hidden className="select-none text-fg-subtle">
-              —
-            </span>
-            <span>{s}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
   )
 }
 

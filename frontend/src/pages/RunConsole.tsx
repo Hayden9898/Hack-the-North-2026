@@ -16,6 +16,7 @@ import { fmtNum, fmtTime, integrationLabel, isFaultRun, modelHealthExplanation, 
 import { useFetch, useInterval, useThrottledCallback } from '../useFetch'
 import { useRunUpdates } from '../useRunUpdates'
 import { EventFeed } from '../components/console/EventFeed'
+import { PhaseChip } from '../components/console/PhaseChip'
 import { FindingsList } from '../components/console/FindingsList'
 import { ConnectionDot, RunProgress, RunTransport } from '../components/console/RunTransport'
 import { ActivityPanel } from './ActivityPanel'
@@ -203,16 +204,23 @@ function RunHeaderBand({
           {run.mode === 'replay' ? 'historical replay' : 'live'}
         </span>
         <RunStatePill state={run.state} />
-        <span className="rounded-sm border border-border px-1.5 py-0.5 text-[0.6875rem] text-fg-muted uppercase">
-          {run.phase === 'warmup' ? 'historical warmup' : 'visible window'}
-        </span>
+        <PhaseChip phase={run.phase} />
         {isFaultRun(run.name) ? (
-          <span className="rounded-sm border border-high-risk/45 bg-high-risk-wash px-1.5 py-0.5 text-[0.6875rem] font-medium text-high-risk">
+          <span
+            className="state-hatch rounded-sm border border-late/50 px-1.5 py-0.5 text-[0.6875rem] font-medium text-late uppercase"
+            title="This run deliberately submits an invalid AI proposal to demonstrate the validator rejecting it. A run configuration, not a threat level."
+          >
             fault injection
           </span>
         ) : null}
         <span className="ms-auto">
-          <ConnectionDot status={status} attempts={attempts} lastId={lastId} resyncs={resyncs} />
+          <ConnectionDot
+            status={status}
+            attempts={attempts}
+            lastId={lastId}
+            resyncs={resyncs}
+            terminal={run.state === 'completed' || run.state === 'blocked'}
+          />
         </span>
       </div>
 

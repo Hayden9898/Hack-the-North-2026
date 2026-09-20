@@ -51,7 +51,7 @@ function AiStateChip({ state }: { state: string | null }) {
   const map: Record<string, { label: string; tone: string }> = {
     validated: { label: 'suggestions validated', tone: 'text-normal border-normal/35 bg-normal-wash' },
     fallback: { label: 'no AI review', tone: 'text-fg-muted border-border' },
-    rejected: { label: 'proposal rejected', tone: 'text-high-risk border-high-risk/40 bg-high-risk-wash' },
+    rejected: { label: 'proposal rejected', tone: 'state-hatch text-blocked border-blocked/50' },
   }
   const m = map[state ?? ''] ?? { label: 'no AI review', tone: 'text-fg-muted border-border' }
   return (
@@ -92,8 +92,8 @@ function RejectedBody({ explanation }: { explanation: Explanation }) {
   const grouped = groupRejections(explanation.rejection_reasons)
   return (
     <div className="space-y-4">
-      <div className="flex gap-3 rounded-lg border border-high-risk/35 bg-high-risk-wash px-4 py-3">
-        <ShieldX className="mt-0.5 size-4 shrink-0 text-high-risk" aria-hidden />
+      <div className="flex gap-3 rounded-lg border border-blocked/45 bg-surface-raised px-4 py-3">
+        <ShieldX className="mt-0.5 size-4 shrink-0 text-blocked" aria-hidden />
         <div className="space-y-1">
           <p className="text-body font-medium text-fg">The validator refused this AI proposal.</p>
           <p className="max-w-[62ch] text-body text-fg-muted">

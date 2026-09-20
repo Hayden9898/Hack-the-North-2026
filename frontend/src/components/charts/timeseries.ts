@@ -150,7 +150,7 @@ export interface Freshness {
   tone: 'materialized' | 'tail' | 'stale' | 'raw' | 'as_of'
   /** true when the aggregate is behind the run's processed cutoff */
   stale: boolean
-  /** ISO instant the aggregate is materialised through, when there is one */
+  /** ISO instant the aggregate is materialized through, when there is one */
   materializedThrough: string | null
   /** ISO instant the aggregate was last refreshed, when known */
   refreshedAt: string | null
@@ -167,10 +167,10 @@ export function describeFreshness(source: TimeseriesSource): Freshness {
   if (source.mode === 'aggregate_plus_raw_tail') {
     const stale = source.stale
     return {
-      label: stale ? 'aggregate behind cutoff' : 'materialised aggregate',
+      label: stale ? 'aggregate behind cutoff' : 'materialized aggregate',
       detail: stale
-        ? `Tiger continuous aggregate is materialised through ${source.materialized_through}, behind the run's processed cutoff. The gap is served from raw rows.`
-        : `Served from the Tiger continuous aggregate: ${source.materialized_buckets.toLocaleString()} materialised buckets through ${source.materialized_through}, plus ${source.raw_tail_buckets.toLocaleString()} raw tail bucket${source.raw_tail_buckets === 1 ? '' : 's'}.`,
+        ? `Tiger continuous aggregate is materialized through ${source.materialized_through}, behind the run's processed cutoff. The gap is served from raw rows.`
+        : `Served from the Tiger continuous aggregate: ${source.materialized_buckets.toLocaleString()} materialized buckets through ${source.materialized_through}, plus ${source.raw_tail_buckets.toLocaleString()} raw tail bucket${source.raw_tail_buckets === 1 ? '' : 's'}.`,
       tone: stale ? 'stale' : source.raw_tail_buckets > 0 ? 'tail' : 'materialized',
       stale,
       materializedThrough: source.materialized_through,
@@ -185,7 +185,7 @@ export function describeFreshness(source: TimeseriesSource): Freshness {
   if (source.mode === 'raw_fallback') {
     return {
       label: 'raw fallback',
-      detail: `The continuous aggregate was not used (${source.reason}). Numbers are computed from raw rows under the cutoff — correct, but not the materialised path.`,
+      detail: `The continuous aggregate was not used (${source.reason}). Numbers are computed from raw rows under the cutoff — correct, but not the materialized path.`,
       tone: 'raw',
       stale: true,
       materializedThrough: null,

@@ -62,7 +62,7 @@ export function EvidenceDrawer({
 
   return (
     <Sheet open={!!fact} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent side="right" className="w-full gap-0 overflow-y-auto p-0 sm:max-w-[46rem]">
+      <SheetContent side="right" showCloseButton={false} className="w-full gap-0 overflow-y-auto p-0 sm:max-w-[46rem]">
         <SheetHeader className="border-b border-border px-6 pt-6 pb-5">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
@@ -172,7 +172,7 @@ function ProofSeal({ recomputed, recorded }: { recomputed?: number; recorded?: u
     <div className="flex items-center gap-2.5 rounded-lg border border-normal/35 bg-normal-wash px-3 py-2">
       <Check className="size-4 shrink-0 text-normal" aria-hidden />
       <div className="text-caption leading-snug">
-        <div className="font-medium text-normal normal-case tracking-normal">Recounted now, same answer</div>
+        <div className="font-semibold text-normal normal-case tracking-normal">Recounted now, same answer</div>
         <div className="font-mono text-fg-muted normal-case tracking-normal">
           recomputed {fmtNum(recomputed)} = recorded {String(recorded)}
         </div>
