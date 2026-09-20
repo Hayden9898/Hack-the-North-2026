@@ -7,8 +7,9 @@
  *   npm run check:contrast
  *
  * Thresholds follow WCAG, which does not apply one bar to everything:
- *   - text tokens            4.5:1  (1.4.3 contrast minimum)
- *   - --color-fg-subtle      3.0:1  (non-essential text only)
+ *   - text tokens            4.5:1  (1.4.3 contrast minimum), including --color-fg-subtle,
+ *                                   which carries the record stamps, docket metadata and the
+ *                                   footer — essential content, not decoration
  *   - --color-border-strong  3.0:1  (1.4.11 non-text contrast — it bounds controls)
  *   - --color-border         exempt (decorative hairline; conveys no information)
  */
@@ -19,7 +20,7 @@ const THEME = fileURLToPath(new URL('../src/styles/theme.css', import.meta.url))
 const AA = 4.5
 const NON_TEXT = 3.0
 /** Held to 3:1 rather than 4.5:1 — see the threshold note above. */
-const RELAXED = new Set(['fg-subtle', 'border-strong'])
+const RELAXED = new Set(['border-strong'])
 /** Purely decorative; WCAG sets no minimum. */
 const EXEMPT = new Set(['border'])
 const SURFACES = ['bg', 'surface', 'surface-raised']

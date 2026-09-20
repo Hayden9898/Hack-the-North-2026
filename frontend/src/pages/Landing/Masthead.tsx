@@ -70,7 +70,7 @@ export function Masthead() {
             href={href}
             className="shrink-0 rounded-sm font-mono text-[0.6875rem] text-fg-muted uppercase"
           >
-            {label} <span className="text-fg-subtle">{hint}</span>
+            {label} <span className="hidden text-fg-subtle min-[420px]:inline">{hint}</span>
           </a>
         ))}
       </nav>

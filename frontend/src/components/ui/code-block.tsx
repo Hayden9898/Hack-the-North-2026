@@ -70,7 +70,7 @@ export function CodeBlock({
       className={cn('group/code relative w-full min-w-0 overflow-hidden rounded-doc border border-border bg-surface', className)}
     >
       {label ? (
-        <figcaption className="flex items-center justify-between gap-2 border-b border-border bg-surface-raised px-3 py-1.5 text-caption text-fg-muted uppercase">
+        <figcaption className="flex items-center justify-between gap-2 border-b border-border bg-surface-raised px-3 py-1.5 font-mono text-caption text-fg-muted uppercase">
           {label}
         </figcaption>
       ) : null}

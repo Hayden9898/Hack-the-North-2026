@@ -111,6 +111,8 @@ export const EXHIBIT = {
   /** Verbatim from `aggregate_proof`. The API recomputes the count and compares. */
   proof: { recomputed: 77, recorded: 77, matches: true },
   provenanceHashShort: '15f7510f…6257',
+  /** Where the 77 denials are actually pageable, so the proof is not a dead end. */
+  incidentId: '09c1b229-04dc-46da-bd5b-39514a05db62',
 } as const
 
 /** Source: the `unknowns` arrays on the three incidents, deduplicated. */

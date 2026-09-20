@@ -2,6 +2,7 @@ import { ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { StatusChip } from '@/components/ui/status-chip'
+import { CodeBlock } from '@/components/ui/code-block'
 import { DATASET, EXHIBIT, RUN } from './data'
 import { Section, Stamp } from './parts'
 
@@ -73,12 +74,12 @@ function ProofCapsule() {
         <span className="font-mono text-fg">200</span> — after{' '}
         <span className="font-mono text-fg">{count}</span> counted denials of the same request.
       </p>
-      <p className="mt-2 font-mono text-mono text-fg-subtle">
-        <span className="hidden sm:inline">{grant.raw}</span>
-        <span className="sm:hidden">
-          {grant.raw.slice(0, 28)}… {grant.raw.slice(-34)}
-        </span>
-      </p>
+      <CodeBlock
+        className="mt-3 border-0 bg-transparent"
+        code={grant.raw}
+        emphasize={['200 8459200']}
+        copyable={false}
+      />
     </a>
   )
 }
@@ -103,9 +104,14 @@ function Record() {
 
       <dl className="divide-y divide-border">
         {rows.map(([k, v]) => (
-          <div key={k} className="flex items-baseline justify-between gap-4 px-5 py-2.5">
+          <div
+            key={k}
+            className="flex flex-col gap-0.5 px-5 py-2.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4"
+          >
             <dt className="text-body text-fg-muted">{k}</dt>
-            <dd className="shrink-0 text-right font-mono text-body text-fg tabular-nums">{v}</dd>
+            <dd className="min-w-0 font-mono text-body text-fg tabular-nums [overflow-wrap:anywhere] sm:text-right">
+              {v}
+            </dd>
           </div>
         ))}
       </dl>

@@ -15,16 +15,16 @@
 
 :root {
   /* Surfaces & text — warm neutral ramp */
-  --lo-bg: oklch(0.968 0.009 85);
-  --lo-surface: oklch(0.987 0.006 85);
+  --lo-bg: oklch(0.952 0.011 85);
+  --lo-surface: oklch(0.988 0.006 85);
   --lo-surface-raised: oklch(0.998 0.003 85);
   /* `border` is a decorative hairline (no WCAG minimum). `border-strong` bounds interactive
      controls and is held to 3:1 per WCAG 1.4.11 — use it for inputs, not for card edges. */
   --lo-border: oklch(0.885 0.009 80);
-  --lo-border-strong: oklch(0.64 0.014 80);
+  --lo-border-strong: oklch(0.625 0.014 80);
   --lo-fg: oklch(0.22 0.01 60);
   --lo-fg-muted: oklch(0.44 0.01 60);
-  --lo-fg-subtle: oklch(0.56 0.01 60);
+  --lo-fg-subtle: oklch(0.505 0.011 60);
 
   /* The one earned accent: brass */
   --lo-accent: oklch(0.52 0.125 68);
@@ -62,7 +62,7 @@
   --lo-border-strong: oklch(0.53 0.012 60);
   --lo-fg: oklch(0.95 0.005 75);
   --lo-fg-muted: oklch(0.75 0.008 70);
-  --lo-fg-subtle: oklch(0.6 0.008 70);
+  --lo-fg-subtle: oklch(0.655 0.009 70);
 
   --lo-accent: oklch(0.78 0.135 78);
   --lo-accent-fg: oklch(0.2 0.02 78);

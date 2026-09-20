@@ -1,6 +1,7 @@
-import { Check } from 'lucide-react'
+import { ArrowUpRight, Check } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { CodeBlock } from '@/components/ui/code-block'
-import { EXHIBIT } from './data'
+import { EXHIBIT, RUN } from './data'
 import { Section, Stamp } from './parts'
 
 /**
@@ -17,7 +18,7 @@ import { Section, Stamp } from './parts'
  * explicitly refuses to assert. The brass rule marks the relationship instead.
  */
 export function ExhibitA() {
-  const { count, denial, grant, query, proof, factId, provenanceHashShort } = EXHIBIT
+  const { count, denial, grant, query, proof, factId, provenanceHashShort, incidentId } = EXHIBIT
 
   return (
     <Section id="exhibit" className="py-16 sm:py-20">
@@ -33,7 +34,7 @@ export function ExhibitA() {
         <div className="flex items-stretch gap-6 sm:gap-10">
           <div aria-hidden className="ml-6 w-px shrink-0 bg-accent sm:ml-12" />
           <div className="flex flex-wrap items-center gap-x-8 gap-y-3 py-8">
-            <span className="font-mono text-[clamp(4rem,11vw,8rem)] text-fg leading-[0.8] tracking-[-0.055em] tabular-nums">
+            <span className="font-mono font-medium text-[clamp(4rem,11vw,8rem)] text-fg leading-[0.8] tracking-[-0.055em] tabular-nums">
               {count}
             </span>
             <div className="min-w-0">
@@ -56,7 +57,7 @@ export function ExhibitA() {
       </div>
 
       <div className="mt-10 grid gap-x-12 gap-y-8 lg:grid-cols-12">
-        <div className="lg:col-span-5">
+        <div className="min-w-0 lg:col-span-5">
           <p className="max-w-[48ch] text-body text-fg-muted">
             One account. One file. One source address. For seven months the server answered{' '}
             <span className="font-mono text-fg">403</span>. Then it answered{' '}
@@ -69,7 +70,7 @@ export function ExhibitA() {
           </p>
         </div>
 
-        <div className="rounded-doc border border-border bg-surface p-5 sm:p-6 lg:col-span-7">
+        <div className="min-w-0 rounded-doc border border-border bg-surface p-5 sm:p-6 lg:col-span-7">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <Check className="size-3.5 text-normal" />
             <span className="font-mono text-caption text-fg uppercase">Recomputed on request</span>
@@ -80,8 +81,14 @@ export function ExhibitA() {
           </div>
           <p className="mt-3 max-w-[62ch] text-body text-fg-muted">
             The console re-runs this query against the original lines under the same cutoff and
-            compares the result to what was recorded. The {count} denials are pageable one by one.
+            compares the result to what was recorded.
           </p>
+          <Link
+            to={`/app/runs/${RUN.id}/incidents/${incidentId}`}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-sm font-mono text-caption text-accent uppercase transition-opacity duration-150 hover:opacity-80"
+          >
+            Page all {count} denials <ArrowUpRight className="size-3" />
+          </Link>
           <dl className="mt-4 grid gap-x-6 gap-y-1.5 font-mono text-mono sm:grid-cols-[7rem_1fr]">
             {[
               ['query', `${query.id} v${query.version}`],

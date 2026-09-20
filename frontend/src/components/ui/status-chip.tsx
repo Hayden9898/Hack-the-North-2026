@@ -67,8 +67,8 @@ const VERDICT_TONE: Record<Verdict, string> = {
 type Size = 'sm' | 'md'
 
 const SIZE: Record<Size, string> = {
-  sm: 'gap-1 px-1.5 py-0.5 text-[0.6875rem] [&>svg]:size-3',
-  md: 'gap-1.5 px-2 py-1 text-caption [&>svg]:size-3.5',
+  sm: 'gap-1 px-1.5 py-0.5 text-[0.625rem] [&>svg]:size-2.5',
+  md: 'gap-1.5 px-2 py-1 text-[0.6875rem] [&>svg]:size-3',
 }
 
 type Props = { size?: Size; className?: string; showIcon?: boolean } & (
@@ -100,11 +100,12 @@ export function StatusChip({ verdict, state, size = 'md', showIcon = true, class
       data-value={isVerdict ? verdict : state}
       title={meta.title}
       className={cn(
-        'inline-flex w-fit shrink-0 items-center whitespace-nowrap rounded-sm border font-medium',
+        'inline-flex w-fit shrink-0 items-center whitespace-nowrap rounded-sm border',
+        'font-mono font-medium uppercase tracking-[0.06em]',
         SIZE[size],
         isVerdict
           ? VERDICT_TONE[verdict]
-          : cn('state-hatch border-current/45 bg-transparent uppercase tracking-wide', PROCESSING[state].tone),
+          : cn('state-hatch border-current/45 bg-transparent', PROCESSING[state].tone),
         className,
       )}
     >
