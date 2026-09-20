@@ -220,3 +220,25 @@ getting more forensic each round, not regressions — round 3 caught a hero caps
 truncating a raw log line into a fragment that exists in no log file, which is exactly the class
 of bug this product cannot ship. Fixed, and the capsule now shares one code path with the
 Exhibit A strips.
+
+## 2026-09-20 — final. PR branch cut; 4 rounds run, threshold not met.
+
+**Stopped at 4 rounds on the owner's instruction** (asked to speed up and test), below the
+mean ≥8.5 threshold. Final means: hierarchy 7.33 · typography 7.67 · spacing 6.83 ·
+colour 7.67 · motion 8.50 · density 7.50 · originality 8.67 · craft 6.50 → **7.58**.
+Craft and spacing are both under 7. Not rounding up.
+
+Round means were 7.42 → 7.71 → 7.41 → 7.58. Roughly flat, because each panel measured more
+precisely than the last and found real defects the previous one had accepted by eye. What the
+loop bought was defect removal, not score: the blank light page, a hero capsule truncating a
+raw log line into `IDENTIAL.zip`, the `77` and the AFTER strip painted in the verdict colour,
+978px then 405px of mobile overflow, and `fg-subtle` at 4.26:1 in light.
+
+**PR is from `hayden/frontend-foundation-pr`, not `hayden/frontend-foundation`.** The ML
+teammate committed into the same working tree after I checked my branch out into it, so nine
+backend/ML commits landed on my branch — three exist nowhere else. I cherry-picked my 20
+commits onto a clean branch rather than force-push and risk orphaning their work. The original
+branch is untouched and still holds them. The PR branch touches `frontend/` and `docs/agents/`
+only.
+
+Nothing merged. Nothing on `main`.
