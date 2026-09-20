@@ -14,7 +14,7 @@ export function ExhibitA() {
   const { count, denial, grant, query, proof, factId, provenanceHashShort } = EXHIBIT
 
   return (
-    <Section id="exhibit" className="py-20 sm:py-24">
+    <Section id="exhibit" className="py-16 sm:py-20">
       <Stamp>Exhibit A · fact {factId}</Stamp>
 
       <div className="mt-7 grid gap-x-12 gap-y-10 lg:grid-cols-12">
@@ -36,7 +36,7 @@ export function ExhibitA() {
           </p>
         </div>
 
-        <div className="lg:col-span-7">
+        <div className="min-w-0 lg:col-span-7">
           <Reveal>
             <CodeBlock
               label={`before · line ${denial.line} · ${denial.when}`}
@@ -45,14 +45,14 @@ export function ExhibitA() {
             />
           </Reveal>
 
-          <div className="flex items-stretch gap-5 py-5 pl-6">
-            <div aria-hidden className="w-px shrink-0 bg-border" />
-            <div className="flex items-baseline gap-4">
-              <span className="font-mono text-[2.5rem] text-high-risk leading-none tabular-nums">
+          <div className="flex items-stretch gap-6 py-7 pl-6">
+            <div aria-hidden className="w-px shrink-0 bg-border-strong" />
+            <div className="flex min-w-0 items-center gap-6">
+              <span className="font-mono text-[clamp(3.5rem,7vw,5.25rem)] text-high-risk leading-[0.85] tracking-[-0.04em] tabular-nums">
                 {count}
               </span>
-              <span className="max-w-[28ch] text-body text-fg-muted">
-                prior <span className="font-mono">403</span> responses for this exact
+              <span className="max-w-[26ch] text-body text-fg-muted">
+                prior <span className="font-mono text-fg">403</span> responses for this exact
                 account and resource, counted under the same cutoff.
               </span>
             </div>

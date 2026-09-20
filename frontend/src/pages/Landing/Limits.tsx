@@ -7,7 +7,7 @@ import { Reveal, RuleTag, Section, Stamp } from './parts'
  */
 export function Limits() {
   return (
-    <Section id="limits" className="py-20 sm:py-24">
+    <Section id="limits" className="py-16 sm:py-20">
       <div className="grid gap-x-12 gap-y-10 lg:grid-cols-12">
         <div className="lg:col-span-5">
           <Stamp>On the record</Stamp>
@@ -42,7 +42,7 @@ export function Limits() {
 
 export function Method() {
   return (
-    <Section id="method" className="py-20 sm:py-24">
+    <Section id="method" className="py-16 sm:py-20">
       <Stamp>Method</Stamp>
 
       <div className="mt-7 grid gap-x-12 gap-y-10 lg:grid-cols-12">

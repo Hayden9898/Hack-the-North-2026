@@ -4,7 +4,7 @@ import { api, describeError, type Health } from '@/api'
 import { degradedModeLabel } from '@/format'
 import { useFetch } from '@/useFetch'
 import { Skeleton } from '@/components/ui/skeleton'
-import { DATASET } from './data'
+import { DATASET, RUN } from './data'
 import { Section, Stamp } from './parts'
 
 /**
@@ -73,11 +73,27 @@ export function SystemStatus() {
                   </ul>
                 ) : null}
 
+                {/*
+                  Derived from the live response, never asserted. The machine's model artifacts
+                  can change underneath this page; the demo run's own model_health cannot, because
+                  it is a recorded property of a run that already finished.
+                */}
                 <p className="mt-5 max-w-[62ch] text-body text-fg-muted">
-                  No model artifacts are present, so the app is running{' '}
-                  <span className="font-mono text-fg">rules_only</span>. Every verdict on this page came
-                  from the deterministic rules. The Isolation Forest would add a second opinion; it is
-                  not running here and nothing pretends otherwise.
+                  {health.data.models.artifacts.length === 0 ? (
+                    <>
+                      No model artifacts are present on this machine, so scoring is{' '}
+                      <span className="font-mono text-fg">rules_only</span>.
+                    </>
+                  ) : (
+                    <>
+                      Model artifacts are present now, but the run shown above was replayed before they
+                      existed and is recorded as{' '}
+                      <span className="font-mono text-fg">{RUN.modelHealth}</span>.
+                    </>
+                  )}{' '}
+                  Every verdict on this page therefore came from the deterministic rules. The
+                  Isolation Forest would add a second opinion; it did not contribute to these three
+                  incidents and nothing here pretends otherwise.
                 </p>
               </>
             ) : null}

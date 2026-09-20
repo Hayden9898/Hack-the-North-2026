@@ -11,7 +11,7 @@ import { Section, Stamp } from './parts'
  */
 export function OpeningStatement() {
   return (
-    <Section className="pt-16 pb-20 sm:pt-24 sm:pb-28">
+    <Section className="pt-14 pb-16 sm:pt-20 sm:pb-20">
       <div className="grid gap-x-12 gap-y-12 lg:grid-cols-12">
         <div className="lg:col-span-7">
           <Stamp>
@@ -59,6 +59,7 @@ function Record() {
     ['rejected', `${DATASET.rejects}`],
     ['accounts', `${DATASET.accounts}`],
     ['late / backlogged', `${RUN.lateEvents} / ${RUN.backlog}`],
+    ['scored', RUN.modelHealth],
   ]
   return (
     <div className="rounded-xl border border-border bg-surface">
