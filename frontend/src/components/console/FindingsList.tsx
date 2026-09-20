@@ -87,7 +87,9 @@ function FindingCard({ incident: i, runId }: { incident: IncidentRow; runId: str
           {i.ip_raw ? `@${i.ip_raw}` : ''}
         </span>
         <span className="font-mono">
-          {fmtTime(i.first_event_time)} → {fmtTime(i.last_event_time)}
+          {i.first_event_time === i.last_event_time
+            ? fmtTime(i.first_event_time)
+            : `${fmtTime(i.first_event_time)} → ${fmtTime(i.last_event_time)}`}
         </span>
         <span>{fmtNum(i.evidence_count)} evidence</span>
         <span>v{i.current_version}</span>

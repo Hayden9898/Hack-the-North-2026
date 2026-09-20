@@ -24,6 +24,8 @@ export function VerdictBand({
   const s = version.summary
   const isCurrent = version.version === incident.current_version
   const escalated = versions.length > 1 && versions[0].threat_class !== version.threat_class
+  // Several incidents trigger on a single instant; printing "T -> T" reads like a broken range.
+  const sameInstant = incident.first_event_time === incident.last_event_time
 
   return (
     <header className="rounded-xl border border-border bg-surface px-6 py-6 sm:px-8 sm:py-7">
@@ -64,9 +66,15 @@ export function VerdictBand({
             <span className="font-mono">{incident.ip_raw}</span>
           </Meta>
         ) : null}
-        <Meta label="window">
+        <Meta label={sameInstant ? 'occurred' : 'window'}>
           <span className="font-mono">
-            {fmtTime(incident.first_event_time)} → {fmtTime(incident.last_event_time)}
+            {sameInstant ? (
+              fmtTime(incident.first_event_time)
+            ) : (
+              <>
+                {fmtTime(incident.first_event_time)} → {fmtTime(incident.last_event_time)}
+              </>
+            )}
           </span>
         </Meta>
         <Meta label="evidence">{fmtNum(evidenceCount)} events</Meta>
