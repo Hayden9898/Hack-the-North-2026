@@ -10,7 +10,8 @@ export type RunState = 'created' | 'warming' | 'running' | 'paused' | 'completed
 export type ModelHealth = 'active' | 'rules_only' | 'degraded' | 'shadow' | string
 export type ExplanationState = 'validated' | 'fallback' | 'rejected'
 export type DeliveryState = 'debounce' | 'pending' | 'leased' | 'sent' | 'preview' | 'failed'
-export type Disposition = 'confirmed_suspicious' | 'benign_explained' | 'needs_more_evidence' | 'false_positive' | 'closed'
+export type Disposition =
+  'confirmed_suspicious' | 'benign_explained' | 'needs_more_evidence' | 'false_positive' | 'closed'
 
 export interface Integrations {
   sentry: string
@@ -297,6 +298,7 @@ export interface Relation {
   created_version: number
   primary_rule_id: string
   current_class: ThreatClass
+  related_version?: number
   account: string | null
   key_value: string
 }
@@ -341,7 +343,11 @@ export interface ValidatedExplanation {
   packet_hash?: string
   summary_fact_ids: string[]
   hypotheses: Hypothesis[]
-  false_positive_assessment: { status: string; supporting_fact_ids: string[]; missing_evidence_codes: string[] }
+  false_positive_assessment: {
+    status: string
+    supporting_fact_ids: string[]
+    missing_evidence_codes: string[]
+  }
   playbook_ids: string[]
   ai_review: string
   ai_review_reason?: string | null
@@ -511,6 +517,17 @@ export interface IncidentDetail {
   baseline: Baseline | null
   playbooks?: PlaybooksBlock
   cutoff_seq: number
+  evidence_cutoff_seq: number
+  provenance: {
+    dataset_id: string | null
+    dataset_sha256: string | null
+    dataset_name: string | null
+    source_id: string | null
+    config_hash: string
+    reference_hash: string | null
+    feature_version: string
+    model_id: string | null
+  }
 }
 
 export interface EvidenceLine {
@@ -615,7 +632,7 @@ export function describeError(err: unknown): { status: number | null; text: stri
 }
 
 // Database availability signal: a 503 anywhere flips the app-level "Database unavailable" banner;
-// any later 2xx clears it. The UI never fabricates a healthy feed while the API says otherwise.
+// only a successful database readiness check clears it, not an unrelated 2xx response.
 type DbListener = (down: boolean) => void
 const dbListeners = new Set<DbListener>()
 let dbDown = false
@@ -636,10 +653,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response
   try {
     res = await fetch(path, {
+      signal: AbortSignal.timeout(30_000),
       ...init,
       headers: {
         Accept: 'application/json',
-        ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(init?.body && !(init.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
         ...((init?.headers as Record<string, string>) ?? {}),
       },
     })
@@ -657,10 +675,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   if (!res.ok) {
     if (res.status === 503) setDbDown(true)
-    const detail = body && typeof body === 'object' && 'detail' in body ? (body as { detail: unknown }).detail : body
+    const detail =
+      body && typeof body === 'object' && 'detail' in body ? (body as { detail: unknown }).detail : body
     throw new ApiError(res.status, detail)
   }
-  setDbDown(false)
+  if (path === '/health/ready') setDbDown(!(body as Health).database.ok)
   return body as T
 }
 
@@ -679,25 +698,42 @@ const enc = encodeURIComponent
 
 export const api = {
   health: () => request<Health>('/health/ready'),
+  checkMonitoring: () =>
+    request<{
+      status: 'disabled' | 'queued' | 'not_queued'
+      event_id: string | null
+      check_id: string | null
+      delivery_verified: false
+    }>('/api/v1/observability/check', { method: 'POST' }),
 
   listRuns: () => request<Run[]>(`${API}/runs`),
   getRun: (runId: string) => request<Run>(`${API}/runs/${enc(runId)}`),
-  createRun: (body: RunCreateBody) => request<Run>(`${API}/runs`, { method: 'POST', body: JSON.stringify(body) }),
+  createRun: (body: RunCreateBody) =>
+    request<Run>(`${API}/runs`, { method: 'POST', body: JSON.stringify(body) }),
   replay: (runId: string, body: ReplayControlBody) =>
     request<Run>(`${API}/runs/${enc(runId)}/replay`, { method: 'POST', body: JSON.stringify(body) }),
 
   listDatasets: () => request<Dataset[]>(`${API}/datasets`),
   getDataset: (id: string) => request<DatasetDetail>(`${API}/datasets/${enc(id)}`),
+  uploadDataset: (file: File) => {
+    const body = new FormData()
+    body.append('file', file)
+    return request<Dataset>(`${API}/datasets`, { method: 'POST', body })
+  },
 
-  listEvents: (runId: string, q: EventsQuery) => request<EventsPage>(`${API}/runs/${enc(runId)}/events${qs({ ...q })}`),
-  getEvent: (runId: string, seq: number | string) => request<EventDetail>(`${API}/runs/${enc(runId)}/events/${enc(String(seq))}`),
+  listEvents: (runId: string, q: EventsQuery) =>
+    request<EventsPage>(`${API}/runs/${enc(runId)}/events${qs({ ...q })}`),
+  getEvent: (runId: string, seq: number | string) =>
+    request<EventDetail>(`${API}/runs/${enc(runId)}/events/${enc(String(seq))}`),
 
   listIncidents: (runId: string, q: IncidentsQuery) =>
     request<IncidentsPage>(`${API}/runs/${enc(runId)}/incidents${qs({ ...q })}`),
   getIncident: (runId: string, incidentId: string, version?: number) =>
     request<IncidentDetail>(`${API}/runs/${enc(runId)}/incidents/${enc(incidentId)}${qs({ version })}`),
   getFact: (runId: string, factId: string, incidentId: string, version: number, limit = 50, offset = 0) =>
-    request<FactResponse>(`${API}/runs/${enc(runId)}/facts/${enc(factId)}${qs({ incident_id: incidentId, version, limit, offset })}`),
+    request<FactResponse>(
+      `${API}/runs/${enc(runId)}/facts/${enc(factId)}${qs({ incident_id: incidentId, version, limit, offset })}`,
+    ),
   postFeedback: (runId: string, incidentId: string, body: FeedbackBody) =>
     request<FeedbackRow>(`${API}/runs/${enc(runId)}/incidents/${enc(incidentId)}/feedback`, {
       method: 'POST',
@@ -706,9 +742,13 @@ export const api = {
 
   timeseries: (runId: string, q: TimeseriesQuery) =>
     request<TimeseriesResponse>(`${API}/runs/${enc(runId)}/analytics/timeseries${qs({ ...q })}`),
-  refreshAggregate: (runId: string) => request<RefreshResponse>(`${API}/runs/${enc(runId)}/analytics/refresh`, { method: 'POST' }),
-  benchmark: (runId: string, repeats = 5) => request<BenchmarkResponse>(`${API}/runs/${enc(runId)}/analytics/benchmark${qs({ repeats })}`),
+  refreshAggregate: (runId: string) =>
+    request<RefreshResponse>(`${API}/runs/${enc(runId)}/analytics/refresh`, { method: 'POST' }),
+  benchmark: (runId: string, repeats = 5) =>
+    request<BenchmarkResponse>(`${API}/runs/${enc(runId)}/analytics/benchmark${qs({ repeats })}`),
 
-  updatesUrl: (runId: string, after?: number | null) => `${API}/runs/${enc(runId)}/updates${qs({ after: after ?? undefined })}`,
-  updatesSnapshot: (runId: string) => request<{ latest_seq: number }>(`${API}/runs/${enc(runId)}/updates/snapshot`),
+  updatesUrl: (runId: string, after?: number | null) =>
+    `${API}/runs/${enc(runId)}/updates${qs({ after: after ?? undefined })}`,
+  updatesSnapshot: (runId: string) =>
+    request<{ latest_seq: number }>(`${API}/runs/${enc(runId)}/updates/snapshot`),
 }

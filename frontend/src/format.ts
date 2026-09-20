@@ -5,11 +5,22 @@
  * - pending/unscored is a processing state, never a fourth class or a green verdict.
  * - model output is a rarity percentile, never a confidence or attack probability.
  */
-import type { DeliveryState, Disposition, ExplanationState, ModelHealth, Phase, RunState, ThreatClass } from './api'
+import type {
+  DeliveryState,
+  Disposition,
+  ExplanationState,
+  ModelHealth,
+  Phase,
+  RunState,
+  ThreatClass,
+} from './api'
 
 export type ClassTone = 'normal' | 'suspicious' | 'high_risk' | 'pending'
 
-export function classTone(threatClass: ThreatClass | null | undefined, processingStatus?: string | null): ClassTone {
+export function classTone(
+  threatClass: ThreatClass | null | undefined,
+  processingStatus?: string | null,
+): ClassTone {
   if (threatClass === null || threatClass === undefined) return 'pending'
   if (processingStatus && processingStatus !== 'processed') return 'pending'
   return threatClass
@@ -82,13 +93,19 @@ export function modelHealthExplanation(h: ModelHealth): string | null {
   }
 }
 
-export function integrationLabel(kind: 'sentry' | 'llm' | 'slack', value: string): { text: string; tone: 'ok' | 'warn' | 'off' } {
+export function integrationLabel(
+  kind: 'sentry' | 'llm' | 'slack',
+  value: string,
+): { text: string; tone: 'ok' | 'warn' | 'off' } {
   if (kind === 'sentry') {
-    return value === 'enabled' ? { text: 'Sentry enabled', tone: 'ok' } : { text: 'Sentry disabled (no DSN)', tone: 'off' }
+    return value === 'enabled'
+      ? { text: 'Sentry configured', tone: 'ok' }
+      : { text: 'Sentry disabled (no DSN)', tone: 'off' }
   }
   if (kind === 'llm') {
     if (value.startsWith('enabled')) return { text: `AI review ${value.replace('enabled:', '')}`, tone: 'ok' }
-    if (value === 'deterministic_only_no_key') return { text: 'AI review: deterministic only (no provider key)', tone: 'off' }
+    if (value === 'deterministic_only_no_key')
+      return { text: 'AI review: deterministic only (no provider key)', tone: 'off' }
     return { text: `AI review: ${value.replaceAll('_', ' ')}`, tone: 'off' }
   }
   if (value === 'live') return { text: 'Slack live', tone: 'ok' }
@@ -124,11 +141,16 @@ export function unknownLabel(code: string): string {
 }
 
 export const HYPOTHESIS_TEXT: Record<string, string> = {
-  possible_account_misuse: 'Possible account misuse (unproven): the observed pattern is consistent with someone other than the account owner acting, but the logs do not record who supplied the credentials.',
-  possible_privilege_abuse: 'Possible privilege abuse (unproven): the account obtained a response it was previously denied; an approved grant would look identical in these logs.',
-  possible_forum_mediated_request: 'Possible forum-mediated request (unproven): a forum object view preceded the request; no causal assertion about the forum content is made.',
-  legitimate_authorized_activity: 'Legitimate authorized activity (possible): the observed facts are also consistent with an approved change or normal use.',
-  insufficient_evidence: 'Insufficient evidence: the recorded facts do not support a specific explanation either way.',
+  possible_account_misuse:
+    'Possible account misuse (unproven): the observed pattern is consistent with someone other than the account owner acting, but the logs do not record who supplied the credentials.',
+  possible_privilege_abuse:
+    'Possible privilege abuse (unproven): the account obtained a response it was previously denied; an approved grant would look identical in these logs.',
+  possible_forum_mediated_request:
+    'Possible forum-mediated request (unproven): a forum object view preceded the request; no causal assertion about the forum content is made.',
+  legitimate_authorized_activity:
+    'Legitimate authorized activity (possible): the observed facts are also consistent with an approved change or normal use.',
+  insufficient_evidence:
+    'Insufficient evidence: the recorded facts do not support a specific explanation either way.',
 }
 
 export function hypothesisText(type: string): string {
@@ -208,17 +230,35 @@ export function factValueText(kind: string, value: unknown, args: Record<string,
     const v = value as Record<string, unknown>
     return `${fmtTime(String(v.event_time ?? ''))} ${String(v.account ?? '')}@${String(v.ip ?? '')} ${String(v.method ?? '')} ${String(v.path ?? '')} -> ${String(v.status ?? '')}${v.line_number ? ` (line ${String(v.line_number)})` : ''}`
   }
-  if (kind === 'time_delta_seconds' && typeof value === 'number') return `${value.toFixed(0)} s between linked requests`
+  if (kind === 'time_delta_seconds' && typeof value === 'number')
+    return `${value.toFixed(0)} s between linked requests`
   if (kind === 'auth_failures_in_window' && typeof value === 'number')
     return `${value} login failures within ${String(args.window_seconds ?? '?')} s for ${String(args.pair ?? '')}`
-  if (kind === 'prior_denials_count' && typeof value === 'number') return `${value} prior 403 responses for ${String(args.account ?? '')} on ${String(args.path ?? '')}`
-  if (kind === 'prior_successes_count' && typeof value === 'number') return `${value} prior 200 responses for the same account/path`
-  if (kind === 'source_familiarity') return `source pair ${String(args.pair ?? '')} is '${String(value)}' relative to the frozen reference`
+  if (kind === 'prior_denials_count' && typeof value === 'number')
+    return `${value} prior 403 responses for ${String(args.account ?? '')} on ${String(args.path ?? '')}`
+  if (kind === 'prior_successes_count' && typeof value === 'number')
+    return `${value} prior 200 responses for the same account/path`
+  if (kind === 'first_success_after_denials' && typeof value === 'boolean')
+    return value
+      ? 'First successful response after prior denials for this account and resource'
+      : 'First success after denials was not established'
+  if (kind === 'prior_endpoint_post_2xx_count' && typeof value === 'number')
+    return `${value} prior successful POST requests by this account to the same endpoint`
+  if (kind === 'account_history_count' && typeof value === 'number')
+    return `${fmtNum(value)} prior events for ${String(args.account ?? 'this account')}`
+  if (kind === 'cold_start' && value === true)
+    return 'Limited history for this account; the baseline is not established'
+  if (kind === 'source_familiarity')
+    return `source pair ${String(args.pair ?? '')} is '${String(value)}' relative to the frozen reference`
   if (kind === 'same_object') return `both requests reference forum object ${String(value)}`
-  if (Array.isArray(value)) return value.map((v) => (typeof v === 'object' ? JSON.stringify(v) : String(v))).join(', ')
+  if (Array.isArray(value))
+    return value.map((v) => (typeof v === 'object' ? JSON.stringify(v) : String(v))).join(', ')
   if (typeof value === 'object') {
     return Object.entries(value as Record<string, unknown>)
-      .map(([k, v]) => `${k.replaceAll('_', ' ')}: ${typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v)}`)
+      .map(
+        ([k, v]) =>
+          `${k.replaceAll('_', ' ')}: ${typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v)}`,
+      )
       .join(' · ')
   }
   return String(value)

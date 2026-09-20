@@ -1,349 +1,259 @@
 import { useMemo, useState } from 'react'
-import {
-  api,
-  describeError,
-  type BenchmarkResponse,
-  type RefreshResponse,
-  type Run,
-  type TimeseriesResponse,
-  type TimeseriesRow,
-  type TimeseriesSource,
-} from '../api'
+import { useSearchParams } from 'react-router-dom'
+import { RefreshCw } from 'lucide-react'
+import { api, type Run } from '../api'
 import { fmtNum, fmtTime } from '../format'
-import { useFetch } from '../useFetch'
+import { useFetch, useInterval } from '../useFetch'
 import { Empty, ErrorState, Loading, Section, Tag } from '../ui'
+import { ActivityChart } from '../components/ActivityChart'
 
-const MAX_BUCKETS = 500
+const metrics = {
+  events: 'Events',
+  suspicious: 'Suspicious findings',
+  high_risk: 'High-risk findings',
+  errors: '401 / 403 responses',
+} as const
+type Metric = keyof typeof metrics
 
-interface Bin {
-  start: number // epoch ms
-  events: number
-  c401: number
-  c403: number
-  suspicious: number
-  high_risk: number
-}
-
-type Rollup = 'server' | 'hour' | 'day'
-
-function bucketLabel(minutes: number): string {
-  if (minutes === 1440) return 'daily'
-  if (minutes === 60) return 'hourly'
-  if (minutes === 5) return 'five-minute'
-  return `${minutes}-minute`
-}
-
-/** Safety net: roll server buckets up client-side to hourly or daily bins when there are still too many to draw. */
-function rollup(rows: TimeseriesRow[], serverMinutes: number): { bins: Bin[]; unit: Rollup } {
-  if (rows.length === 0) return { bins: [], unit: 'server' }
-  // No spread over the row list: a full run returns >100k rows (per account per 5-minute bucket).
-  const distinctTimes = new Set<number>()
-  let tMin = Number.POSITIVE_INFINITY
-  let tMax = Number.NEGATIVE_INFINITY
-  for (const r of rows) {
-    const t = Date.parse(r.bucket)
-    if (!Number.isFinite(t)) continue
-    distinctTimes.add(t)
-    if (t < tMin) tMin = t
-    if (t > tMax) tMax = t
-  }
-  let unit: Rollup = 'server'
-  let size = serverMinutes * 60_000
-  if (distinctTimes.size > MAX_BUCKETS && serverMinutes < 1440) {
-    unit = 'hour'
-    size = Math.max(size, 3_600_000)
-    const span = tMax - tMin
-    if (span / size > MAX_BUCKETS) {
-      unit = 'day'
-      size = 86_400_000
-    }
-  }
-  const map = new Map<number, Bin>()
-  for (const r of rows) {
-    const t = Date.parse(r.bucket)
-    if (!Number.isFinite(t)) continue
-    const key = Math.floor(t / size) * size
-    const b = map.get(key) ?? { start: key, events: 0, c401: 0, c403: 0, suspicious: 0, high_risk: 0 }
-    b.events += r.events
-    b.c401 += r.c401
-    b.c403 += r.c403
-    b.suspicious += r.suspicious
-    b.high_risk += r.high_risk
-    map.set(key, b)
-  }
-  return { bins: Array.from(map.values()).sort((a, b) => a.start - b.start), unit }
-}
-
-function iso(ms: number): string {
-  return new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z')
-}
-
-type BucketMinutes = 5 | 60 | 1440
-
-const DAY_MS = 86_400_000
-
-/**
- * Server-side roll-up choice: hourly by default; daily when the run spans more than 14 days;
- * five-minute when the visible window is shorter than 24 h or a single account is selected.
- */
-function chooseBucketMinutes(run: Run, account: string): BucketMinutes {
-  if (account) return 5
-  const end = Date.parse(run.last_processed_time ?? run.last_admitted_time ?? '') || Date.now()
-  const visibleStart = Date.parse(run.visible_start ?? '')
-  const spanStart = Date.parse(run.range_start ?? run.visible_start ?? '')
-  const visibleWindow = Number.isFinite(visibleStart) ? end - visibleStart : Number.NaN
-  if (Number.isFinite(visibleWindow) && visibleWindow > 0 && visibleWindow < DAY_MS) return 5
-  const span = Number.isFinite(spanStart) ? end - spanStart : Number.NaN
-  if (Number.isFinite(span) && span > 14 * DAY_MS) return 1440
-  return 60
-}
-
-export function ActivityPanel({ runId, processedSeq, run }: { runId: string; processedSeq: number; run: Run }) {
-  const [account, setAccount] = useState('')
-  const [accountDraft, setAccountDraft] = useState('')
-  const [asOf, setAsOf] = useState(false)
-  const bucketMinutes = chooseBucketMinutes(run, account)
-  const ts = useFetch<TimeseriesResponse>(
+export function ActivityPanel({
+  runId,
+  processedSeq,
+  run,
+}: {
+  runId: string
+  processedSeq: number
+  run: Run
+}) {
+  const [params, setParams] = useSearchParams()
+  const range = params.get('chartRange') || 'all'
+  const metric = (
+    Object.hasOwn(metrics, params.get('metric') || '') ? params.get('metric') : 'events'
+  ) as Metric
+  const account = params.get('chartAccount') || ''
+  const [advanced, setAdvanced] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<unknown>(null)
+  const end = Date.parse(run.last_processed_time || run.last_admitted_time || '')
+  const start =
+    Number.isFinite(end) && range !== 'all'
+      ? new Date(end - (range === '24h' ? 1 : 7) * 86_400_000).toISOString()
+      : undefined
+  const span = end - Date.parse(run.range_start || run.visible_start || '')
+  const bucket =
+    range === '24h' ? 5 : range === '7d' ? 60 : !Number.isFinite(span) || span > 14 * 86_400_000 ? 1440 : 60
+  const series = useFetch(
     () =>
       api.timeseries(runId, {
+        start,
         account: account || undefined,
-        as_of_seq: asOf ? processedSeq : undefined,
-        bucket_minutes: bucketMinutes,
-        group_by_account: !!account,
+        bucket_minutes: bucket,
+        group_by_account: false,
       }),
-    [runId, account, asOf, bucketMinutes],
+    [runId, start, account, bucket],
   )
-  const [refresh, setRefresh] = useState<{ busy: boolean; result: RefreshResponse | null; error: unknown | null }>({ busy: false, result: null, error: null })
-  const [bench, setBench] = useState<{ open: boolean; busy: boolean; result: BenchmarkResponse | null; error: unknown | null }>({
-    open: false,
-    busy: false,
-    result: null,
-    error: null,
-  })
-
-  const rolled = useMemo(() => rollup(ts.data?.rows ?? [], ts.data?.source.bucket_minutes ?? bucketMinutes), [ts.data, bucketMinutes])
-
-  async function doRefresh() {
-    setRefresh({ busy: true, result: null, error: null })
+  const benchmark = useFetch(() => api.benchmark(runId), [runId, advanced], advanced)
+  useInterval(() => {
+    if (!document.hidden && ['running', 'warming'].includes(run.state)) void series.reload()
+  }, 10_000)
+  function update(key: string, value: string) {
+    setParams(
+      (p) => {
+        if (value) p.set(key, value)
+        else p.delete(key)
+        return p
+      },
+      { replace: true },
+    )
+  }
+  const points = useMemo(() => {
+    const buckets = new Map<number, number>()
+    for (const row of series.data?.rows ?? []) {
+      const time = Date.parse(row.bucket)
+      if (Number.isFinite(time))
+        buckets.set(
+          time,
+          (buckets.get(time) ?? 0) + (metric === 'errors' ? row.c401 + row.c403 : row[metric]),
+        )
+    }
+    return Array.from(buckets, ([time, value]) => ({ time, value })).sort((a, b) => a.time - b.time)
+  }, [series.data, metric])
+  async function refreshAggregate() {
+    setBusy(true)
+    setError(null)
     try {
-      const r = await api.refreshAggregate(runId)
-      setRefresh({ busy: false, result: r, error: null })
-      void ts.reload()
-    } catch (e) {
-      setRefresh({ busy: false, result: null, error: e })
+      await api.refreshAggregate(runId)
+      await series.reload()
+    } catch (err) {
+      setError(err)
+    } finally {
+      setBusy(false)
     }
   }
-
-  async function runBench() {
-    setBench((b) => ({ ...b, open: true, busy: true, error: null }))
-    try {
-      const r = await api.benchmark(runId, 5)
-      setBench((b) => ({ ...b, busy: false, result: r }))
-    } catch (e) {
-      setBench((b) => ({ ...b, busy: false, error: e }))
-    }
-  }
-
-  const refreshErr = refresh.error ? describeError(refresh.error) : null
-  const benchErr = bench.error ? describeError(bench.error) : null
-
+  const source = series.data?.source
   return (
     <Section
-      title={
-        <span className="row">
-          Activity <span className="muted small" style={{ textTransform: 'none', letterSpacing: 0 }}>Tiger continuous aggregate</span>
-        </span>
-      }
+      title="Event activity"
       aside={
-        <div className="filters">
-          <form
-            className="row"
-            onSubmit={(e) => {
-              e.preventDefault()
-              setAccount(accountDraft.trim())
-            }}
+        <div className="row">
+          <span className="chart-legend">
+            <i />
+            {metrics[metric]}
+          </span>
+          <select
+            aria-label="Activity time range"
+            value={range}
+            onChange={(e) => update('chartRange', e.target.value)}
           >
-            <input value={accountDraft} onChange={(e) => setAccountDraft(e.target.value)} placeholder="account (all)" style={{ width: 120 }} />
-            <button type="submit" className="btn btn-sm">
-              Filter
-            </button>
-          </form>
-          <label className="check">
-            <input type="checkbox" checked={asOf} onChange={(e) => setAsOf(e.target.checked)} /> as-of current cutoff (#{fmtNum(processedSeq)})
-          </label>
-          <button type="button" className="btn btn-sm" disabled={refresh.busy || asOf} onClick={() => void doRefresh()} title="POST /analytics/refresh (operator)">
-            {refresh.busy ? 'Refreshing…' : 'Refresh aggregate'}
+            <option value="all">Full execution</option>
+            <option value="7d">Last 7 event days</option>
+            <option value="24h">Last 24 event hours</option>
+          </select>
+          <button
+            className="icon-btn"
+            aria-label="Refresh activity"
+            disabled={series.refreshing}
+            onClick={() => void series.reload()}
+          >
+            <RefreshCw size={15} className={series.refreshing ? 'spin' : ''} />
           </button>
         </div>
       }
     >
-      {ts.data ? <FreshnessBadge source={ts.data.source} /> : null}
-      {refresh.result ? (
-        <div className="notice small" style={{ marginTop: 6 }}>
-          {refresh.result.refreshed
-            ? `Aggregate refreshed through ${fmtTime(refresh.result.refreshed_through)} · ${fmtNum(refresh.result.buckets)} buckets · ${fmtNum(refresh.result.duration_ms)} ms`
-            : `Not refreshed: ${refresh.result.reason ?? 'unknown reason'}`}
+      <div className="chart-heading">
+        <div>
+          <strong>{series.data ? fmtNum(points.reduce((sum, p) => sum + p.value, 0)) : '—'}</strong>
+          <span>{metrics[metric].toLowerCase()} in this window</span>
         </div>
-      ) : null}
-      {refreshErr ? (
-        <div className="notice notice-danger small" style={{ marginTop: 6 }}>
-          Refresh failed (HTTP {refreshErr.status ?? '—'}): {refreshErr.text}
-        </div>
-      ) : null}
-
-      <div style={{ marginTop: 8 }}>
-        {ts.loading && !ts.data ? (
-          <Loading what="activity" />
-        ) : ts.error && !ts.data ? (
-          <ErrorState error={ts.error} onRetry={() => void ts.reload()} what="activity time series" />
-        ) : !ts.data || rolled.bins.length === 0 ? (
-          <Empty>No activity buckets under the current cutoff{account ? ` for ${account}` : ''}.</Empty>
-        ) : (
-          <>
-            {ts.error ? (
-              <div className="notice notice-warn small" style={{ marginBottom: 6 }}>
-                Refresh failed (HTTP {describeError(ts.error).status ?? '—'}); showing the last loaded series.
-              </div>
-            ) : null}
-            <ActivityChart bins={rolled.bins} />
-            <p className="muted small" style={{ marginTop: 4 }}>
-              {fmtNum(ts.data.rows.length)} {bucketLabel(ts.data.source.bucket_minutes ?? bucketMinutes)} rows from the server
-              {account ? ` for ${account}` : ' (accounts summed server-side)'}
-              {rolled.unit !== 'server'
-                ? `, rolled up client-side to ${rolled.unit === 'hour' ? 'hourly' : 'daily'} bins (${fmtNum(rolled.bins.length)}) because more than ${MAX_BUCKETS} buckets were returned`
-                : ` → ${fmtNum(rolled.bins.length)} bins`}
-              . Bin size: {bucketLabel(rolled.unit === 'server' ? (ts.data.source.bucket_minutes ?? bucketMinutes) : rolled.unit === 'hour' ? 60 : 1440)}. Bars: events per bin. Markers: <span style={{ color: 'var(--warn)' }}>401</span> · <span style={{ color: '#ffb36b' }}>403</span> ·{' '}
-              <span style={{ color: 'var(--warn)' }}>■ suspicious</span> · <span style={{ color: 'var(--danger)' }}>■ high risk</span>. Counts are measured from processed
-              evidence under cutoff #{fmtNum(ts.data.cutoff_seq)}.
-            </p>
-          </>
-        )}
+        <select
+          aria-label="Activity metric"
+          value={metric}
+          onChange={(e) => update('metric', e.target.value)}
+        >
+          {Object.entries(metrics).map(([key, label]) => (
+            <option key={key} value={key}>
+              {label}
+            </option>
+          ))}
+        </select>
       </div>
-
-      <details
-        open={bench.open}
-        onToggle={(e) => {
-          const open = (e.currentTarget as HTMLDetailsElement).open
-          setBench((b) => ({ ...b, open }))
-          if (open && !bench.result && !bench.busy) void runBench()
-        }}
-        style={{ marginTop: 8 }}
-      >
-        <summary className="small muted">Benchmark: raw scoped query vs continuous aggregate (measured on this database, not a promise)</summary>
-        <div className="small" style={{ marginTop: 6 }}>
-          {bench.busy ? (
-            <Loading what="benchmark" />
-          ) : benchErr ? (
-            <span style={{ color: 'var(--danger)' }}>
-              Benchmark failed (HTTP {benchErr.status ?? '—'}): {benchErr.text}
-            </span>
-          ) : bench.result ? (
-            <dl className="kvs">
-              <div className="kv">
-                <dt>raw ms (median)</dt>
-                <dd className="mono">{bench.result.raw_ms.median.toFixed(1)}</dd>
-              </div>
-              <div className="kv">
-                <dt>aggregate ms (median)</dt>
-                <dd className="mono">{bench.result.aggregate_ms.median.toFixed(1)}</dd>
-              </div>
-              <div className="kv">
-                <dt>identical results</dt>
-                <dd>{bench.result.identical_results ? <span className="check-ok">✓ yes</span> : <span className="check-bad">✗ no</span>}</dd>
-              </div>
-              <div className="kv">
-                <dt>rows · repeats · watermark</dt>
-                <dd className="mono">
-                  {fmtNum(bench.result.rows)} · {bench.result.repeats} · {fmtTime(bench.result.watermark)}
-                </dd>
-              </div>
-            </dl>
-          ) : null}
-          <button type="button" className="btn btn-sm" style={{ marginTop: 6 }} disabled={bench.busy} onClick={() => void runBench()}>
-            Run again (5 repeats)
+      {series.loading ? (
+        <Loading what="activity" />
+      ) : !!series.error && !series.data ? (
+        <ErrorState error={series.error} what="activity" onRetry={() => void series.reload()} />
+      ) : !points.length ? (
+        <Empty>No processed events in this time window.</Empty>
+      ) : (
+        <ActivityChart
+          data={points}
+          label={metrics[metric]}
+          color={
+            metric === 'high_risk'
+              ? 'var(--danger)'
+              : metric === 'suspicious'
+                ? 'var(--warn)'
+                : 'var(--accent)'
+          }
+        />
+      )}
+      {!!series.error && series.data && (
+        <div className="notice notice-warn">Refresh failed. Showing the last loaded series.</div>
+      )}
+      <div className="chart-caption">
+        <span>
+          {bucket === 1440 ? 'Daily' : bucket === 60 ? 'Hourly' : '5-minute'} buckets · UTC · processed
+          through #{fmtNum(series.data?.cutoff_seq ?? processedSeq)}
+        </span>
+        <span>
+          {source?.mode === 'raw_fallback'
+            ? 'Raw data fallback'
+            : source?.mode === 'aggregate_plus_raw_tail' && source.stale
+              ? 'Aggregate + recent events'
+              : 'Processed evidence'}
+        </span>
+      </div>
+      <details className="chart-details">
+        <summary>Data and query details</summary>
+        <div className="stack">
+          <form
+            className="row"
+            onSubmit={(e) => {
+              e.preventDefault()
+              update('chartAccount', String(new FormData(e.currentTarget).get('chartAccount') ?? '').trim())
+            }}
+          >
+            <label className="field">
+              Account
+              <input key={account} name="chartAccount" placeholder="All accounts" defaultValue={account} />
+            </label>
+            <button className="btn btn-sm" type="submit">
+              Apply
+            </button>
+            <button
+              className="btn btn-sm"
+              type="button"
+              onClick={() => void refreshAggregate()}
+              disabled={busy}
+            >
+              {busy ? 'Refreshing…' : 'Refresh aggregate'}
+            </button>
+          </form>
+          {source && (
+            <div className="small muted">
+              {source.mode === 'aggregate_plus_raw_tail'
+                ? `Materialized through ${fmtTime(source.materialized_through)}. ${source.materialized_buckets} aggregate buckets and ${source.raw_tail_buckets} raw-tail buckets.`
+                : source.mode === 'raw_fallback'
+                  ? `Raw fallback: ${source.reason}`
+                  : `Snapshot at sequence ${source.as_of_seq}`}
+            </div>
+          )}
+          {!!error && <ErrorState error={error} what="aggregate refresh" />}
+          <div className="table-wrap chart-data">
+            <table className="tbl">
+              <caption className="sr-only">Activity data</caption>
+              <thead>
+                <tr>
+                  <th>Bucket (UTC)</th>
+                  <th>{metrics[metric]}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {points.map((p) => (
+                  <tr key={p.time}>
+                    <td>{fmtTime(new Date(p.time).toISOString())}</td>
+                    <td>{fmtNum(p.value)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <button
+            className="btn btn-sm"
+            disabled={benchmark.loading}
+            onClick={() => {
+              if (advanced) void benchmark.reload()
+              else setAdvanced(true)
+            }}
+          >
+            Measure query performance
           </button>
+          {advanced &&
+            (benchmark.loading ? (
+              <Loading what="benchmark" />
+            ) : benchmark.error ? (
+              <ErrorState error={benchmark.error} what="benchmark" />
+            ) : (
+              benchmark.data && (
+                <div className="row small">
+                  <Tag>Raw: {benchmark.data.raw_ms.median.toFixed(1)} ms</Tag>
+                  <Tag>Aggregate: {benchmark.data.aggregate_ms.median.toFixed(1)} ms</Tag>
+                  <Tag tone={benchmark.data.identical_results ? 'ok' : 'danger'}>
+                    {benchmark.data.identical_results ? 'Results match' : 'Results differ'}
+                  </Tag>
+                </div>
+              )
+            ))}
         </div>
       </details>
     </Section>
-  )
-}
-
-function FreshnessBadge({ source }: { source: TimeseriesSource }) {
-  if (source.mode === 'aggregate_plus_raw_tail') {
-    return (
-      <div className="row small">
-        <Tag tone={source.stale ? 'warn' : 'ok'}>
-          materialized through {fmtTime(source.materialized_through)} (refreshed {fmtTime(source.refreshed_at)}) + raw tail
-        </Tag>
-        <span className="muted">
-          {fmtNum(source.materialized_buckets)} aggregate buckets · {fmtNum(source.raw_tail_buckets)} raw tail buckets
-          {source.stale ? ' · stale: processed evidence is ahead of the aggregate' : ''}
-          {source.last_processed_time ? ` · last processed ${fmtTime(source.last_processed_time)}` : ''}
-        </span>
-      </div>
-    )
-  }
-  if (source.mode === 'raw_fallback') {
-    return (
-      <div className="row small">
-        <Tag tone="warn">raw fallback: {source.reason}</Tag>
-        <span className="muted">served from a raw scoped query; detector semantics unchanged</span>
-      </div>
-    )
-  }
-  return (
-    <div className="row small">
-      <Tag tone="info">pinned as-of seq {fmtNum(source.as_of_seq)}</Tag>
-      <span className="muted">raw processed records with run_seq ≤ cutoff; the aggregate is not used for pinned views</span>
-    </div>
-  )
-}
-
-function ActivityChart({ bins }: { bins: Bin[] }) {
-  const W = 960
-  const H = 180
-  const padL = 44
-  const padR = 8
-  const padT = 8
-  const padB = 26
-  const n = bins.length
-  const max = bins.reduce((m, b) => (b.events > m ? b.events : m), 1)
-  const innerW = W - padL - padR
-  const innerH = H - padT - padB
-  const bw = innerW / n
-  const y = (v: number) => padT + innerH - (innerH * v) / max
-  const labelEvery = Math.max(1, Math.ceil(n / 8))
-  return (
-    <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Events per time bin with 401, 403, suspicious and high-risk markers">
-      <line x1={padL} y1={padT + innerH} x2={W - padR} y2={padT + innerH} stroke="var(--line-strong)" />
-      <line x1={padL} y1={padT} x2={padL} y2={padT + innerH} stroke="var(--line-strong)" />
-      <text x={padL - 6} y={padT + 4} fill="var(--fg-3)" fontSize="10" textAnchor="end">
-        {fmtNum(max)}
-      </text>
-      <text x={padL - 6} y={padT + innerH} fill="var(--fg-3)" fontSize="10" textAnchor="end">
-        0
-      </text>
-      {bins.map((b, i) => {
-        const x = padL + i * bw
-        const w = Math.max(1, bw - (bw > 3 ? 1 : 0))
-        const top = y(b.events)
-        return (
-          <g key={b.start}>
-            <rect x={x} y={top} width={w} height={padT + innerH - top} fill="var(--accent-2)" opacity={0.85}>
-              <title>{`${iso(b.start)} — events ${fmtNum(b.events)}, 401 ${fmtNum(b.c401)}, 403 ${fmtNum(b.c403)}, suspicious ${fmtNum(b.suspicious)}, high risk ${fmtNum(b.high_risk)}`}</title>
-            </rect>
-            {b.c401 > 0 ? <rect x={x} y={y(b.c401) - 1} width={w} height={2} fill="var(--warn)" /> : null}
-            {b.c403 > 0 ? <rect x={x} y={y(b.c403) - 1} width={w} height={2} fill="#ffb36b" /> : null}
-            {b.suspicious > 0 ? <rect x={x} y={padT + innerH + 3} width={w} height={4} fill="var(--warn)" /> : null}
-            {b.high_risk > 0 ? <rect x={x} y={padT + innerH + 8} width={w} height={4} fill="var(--danger)" /> : null}
-            {i % labelEvery === 0 ? (
-              <text x={x} y={H - 4} fill="var(--fg-3)" fontSize="9" textAnchor="start">
-                {iso(b.start).slice(0, 16).replace('T', ' ')}
-              </text>
-            ) : null}
-          </g>
-        )
-      })}
-    </svg>
   )
 }

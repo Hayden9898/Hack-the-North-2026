@@ -1,5 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { PageHeader } from '../components/Page'
+import { Overlay } from '../components/Overlay'
+import { InvestigationBrief } from '../components/InvestigationBrief'
 import {
   api,
   describeError,
@@ -27,150 +30,228 @@ import {
   unknownLabel,
 } from '../format'
 import { useFetch } from '../useFetch'
-import { ClassBadge, Code, Empty, ErrorState, EventLink, IncidentLink, Loading, PhaseBadge, RuleTags, Section, StateBadge, Tag } from '../ui'
+import {
+  ClassBadge,
+  Code,
+  Empty,
+  ErrorState,
+  EventLink,
+  Loading,
+  PhaseBadge,
+  RuleTags,
+  Section,
+  StateBadge,
+  Tag,
+} from '../ui'
 
 export function IncidentPage() {
   const { runId = '', incidentId = '' } = useParams()
   const [sp, setSp] = useSearchParams()
-  const nav = useNavigate()
-  const versionParam = sp.get('version')
-  const version = versionParam ? Number(versionParam) : undefined
-  const inc = useFetch<IncidentDetail>(() => api.getIncident(runId, incidentId, version), [runId, incidentId, version])
-  const [drawerFact, setDrawerFact] = useState<Fact | null>(null)
+  const versionParam = Number(sp.get('version'))
+  const version = Number.isInteger(versionParam) && versionParam > 0 ? versionParam : undefined
+  const inc = useFetch<IncidentDetail>(
+    () => api.getIncident(runId, incidentId, version),
+    [runId, incidentId, version],
+  )
   const [highlight, setHighlight] = useState<string | null>(null)
+  const tab = sp.get('view') || 'overview'
+  function update(key: string, value: string) {
+    setSp((p) => {
+      if (value) p.set(key, value)
+      else p.delete(key)
+      return p
+    })
+  }
 
   useEffect(() => {
     if (!highlight) return
-    const el = document.getElementById(`fact-${highlight}`)
-    el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    const t = setTimeout(() => setHighlight(null), 2_500)
-    return () => clearTimeout(t)
-  }, [highlight])
+    document.getElementById(`fact-${highlight}`)?.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+      block: 'center',
+    })
+    const timer = setTimeout(() => setHighlight(null), 2500)
+    return () => clearTimeout(timer)
+  }, [highlight, tab])
 
-  if (inc.loading && !inc.data) return <Loading what="incident" />
-  if (inc.error && !inc.data) return <ErrorState error={inc.error} onRetry={() => void inc.reload()} what="incident" />
+  if (inc.loading) return <Loading what="incident" />
+  if (inc.error && !inc.data)
+    return <ErrorState error={inc.error} onRetry={() => void inc.reload()} what="incident" />
   const d = inc.data
   if (!d) return <Empty>No incident under the current cutoff.</Empty>
-
   const v = d.version
-  const s = v.summary
   const strength = v.evidence_strength
-  const isCurrent = v.version === d.incident.current_version
   const packet = d.packet
-
   const facts = packet?.facts ?? []
   const factById = new Map(facts.map((f) => [f.fact_id, f]))
   const rulesIncomplete = rulesIncompleteCodes(packet)
-  const gotoFact = (id: string) => setHighlight(id)
+  const drawerFact = facts.find((f) => f.fact_id === sp.get('fact'))
+  const gotoFact = (id: string) => {
+    update('view', 'evidence')
+    setHighlight(id)
+  }
 
   return (
-    <div className="stack">
+    <div className="stack page-stack">
       <div className="crumbs">
-        <Link to="/">Runs</Link> / <Link to={`/runs/${encodeURIComponent(runId)}`}>{shortId(runId, 18)}</Link> / incident{' '}
-        <span className="mono">{shortId(incidentId, 18)}</span>
+        <Link to={`/incidents?run=${encodeURIComponent(runId)}`}>Incidents</Link>
+        <span>/</span>
+        {shortId(incidentId, 18)}
       </div>
-
-      <Section
-        title={
-          <span className="row">
-            <ClassBadge threatClass={v.threat_class} />
-            <StateBadge state={d.incident.status} />
-            <PhaseBadge phase={d.incident.phase} />
-            <Tag tone="muted">historical replay evidence</Tag>
-            {!isCurrent ? <Tag tone="warn">viewing version {v.version} (current is v{d.incident.current_version})</Tag> : null}
-          </span>
+      <PageHeader
+        eyebrow="INCIDENT INVESTIGATION"
+        title={v.summary.headline}
+        description={
+          v.summary.qualifier || 'Qualified detector finding. Review the evidence before assigning intent.'
         }
-        aside={
+        actions={
           <label className="field">
-            version
+            Evidence version
             <select
+              aria-label="Evidence version"
               value={String(v.version)}
               onChange={(e) => {
-                const nv = e.target.value
-                if (Number(nv) === d.incident.current_version) sp.delete('version')
-                else sp.set('version', nv)
-                setSp(sp, { replace: true })
+                const value = e.target.value
+                setSp((previous) => {
+                  const next = new URLSearchParams(previous)
+                  if (Number(value) === d.incident.current_version) next.delete('version')
+                  else next.set('version', value)
+                  next.delete('fact')
+                  return next
+                })
               }}
             >
               {d.versions.map((x) => (
-                <option key={x.version} value={String(x.version)}>
-                  v{x.version} · {x.threat_class} · trigger #{x.trigger_seq}
-                  {x.version === d.incident.current_version ? ' (current)' : ''}
+                <option key={x.version} value={x.version}>
+                  Version {x.version}
+                  {x.version === d.incident.current_version ? ' · current' : ''}
                 </option>
               ))}
             </select>
           </label>
         }
-      >
-        <div className="headline">{s.headline}</div>
-        <div className="qualifier">{s.qualifier || 'Qualified detector finding; not an assertion of intent.'}</div>
-        <dl className="kvs">
-          <div className="kv">
-            <dt>account / ip</dt>
-            <dd className="mono">
-              {d.incident.account ?? '—'} / {d.incident.ip_raw ?? '—'}
-            </dd>
-          </div>
-          <div className="kv">
-            <dt>key</dt>
-            <dd className="mono small">
-              {d.incident.key_type}={d.incident.key_value}
-            </dd>
-          </div>
-          <div className="kv">
-            <dt>timeline</dt>
-            <dd className="mono small">
-              {fmtTime(v.timeline_start)} → {fmtTime(v.timeline_end)}
-            </dd>
-          </div>
-          <div className="kv">
-            <dt>rules</dt>
-            <dd>
-              <RuleTags ids={v.rule_ids} />
-            </dd>
-          </div>
-          <div className="kv">
-            <dt>trigger event</dt>
-            <dd>
-              <EventLink runId={runId} seq={v.trigger_seq} /> <span className="muted small mono">{shortId(v.trigger_event_id, 12)}</span>
-            </dd>
-          </div>
-          <div className="kv">
-            <dt>cutoff</dt>
-            <dd className="mono">#{fmtNum(d.cutoff_seq)}</dd>
-          </div>
-          <div className="kv">
-            <dt>packet hash</dt>
-            <dd className="mono small">{shortId(d.packet_hash, 16)}</dd>
-          </div>
-          <div className="kv">
-            <dt>incident id</dt>
-            <dd className="mono small">{d.incident.incident_id}</dd>
-          </div>
-        </dl>
-        <hr className="hr" />
-        <h3>Evidence strength</h3>
-        <div className="row" style={{ marginTop: 4 }}>
-          <Tag tone={strength.legs_present ? 'ok' : 'warn'}>{strength.legs_present ? 'all rule legs present in evidence' : 'some rule legs missing from evidence'}</Tag>
-          <Tag tone="muted">{strength.distinct_evidence_events} distinct evidence events</Tag>
-          {strength.evaluation_incomplete || rulesIncomplete.length > 0 ? (
-            <Tag tone="danger">EVALUATION INCOMPLETE{rulesIncomplete.length > 0 ? `: ${rulesIncomplete.join(', ')}` : ''}</Tag>
-          ) : (
-            <Tag tone="ok">evaluation complete</Tag>
-          )}
-          {packet?.completeness.listing_truncated ? <Tag tone="warn">evidence listing truncated at {packet.completeness.max_events}</Tag> : null}
+      />
+      <div className="row">
+        <ClassBadge threatClass={v.threat_class} />
+        <span className="row small muted">
+          Current disposition <StateBadge state={d.incident.status} />
+        </span>
+        <RuleTags ids={v.rule_ids} />
+        <PhaseBadge phase={d.incident.phase} />
+        {v.version !== d.incident.current_version && <Tag tone="warn">Historical version</Tag>}
+      </div>
+      <div className="execution-meta">
+        <div>
+          <span>Account</span>
+          <strong>{d.incident.account || 'Not recorded'}</strong>
         </div>
-        {strength.evaluation_incomplete ? (
-          <div className="notice notice-danger" style={{ marginTop: 8 }}>
-            <strong>Evaluation incomplete.</strong> Some rule evaluation or fact computation did not finish under this cutoff. Treat this incident as
-            provisional; the missing pieces are listed under "What we cannot establish".
+        <div>
+          <span>Trigger source IP</span>
+          <strong>
+            {d.timeline.find((event) => event.event_id === v.trigger_event_id)?.ip_raw ||
+              d.incident.ip_raw ||
+              'Not recorded'}
+          </strong>
+        </div>
+        <div>
+          <span>First observed (UTC)</span>
+          <strong>{fmtTime(v.timeline_start)}</strong>
+        </div>
+        <div>
+          <span>Evidence</span>
+          <strong>{strength.distinct_evidence_events} distinct events</strong>
+        </div>
+        <div>
+          <span>Execution</span>
+          <Link to={`/runs/${encodeURIComponent(runId)}`}>{shortId(runId, 18)}</Link>
+        </div>
+      </div>
+      {(strength.evaluation_incomplete || rulesIncomplete.length > 0) && (
+        <div className="notice notice-warn" role="alert">
+          <strong>Evaluation incomplete.</strong> Some rules or facts could not be evaluated. Missing evidence
+          is listed in the evidence view. {rulesIncomplete.join(', ')}
+        </div>
+      )}
+      <nav className="resource-tabs" aria-label="Incident sections">
+        {[
+          ['overview', 'Overview & timeline'],
+          ['evidence', 'Facts & evidence'],
+          ['review', 'Review & response'],
+        ].map(([key, label]) => (
+          <button
+            key={key}
+            className={tab === key ? 'active' : ''}
+            aria-current={tab === key ? 'page' : undefined}
+            onClick={() => update('view', key)}
+          >
+            {label}
+            {tab === key && <span className="tab-indicator" />}
+          </button>
+        ))}
+      </nav>
+      {tab === 'evidence' ? (
+        <>
+          <Section title="Evidence integrity">
+            <div className="row">
+              <Tag tone={strength.legs_present ? 'ok' : 'warn'}>
+                {strength.legs_present ? 'All rule conditions evidenced' : 'Missing rule conditions'}
+              </Tag>
+              <Tag tone={strength.evaluation_incomplete ? 'warn' : 'ok'}>
+                {strength.evaluation_incomplete ? 'Incomplete evaluation' : 'Evaluation complete'}
+              </Tag>
+              {packet?.completeness.listing_truncated && (
+                <Tag tone="warn">Listing limited to {packet.completeness.max_events} events</Tag>
+              )}
+            </div>
+            <dl className="kvs" style={{ marginTop: 16 }}>
+              <div className="kv">
+                <dt>Evidence cutoff</dt>
+                <dd>#{fmtNum(d.evidence_cutoff_seq)} · selected version</dd>
+              </div>
+              <div className="kv">
+                <dt>Packet fingerprint</dt>
+                <dd className="mono">{d.packet_hash}</dd>
+              </div>
+            </dl>
+          </Section>
+          <FactsPanel
+            packet={packet}
+            highlight={highlight}
+            onShowEvidence={(fact) => update('fact', fact.fact_id)}
+          />
+        </>
+      ) : tab === 'review' ? (
+        <>
+          <ExplanationSection
+            summaryLines={v.summary.lines}
+            triggerEvents={v.summary.trigger_events}
+            explanation={d.explanation}
+            job={d.explanation_job}
+            packet={packet}
+            factById={factById}
+            gotoFact={gotoFact}
+          />
+          <div className="grid-2">
+            <div className="stack">
+              <FeedbackSection
+                runId={runId}
+                incidentId={incidentId}
+                feedback={d.feedback}
+                historical={v.version !== d.incident.current_version}
+                onCurrent={() => update('version', '')}
+                onSaved={() => void inc.reload()}
+              />
+              <PlaybooksSection playbooks={d.playbooks ?? null} />
+            </div>
+            <DeliverySection deliveries={d.deliveries} />
           </div>
-        ) : null}
-      </Section>
-
-      <div className="grid-2">
-        <div className="stack">
-          <Section title="Timeline of evidence events">
+        </>
+      ) : (
+        <>
+          <InvestigationBrief detail={d} onEvidence={(fact) => update('fact', fact.fact_id)} />
+          <Section
+            title="Evidence timeline"
+            aside={<span className="small muted">{d.timeline.length} entries · UTC</span>}
+          >
             {d.timeline.length === 0 ? (
               <Empty>No evidence events under the current cutoff.</Empty>
             ) : (
@@ -178,43 +259,33 @@ export function IncidentPage() {
                 <table className="tbl">
                   <thead>
                     <tr>
-                      <th className="right">seq</th>
-                      <th>time (UTC)</th>
-                      <th>account@ip</th>
-                      <th>request</th>
-                      <th className="right">status</th>
-                      <th>relation</th>
-                      <th>rule</th>
-                      <th>class</th>
+                      <th>Time (UTC)</th>
+                      <th>Account</th>
+                      <th>Request</th>
+                      <th>Status</th>
+                      <th>Relation</th>
+                      <th>Evidence</th>
                     </tr>
                   </thead>
                   <tbody>
                     {d.timeline.map((t) => (
-                      <tr
-                        key={`${t.event_id}-${t.relation_type}`}
-                        className={`clickable ${t.run_seq === v.trigger_seq ? 'row-high_risk' : ''}`}
-                        onClick={() => nav(`/runs/${encodeURIComponent(runId)}/events/${t.run_seq}`)}
-                      >
-                        <td className="right mono">
-                          <EventLink runId={runId} seq={t.run_seq}>
-                            {t.run_seq}
-                          </EventLink>
-                        </td>
+                      <tr key={`${t.event_id}-${t.relation_type}`}>
                         <td className="mono nowrap">{fmtTime(t.event_time)}</td>
-                        <td className="mono">
-                          {t.username}@{t.ip_raw}
+                        <td>
+                          {t.username}
+                          <span className="cell-secondary mono">{t.ip_raw}</span>
                         </td>
                         <td className="mono">
                           {t.method} {t.path}
                         </td>
-                        <td className="right mono">{t.status}</td>
+                        <td className="mono">{t.status}</td>
                         <td>
-                          <Tag>{t.relation_type}</Tag>
-                          {t.added_version !== v.version ? <span className="muted small"> v{t.added_version}</span> : null}
+                          <Tag tone={t.run_seq === v.trigger_seq ? 'warn' : 'muted'}>
+                            {t.run_seq === v.trigger_seq ? 'Trigger' : t.relation_type}
+                          </Tag>
                         </td>
-                        <td>{t.rule_id ? <Tag tone="info">{t.rule_id}</Tag> : <span className="muted">—</span>}</td>
                         <td>
-                          <ClassBadge threatClass={t.threat_class} />
+                          <EventLink runId={runId} seq={t.run_seq} />
                         </td>
                       </tr>
                     ))}
@@ -223,60 +294,48 @@ export function IncidentPage() {
               </div>
             )}
           </Section>
-
-          <Section title="Related episodes">
-            {d.relations.length === 0 ? (
-              <Empty>No related episodes recorded.</Empty>
-            ) : (
-              <ul className="plain">
-                {d.relations.map((r) => (
-                  <li key={`${r.related_incident_id}-${r.relation_type}`} className="row" style={{ padding: '4px 0' }}>
+          <div className="grid-2">
+            <BaselineSection baseline={d.baseline} account={d.incident.account} triggerSeq={v.trigger_seq} />
+            <Section title="Related incidents at this evidence cutoff">
+              {d.relations.length ? (
+                d.relations.map((r) => (
+                  <div className="related-link" key={`${r.related_incident_id}-${r.relation_type}`}>
+                    <div>
+                      <Link
+                        to={`/runs/${encodeURIComponent(runId)}/incidents/${encodeURIComponent(r.related_incident_id)}${r.related_version ? `?version=${r.related_version}` : ''}`}
+                      >
+                        {r.account || r.key_value}
+                      </Link>
+                      <span className="cell-secondary">{r.relation_type}</span>
+                    </div>
                     <ClassBadge threatClass={r.current_class} />
-                    <IncidentLink runId={runId} incidentId={r.related_incident_id}>
-                      {shortId(r.related_incident_id, 14)}
-                    </IncidentLink>
-                    <Tag tone="info">{r.primary_rule_id}</Tag>
-                    <Tag>{r.relation_type}</Tag>
-                    <span className="mono small muted">
-                      {r.account ?? r.key_value} · link {r.link_key} · since v{r.created_version}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Section>
-
-          <ExplanationSection
-            summaryLines={s.lines}
-            triggerEvents={s.trigger_events}
-            explanation={d.explanation}
-            job={d.explanation_job}
-            packet={packet}
-            factById={factById}
-            gotoFact={gotoFact}
-          />
-
-          <PlaybooksSection playbooks={d.playbooks ?? null} />
-
-          <BaselineSection baseline={d.baseline} account={d.incident.account} triggerSeq={v.trigger_seq} />
-        </div>
-
-        <div className="stack">
-          <FactsPanel packet={packet} highlight={highlight} onShowEvidence={setDrawerFact} />
-          <DeliverySection deliveries={d.deliveries} />
-          <FeedbackSection runId={runId} incidentId={incidentId} feedback={d.feedback} onSaved={() => void inc.reload()} />
-        </div>
-      </div>
-
-      {drawerFact ? (
-        <FactDrawer runId={runId} incidentId={incidentId} version={v.version} fact={drawerFact} onClose={() => setDrawerFact(null)} />
-      ) : null}
+                  </div>
+                ))
+              ) : (
+                <Empty>No related incidents established at this version's evidence cutoff.</Empty>
+              )}
+            </Section>
+          </div>
+        </>
+      )}
+      {drawerFact && (
+        <FactDrawer
+          key={`${drawerFact.fact_id}-${v.version}`}
+          runId={runId}
+          incidentId={incidentId}
+          version={v.version}
+          fact={drawerFact}
+          onClose={() => update('fact', '')}
+        />
+      )}
     </div>
   )
 }
 
 /** packet.completeness.rules_incomplete is a string[] of rule/fact codes (empty = complete); tolerate a legacy boolean. */
-function rulesIncompleteCodes(packet: { completeness?: { rules_incomplete?: boolean | string[] } } | null | undefined): string[] {
+function rulesIncompleteCodes(
+  packet: { completeness?: { rules_incomplete?: boolean | string[] } } | null | undefined,
+): string[] {
   const v = packet?.completeness?.rules_incomplete
   if (Array.isArray(v)) return v
   if (v === true) return ['unspecified']
@@ -293,8 +352,13 @@ function asList(v: string | string[] | undefined | null): string[] {
 function PlaybooksSection({ playbooks }: { playbooks: PlaybooksBlock | null }) {
   const selected = new Set(playbooks?.selected_by_ai ?? [])
   return (
-    <Section title="Remediation playbooks" aside={playbooks ? <span className="muted">catalog v{playbooks.catalog_version}</span> : null}>
-      <p className="muted small">Recommendations are review steps; nothing here executes against any system.</p>
+    <Section
+      title="Remediation playbooks"
+      aside={playbooks ? <span className="muted">catalog v{playbooks.catalog_version}</span> : null}
+    >
+      <p className="muted small">
+        Recommendations are review steps; nothing here executes against any system.
+      </p>
       {!playbooks || playbooks.applicable.length === 0 ? (
         <Empty>No playbook in the catalog applies to this incident's rules or fact kinds.</Empty>
       ) : (
@@ -305,7 +369,11 @@ function PlaybooksSection({ playbooks }: { playbooks: PlaybooksBlock | null }) {
                 <summary>
                   <span className="row">
                     <strong>{pb.title}</strong>
-                    {selected.has(pb.id) ? <Tag tone="warn">AI suggested</Tag> : <Tag tone="muted">applicable (deterministic)</Tag>}
+                    {selected.has(pb.id) ? (
+                      <Tag tone="warn">AI suggested</Tag>
+                    ) : (
+                      <Tag tone="muted">applicable (deterministic)</Tag>
+                    )}
                     <span className="mono small muted">{pb.id}</span>
                   </span>
                   <div className="qualifier small" style={{ margin: '4px 0 0' }}>
@@ -353,9 +421,15 @@ function PlaybooksSection({ playbooks }: { playbooks: PlaybooksBlock | null }) {
                     <div className="kv">
                       <dt>applies when</dt>
                       <dd className="small">
-                        {pb.applicability.any_rules?.length ? `rules ${pb.applicability.any_rules.join(', ')}` : ''}
-                        {pb.applicability.any_rules?.length && pb.applicability.any_fact_kinds?.length ? ' or ' : ''}
-                        {pb.applicability.any_fact_kinds?.length ? `facts ${pb.applicability.any_fact_kinds.join(', ')}` : ''}
+                        {pb.applicability.any_rules?.length
+                          ? `rules ${pb.applicability.any_rules.join(', ')}`
+                          : ''}
+                        {pb.applicability.any_rules?.length && pb.applicability.any_fact_kinds?.length
+                          ? ' or '
+                          : ''}
+                        {pb.applicability.any_fact_kinds?.length
+                          ? `facts ${pb.applicability.any_fact_kinds.join(', ')}`
+                          : ''}
                       </dd>
                     </div>
                   </dl>
@@ -371,7 +445,15 @@ function PlaybooksSection({ playbooks }: { playbooks: PlaybooksBlock | null }) {
 
 // ------------------------------------------------------------------ facts
 
-function FactsPanel({ packet, highlight, onShowEvidence }: { packet: Packet | null; highlight: string | null; onShowEvidence: (f: Fact) => void }) {
+function FactsPanel({
+  packet,
+  highlight,
+  onShowEvidence,
+}: {
+  packet: Packet | null
+  highlight: string | null
+  onShowEvidence: (f: Fact) => void
+}) {
   if (!packet) {
     return (
       <Section title="Facts (deterministic)" tone="fact">
@@ -385,10 +467,18 @@ function FactsPanel({ packet, highlight, onShowEvidence }: { packet: Packet | nu
     { role: 'context', title: 'Context / counterevidence' },
   ]
   return (
-    <Section title="Facts (deterministic)" tone="fact" aside={<span>{packet.facts.length} facts · schema {packet.schema_version ?? '1'}</span>}>
+    <Section
+      title="Facts (deterministic)"
+      tone="fact"
+      aside={
+        <span>
+          {packet.facts.length} facts · schema {packet.schema_version ?? '1'}
+        </span>
+      }
+    >
       <p className="muted small">
-        Every fact was computed by code from committed evidence before any AI involvement. "Show evidence" opens the exact log lines or a recomputed
-        aggregate proof.
+        Every fact was computed by code from committed evidence before any AI involvement. "Show evidence"
+        opens the exact log lines or a recomputed aggregate proof.
       </p>
       {groups.map((g) => {
         const list = packet.facts.filter((f) => f.role === g.role)
@@ -398,10 +488,15 @@ function FactsPanel({ packet, highlight, onShowEvidence }: { packet: Packet | nu
             <h3>{g.title}</h3>
             <ul className="plain facts">
               {list.map((f) => (
-                <li key={f.fact_id} id={`fact-${f.fact_id}`} className={highlight === f.fact_id ? 'highlight' : ''}>
+                <li
+                  key={f.fact_id}
+                  id={`fact-${f.fact_id}`}
+                  className={highlight === f.fact_id ? 'highlight' : ''}
+                >
                   <div>
                     <div className="kind">
-                      <span className="kind-name">{factKindLabel(f.kind)}</span> · <span className="mono">{f.fact_id}</span> · cutoff #{f.cutoff_seq}
+                      <span className="kind-name">{factKindLabel(f.kind)}</span> ·{' '}
+                      <span className="mono">{f.fact_id}</span> · cutoff #{f.cutoff_seq}
                     </div>
                     <div>{factValueText(f.kind, f.value, f.args)}</div>
                     {f.query ? <div className="muted small mono">aggregate query: {f.query.id}</div> : null}
@@ -419,27 +514,40 @@ function FactsPanel({ packet, highlight, onShowEvidence }: { packet: Packet | nu
   )
 }
 
-function FactDrawer({ runId, incidentId, version, fact, onClose }: { runId: string; incidentId: string; version: number; fact: Fact; onClose: () => void }) {
+function FactDrawer({
+  runId,
+  incidentId,
+  version,
+  fact,
+  onClose,
+}: {
+  runId: string
+  incidentId: string
+  version: number
+  fact: Fact
+  onClose: () => void
+}) {
   const [limit, setLimit] = useState(50)
   const [offset, setOffset] = useState(0)
-  const res = useFetch<FactResponse>(() => api.getFact(runId, fact.fact_id, incidentId, version, limit, offset), [runId, fact.fact_id, incidentId, version, limit, offset])
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  const res = useFetch<FactResponse>(
+    () => api.getFact(runId, fact.fact_id, incidentId, version, limit, offset),
+    [runId, fact.fact_id, incidentId, version, limit, offset],
+  )
 
   const proof = res.data?.aggregate_proof ?? null
   return (
-    <>
-      <div className="drawer-backdrop" onClick={onClose} />
-      <aside className="drawer" role="dialog" aria-label="Fact evidence">
+    <Overlay
+      drawer
+      open
+      onClose={onClose}
+      title={factKindLabel(fact.kind)}
+      description={`Evidence at cutoff #${fact.cutoff_seq}`}
+    >
+      <div>
         <div className="drawer-head">
           <div>
-            <strong>{factKindLabel(fact.kind)}</strong> <span className="mono small muted">{fact.fact_id}</span>
+            <strong>{factKindLabel(fact.kind)}</strong>{' '}
+            <span className="mono small muted">{fact.fact_id}</span>
             <div className="small muted">
               role {fact.role} · cutoff #{fact.cutoff_seq} · provenance {shortId(fact.provenance_hash, 16)}
             </div>
@@ -467,13 +575,18 @@ function FactDrawer({ runId, incidentId, version, fact, onClose }: { runId: stri
               <div>
                 <h3>Exact evidence lines ({res.data.evidence.length})</h3>
                 {res.data.evidence.length === 0 ? (
-                  <Empty>{fact.query ? 'This fact is an aggregate; see the recomputed proof below.' : 'No evidence lines referenced.'}</Empty>
+                  <Empty>
+                    {fact.query
+                      ? 'This fact is an aggregate; see the recomputed proof below.'
+                      : 'No evidence lines referenced.'}
+                  </Empty>
                 ) : (
                   <ul className="plain" style={{ marginTop: 6 }}>
                     {res.data.evidence.map((e) => (
                       <li key={e.event_id} className="evidence-line">
                         <div className="meta row">
-                          <EventLink runId={runId} seq={e.run_seq} /> line {e.line_number ?? '—'} · dataset {e.dataset_id ?? '—'} · {fmtTime(e.event_time)} ·{' '}
+                          <EventLink runId={runId} seq={e.run_seq} /> line {e.line_number ?? '—'} · dataset{' '}
+                          {e.dataset_id ?? '—'} · {fmtTime(e.event_time)} ·{' '}
                           <ClassBadge threatClass={e.threat_class} />
                         </div>
                         <pre className="code-block">
@@ -511,7 +624,9 @@ function FactDrawer({ runId, incidentId, version, fact, onClose }: { runId: stri
                             {proof.matches_recorded === true ? (
                               <span className="check-ok">✓ yes</span>
                             ) : proof.matches_recorded === false ? (
-                              <span className="check-bad">✗ NO — recomputation differs from the recorded value</span>
+                              <span className="check-bad">
+                                ✗ NO — recomputation differs from the recorded value
+                              </span>
                             ) : (
                               <span className="muted">n/a (non-integer value)</span>
                             )}
@@ -524,8 +639,12 @@ function FactDrawer({ runId, incidentId, version, fact, onClose }: { runId: stri
                       </details>
                       <div className="row row-between" style={{ margin: '8px 0 4px' }}>
                         <span className="small muted">
-                          rows {offset + 1}–{Math.min(offset + limit, (proof.recomputed_count ?? 0) || offset + (proof.rows?.length ?? 0))} of{' '}
-                          {fmtNum(proof.recomputed_count)}
+                          rows {offset + 1}–
+                          {Math.min(
+                            offset + limit,
+                            (proof.recomputed_count ?? 0) || offset + (proof.rows?.length ?? 0),
+                          )}{' '}
+                          of {fmtNum(proof.recomputed_count)}
                         </span>
                         <span className="row">
                           <label className="small muted">
@@ -544,7 +663,12 @@ function FactDrawer({ runId, incidentId, version, fact, onClose }: { runId: stri
                               ))}
                             </select>
                           </label>
-                          <button type="button" className="btn btn-sm" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - limit))}>
+                          <button
+                            type="button"
+                            className="btn btn-sm"
+                            disabled={offset === 0}
+                            onClick={() => setOffset(Math.max(0, offset - limit))}
+                          >
                             Prev
                           </button>
                           <button
@@ -599,14 +723,24 @@ function FactDrawer({ runId, incidentId, version, fact, onClose }: { runId: stri
             </>
           ) : null}
         </div>
-      </aside>
-    </>
+      </div>
+    </Overlay>
   )
 }
 
 // ------------------------------------------------------------------ explanation
 
-function FactRefs({ ids, factById, gotoFact, label }: { ids: string[]; factById: Map<string, Fact>; gotoFact: (id: string) => void; label: string }) {
+function FactRefs({
+  ids,
+  factById,
+  gotoFact,
+  label,
+}: {
+  ids: string[]
+  factById: Map<string, Fact>
+  gotoFact: (id: string) => void
+  label: string
+}) {
   return (
     <div className="small">
       <span className="muted">{label}: </span>
@@ -614,8 +748,16 @@ function FactRefs({ ids, factById, gotoFact, label }: { ids: string[]; factById:
         <span className="muted">none</span>
       ) : (
         ids.map((id) => (
-          <button key={id} type="button" className="factref" onClick={() => gotoFact(id)} title={factById.get(id) ? factKindLabel(factById.get(id)!.kind) : 'fact id not in packet'}>
-            {factById.has(id) ? `${factKindLabel(factById.get(id)!.kind)} (${shortId(id, 10)})` : `${shortId(id, 12)} (not in packet)`}
+          <button
+            key={id}
+            type="button"
+            className="factref"
+            onClick={() => gotoFact(id)}
+            title={factById.get(id) ? factKindLabel(factById.get(id)!.kind) : 'fact id not in packet'}
+          >
+            {factById.has(id)
+              ? `${factKindLabel(factById.get(id)!.kind)} (${shortId(id, 10)})`
+              : `${shortId(id, 12)} (not in packet)`}
           </button>
         ))
       )}
@@ -643,20 +785,20 @@ function ExplanationSection({
   const validated = explanation?.validated ?? null
   const unknowns = packet?.unknown_codes ?? []
   return (
-    <Section
-      title="Explanation"
-      aside={
-        job ? (
+    <section className="stack" aria-label="Explanation">
+      <div className="small muted">
+        {job ? (
           <span>
             AI review job: <StateBadge state={job.state} /> attempts {job.attempts}
-            {job.next_attempt_at && (job.state === 'pending' || job.state === 'failed') ? ` · next ${fmtTime(job.next_attempt_at)}` : ''}
+            {job.next_attempt_at && (job.state === 'pending' || job.state === 'failed')
+              ? ` · next ${fmtTime(job.next_attempt_at)}`
+              : ''}
             {job.last_error ? <span className="muted"> · {job.last_error}</span> : null}
           </span>
         ) : (
           <span className="muted">no AI review job</span>
-        )
-      }
-    >
+        )}
+      </div>
       <div className="stack">
         <div className="card card-fact">
           <header className="card-head">
@@ -694,19 +836,26 @@ function ExplanationSection({
           <header className="card-head">
             <h2>AI suggested hypotheses (qualified, unproven)</h2>
             <span className="small" style={{ color: 'var(--ai)' }}>
-              {explanation ? `${explanation.model_name} · prompt ${explanation.prompt_version}` : 'no explanation record'}
+              {explanation
+                ? `${explanation.model_name} · prompt ${explanation.prompt_version}`
+                : 'no explanation record'}
             </span>
           </header>
           <div className="card-body">
             {!explanation || explanation.state === 'fallback' ? (
               <div className="notice notice-ai">
                 <strong>AI review unavailable — deterministic summary shown.</strong>
-                {validated?.ai_review_reason ? <div className="small">Reason: {validated.ai_review_reason}</div> : null}
-                {!explanation ? <div className="small muted">No explanation has been recorded for this version yet.</div> : null}
+                {validated?.ai_review_reason ? (
+                  <div className="small">Reason: {validated.ai_review_reason}</div>
+                ) : null}
+                {!explanation ? (
+                  <div className="small muted">No explanation has been recorded for this version yet.</div>
+                ) : null}
               </div>
             ) : explanation.state === 'rejected' ? (
               <div className="notice notice-danger">
-                <strong>AI proposal rejected by validator.</strong> The deterministic summary above stands; nothing from the proposal was published.
+                <strong>AI proposal rejected by validator.</strong> The deterministic summary above stands;
+                nothing from the proposal was published.
                 {explanation.rejection_reasons.length > 0 ? (
                   <ul className="bul">
                     {explanation.rejection_reasons.map((r, i) => (
@@ -720,20 +869,34 @@ function ExplanationSection({
             ) : (
               <>
                 <p className="small muted">
-                  These are AI-suggested, validator-checked hypotheses that reference only facts in the packet. They are possibilities to investigate,
-                  not findings. The detector verdict above is unaffected by them.
+                  These are AI-suggested, validator-checked hypotheses that reference only facts in the
+                  packet. They are possibilities to investigate, not findings. The detector verdict above is
+                  unaffected by them.
                 </p>
                 {validated?.cached ? (
                   <div className="small muted" style={{ marginBottom: 6 }}>
-                    <Tag tone="info">cached result</Tag> same fact packet and model as an earlier review; no new provider call was made.
+                    <Tag tone="info">cached result</Tag> same fact packet and model as an earlier review; no
+                    new provider call was made.
                   </div>
                 ) : null}
                 {validated && validated.hypotheses.length > 0 ? (
                   validated.hypotheses.map((h, i) => (
                     <div key={i} className="hyp">
-                      <div className="hyp-title">AI suggested: {h.text?.trim() ? h.text : hypothesisText(h.type)}</div>
-                      <FactRefs ids={h.supporting_fact_ids} factById={factById} gotoFact={gotoFact} label="supporting facts" />
-                      <FactRefs ids={h.counterevidence_fact_ids} factById={factById} gotoFact={gotoFact} label="counterevidence facts" />
+                      <div className="hyp-title">
+                        AI suggested: {h.text?.trim() ? h.text : hypothesisText(h.type)}
+                      </div>
+                      <FactRefs
+                        ids={h.supporting_fact_ids}
+                        factById={factById}
+                        gotoFact={gotoFact}
+                        label="supporting facts"
+                      />
+                      <FactRefs
+                        ids={h.counterevidence_fact_ids}
+                        factById={factById}
+                        gotoFact={gotoFact}
+                        label="counterevidence facts"
+                      />
                       {h.unknown_codes.length > 0 ? (
                         <div className="small">
                           <span className="muted">what this hypothesis cannot establish: </span>
@@ -764,23 +927,35 @@ function ExplanationSection({
                 ) : null}
                 {validated && validated.forced_inclusions && validated.forced_inclusions.length > 0 ? (
                   <div className="small" style={{ marginTop: 6 }}>
-                    <span className="muted">Force-included by the system (counterevidence/context the AI could not omit): </span>
+                    <span className="muted">
+                      Force-included by the system (counterevidence/context the AI could not omit):{' '}
+                    </span>
                     {validated.forced_inclusions.map((id) => (
                       <button key={id} type="button" className="factref" onClick={() => gotoFact(id)}>
-                        {factById.has(id) ? `${factKindLabel(factById.get(id)!.kind)} (${shortId(id, 10)})` : shortId(id, 12)}
+                        {factById.has(id)
+                          ? `${factKindLabel(factById.get(id)!.kind)} (${shortId(id, 10)})`
+                          : shortId(id, 12)}
                       </button>
                     ))}
                   </div>
                 ) : null}
                 {validated && validated.tool_log && validated.tool_log.length > 0 ? (
                   <details style={{ marginTop: 6 }}>
-                    <summary className="small muted">AI tool calls (read-only, under cutoff): {validated.tool_log.length}</summary>
+                    <summary className="small muted">
+                      AI tool calls (read-only, under cutoff): {validated.tool_log.length}
+                    </summary>
                     <ul className="plain small" style={{ marginTop: 4 }}>
                       {validated.tool_log.map((t, i) => (
                         <li key={i} className="mono">
                           {t.tool}
-                          {t.error ? <span style={{ color: 'var(--danger)' }}> — {t.error}</span> : <span className="muted"> — {fmtNum(t.rows ?? 0)} rows</span>}
-                          {t.args && Object.keys(t.args).length > 0 ? <span className="muted"> {JSON.stringify(t.args)}</span> : null}
+                          {t.error ? (
+                            <span style={{ color: 'var(--danger)' }}> — {t.error}</span>
+                          ) : (
+                            <span className="muted"> — {fmtNum(t.rows ?? 0)} rows</span>
+                          )}
+                          {t.args && Object.keys(t.args).length > 0 ? (
+                            <span className="muted"> {JSON.stringify(t.args)}</span>
+                          ) : null}
                         </li>
                       ))}
                     </ul>
@@ -816,15 +991,28 @@ function ExplanationSection({
           </div>
         </div>
       </div>
-    </Section>
+    </section>
   )
 }
 
 // ------------------------------------------------------------------ baseline chart (inline SVG, no library)
 
-function BaselineSection({ baseline, account, triggerSeq }: { baseline: Baseline | null; account: string | null; triggerSeq: number }) {
+function BaselineSection({
+  baseline,
+  account,
+  triggerSeq,
+}: {
+  baseline: Baseline | null
+  account: string | null
+  triggerSeq: number
+}) {
   return (
-    <Section title="Baseline comparison" aside={<span className="muted">prior events for this account before trigger #{fmtNum(triggerSeq)}</span>}>
+    <Section
+      title="Baseline comparison"
+      aside={
+        <span className="muted">prior events for this account before trigger #{fmtNum(triggerSeq)}</span>
+      }
+    >
       {!baseline || !account ? (
         <Empty>No account baseline available (incident has no account key).</Empty>
       ) : (
@@ -855,8 +1043,8 @@ function BaselineSection({ baseline, account, triggerSeq }: { baseline: Baseline
           </div>
           <HourHistogram hist={baseline.hour_histogram} />
           <p className="muted small" style={{ marginTop: 4 }}>
-            Prior events for <span className="mono">{account}</span> by local hour (log timezone offset), counted from processed evidence before the trigger.
-            A measured distribution, not a model output.
+            Prior events for <span className="mono">{account}</span> by local hour (log timezone offset),
+            counted from processed evidence before the trigger. A measured distribution, not a model output.
           </p>
         </>
       )}
@@ -889,11 +1077,24 @@ function HourHistogram({ hist }: { hist: Record<string, number> }) {
         const x = padL + h * bw + 2
         return (
           <g key={h}>
-            <rect x={x} y={H - padB - bh} width={Math.max(1, bw - 4)} height={bh} fill="var(--accent-2)" opacity={n === 0 ? 0.25 : 0.9}>
+            <rect
+              x={x}
+              y={H - padB - bh}
+              width={Math.max(1, bw - 4)}
+              height={bh}
+              fill="var(--accent-2)"
+              opacity={n === 0 ? 0.25 : 0.9}
+            >
               <title>{`${String(h).padStart(2, '0')}:00 — ${fmtNum(n)} events`}</title>
             </rect>
             {h % 3 === 0 ? (
-              <text x={x + (bw - 4) / 2} y={H - padB + 14} fill="var(--fg-3)" fontSize="10" textAnchor="middle">
+              <text
+                x={x + (bw - 4) / 2}
+                y={H - padB + 14}
+                fill="var(--fg-3)"
+                fontSize="10"
+                textAnchor="middle"
+              >
                 {String(h).padStart(2, '0')}
               </text>
             ) : null}
@@ -924,7 +1125,8 @@ function DeliverySection({ deliveries }: { deliveries: Delivery[] }) {
               </div>
               {n.state === 'preview' ? (
                 <div className="notice notice-warn small" style={{ marginTop: 6 }}>
-                  Preview mode: nothing left the application. This is the exact message that would have been sent.
+                  Preview mode: nothing left the application. This is the exact message that would have been
+                  sent.
                 </div>
               ) : null}
               <dl className="kvs" style={{ marginTop: 6 }}>
@@ -941,7 +1143,11 @@ function DeliverySection({ deliveries }: { deliveries: Delivery[] }) {
                   <dd className="mono small">{shortId(n.idempotency_key, 20)}</dd>
                 </div>
               </dl>
-              {n.last_error ? <div className="notice notice-danger small" style={{ marginTop: 6 }}>last error: {n.last_error}</div> : null}
+              {n.last_error ? (
+                <div className="notice notice-danger small" style={{ marginTop: 6 }}>
+                  last error: {n.last_error}
+                </div>
+              ) : null}
               {n.preview_text ? (
                 <pre className="code-block" style={{ marginTop: 6 }}>
                   <code>{n.preview_text}</code>
@@ -957,7 +1163,21 @@ function DeliverySection({ deliveries }: { deliveries: Delivery[] }) {
 
 // ------------------------------------------------------------------ analyst disposition
 
-function FeedbackSection({ runId, incidentId, feedback, onSaved }: { runId: string; incidentId: string; feedback: FeedbackRow[]; onSaved: () => void }) {
+function FeedbackSection({
+  runId,
+  incidentId,
+  feedback,
+  onSaved,
+  historical,
+  onCurrent,
+}: {
+  runId: string
+  incidentId: string
+  feedback: FeedbackRow[]
+  onSaved: () => void
+  historical: boolean
+  onCurrent: () => void
+}) {
   const [reviewer, setReviewer] = useState('')
   const [disposition, setDisposition] = useState<Disposition>('needs_more_evidence')
   const [reason, setReason] = useState('')
@@ -967,11 +1187,16 @@ function FeedbackSection({ runId, incidentId, feedback, onSaved }: { runId: stri
 
   async function submit(e: FormEvent) {
     e.preventDefault()
+    if (historical) return
     setBusy(true)
     setErr(null)
     setSaved(false)
     try {
-      await api.postFeedback(runId, incidentId, { reviewer: reviewer.trim(), disposition, reason: reason.trim() })
+      await api.postFeedback(runId, incidentId, {
+        reviewer: reviewer.trim(),
+        disposition,
+        reason: reason.trim(),
+      })
       setReason('')
       setSaved(true)
       onSaved()
@@ -985,13 +1210,28 @@ function FeedbackSection({ runId, incidentId, feedback, onSaved }: { runId: stri
   return (
     <Section title="Analyst disposition">
       <p className="muted small">
-        Append-only audit record. Closing an incident records your disposition; it never erases detections, facts or versions.
+        Append-only audit record. Closing an incident records your disposition; it never erases detections,
+        facts or versions. The API attaches reviews to the latest version at submission.
       </p>
+      {historical && (
+        <div className="notice notice-warn">
+          You are viewing historical evidence. Open the current version before recording a disposition.
+          <button className="btn btn-sm" type="button" onClick={onCurrent}>
+            Open current version
+          </button>
+        </div>
+      )}
       <form onSubmit={(ev) => void submit(ev)} className="stack">
         <div className="form-grid">
           <label className="field">
             reviewer
-            <input value={reviewer} onChange={(ev) => setReviewer(ev.target.value)} required maxLength={100} placeholder="your name" />
+            <input
+              value={reviewer}
+              onChange={(ev) => setReviewer(ev.target.value)}
+              required
+              maxLength={100}
+              placeholder="your name"
+            />
           </label>
           <label className="field">
             disposition
@@ -1006,10 +1246,21 @@ function FeedbackSection({ runId, incidentId, feedback, onSaved }: { runId: stri
         </div>
         <label className="field">
           reason
-          <textarea value={reason} onChange={(ev) => setReason(ev.target.value)} required maxLength={2000} rows={3} placeholder="what you checked and why" />
+          <textarea
+            value={reason}
+            onChange={(ev) => setReason(ev.target.value)}
+            required
+            maxLength={2000}
+            rows={3}
+            placeholder="what you checked and why"
+          />
         </label>
         <div className="row">
-          <button type="submit" className="btn btn-primary" disabled={busy || !reviewer.trim() || !reason.trim()}>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={historical || busy || !reviewer.trim() || !reason.trim()}
+          >
             {busy ? 'Saving…' : 'Record disposition'}
           </button>
           {saved ? <span className="small check-ok">recorded</span> : null}
@@ -1029,7 +1280,15 @@ function FeedbackSection({ runId, incidentId, feedback, onSaved }: { runId: stri
           {feedback.map((f) => (
             <li key={f.id} style={{ padding: '6px 0', borderBottom: '1px dashed var(--line)' }}>
               <div className="row">
-                <Tag tone={f.disposition === 'confirmed_suspicious' ? 'danger' : f.disposition === 'needs_more_evidence' ? 'warn' : 'info'}>
+                <Tag
+                  tone={
+                    f.disposition === 'confirmed_suspicious'
+                      ? 'danger'
+                      : f.disposition === 'needs_more_evidence'
+                        ? 'warn'
+                        : 'info'
+                  }
+                >
                   {DISPOSITIONS.find((d) => d.value === f.disposition)?.label ?? f.disposition}
                 </Tag>
                 <span className="small muted">

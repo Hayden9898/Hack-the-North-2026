@@ -1,15 +1,37 @@
 import { Link, useParams } from 'react-router-dom'
 import { api, type EventDetail } from '../api'
-import { CLASS_MEANING, classTone, fmtNum, fmtPercentile, fmtTime, modelHealthLabel, phaseLabel, shortId } from '../format'
+import {
+  CLASS_MEANING,
+  classTone,
+  fmtNum,
+  fmtPercentile,
+  fmtTime,
+  modelHealthLabel,
+  phaseLabel,
+  shortId,
+} from '../format'
 import { useFetch } from '../useFetch'
-import { ClassBadge, Code, Empty, ErrorState, EventLink, IncidentLink, Loading, PhaseBadge, RuleTags, Section, Tag } from '../ui'
+import {
+  ClassBadge,
+  Code,
+  Empty,
+  ErrorState,
+  EventLink,
+  IncidentLink,
+  Loading,
+  PhaseBadge,
+  RuleTags,
+  Section,
+  Tag,
+} from '../ui'
 
 export function EventPage() {
   const { runId = '', seq = '' } = useParams()
   const ev = useFetch<EventDetail>(() => api.getEvent(runId, seq), [runId, seq])
 
   if (ev.loading && !ev.data) return <Loading what="event" />
-  if (ev.error && !ev.data) return <ErrorState error={ev.error} onRetry={() => void ev.reload()} what="event" />
+  if (ev.error && !ev.data)
+    return <ErrorState error={ev.error} onRetry={() => void ev.reload()} what="event" />
   const e = ev.data
   if (!e) return <Empty>Event not found under the run cutoff.</Empty>
   const tone = classTone(e.threat_class, e.processing_status)
@@ -18,21 +40,41 @@ export function EventPage() {
   return (
     <div className="stack">
       <div className="crumbs">
-        <Link to="/">Runs</Link> / <Link to={`/runs/${encodeURIComponent(runId)}`}>{shortId(runId, 18)}</Link> / event #{e.run_seq}
+        <Link to="/events">Event explorer</Link> /{' '}
+        <Link to={`/runs/${encodeURIComponent(runId)}`}>{shortId(runId, 18)}</Link> / event #{e.run_seq}
       </div>
       <div className="page-head">
         <h1>
-          Event #{fmtNum(e.run_seq)} <ClassBadge threatClass={e.threat_class} processingStatus={e.processing_status} /> <PhaseBadge phase={e.phase} />
-          {e.phase === 'warmup' ? <Tag tone="warn">historical warmup — state-building, not a live decision</Tag> : null}
+          Event #{fmtNum(e.run_seq)}{' '}
+          <ClassBadge threatClass={e.threat_class} processingStatus={e.processing_status} />{' '}
+          <PhaseBadge phase={e.phase} />
+          {e.phase === 'warmup' ? (
+            <Tag tone="warn">historical warmup — state-building, not a live decision</Tag>
+          ) : null}
         </h1>
         <span className="row" style={{ marginLeft: 'auto' }}>
-          {Number.isFinite(seqN) && seqN > 1 ? <EventLink runId={runId} seq={seqN - 1}>← #{seqN - 1}</EventLink> : null}
-          {Number.isFinite(seqN) ? <EventLink runId={runId} seq={seqN + 1}>#{seqN + 1} →</EventLink> : null}
+          {Number.isFinite(seqN) && seqN > 1 ? (
+            <EventLink runId={runId} seq={seqN - 1}>
+              ← #{seqN - 1}
+            </EventLink>
+          ) : null}
+          {Number.isFinite(seqN) ? (
+            <EventLink runId={runId} seq={seqN + 1}>
+              #{seqN + 1} →
+            </EventLink>
+          ) : null}
         </span>
       </div>
       <p className="muted small">{CLASS_MEANING[tone]}</p>
 
-      <Section title="Raw log line" aside={<span className="mono">line {e.line_number ?? '—'} · dataset {e.dataset_id ?? '—'}</span>}>
+      <Section
+        title="Raw log line"
+        aside={
+          <span className="mono">
+            line {e.line_number ?? '—'} · dataset {e.dataset_id ?? '—'}
+          </span>
+        }
+      >
         <Code block>{e.raw_line}</Code>
         <dl className="kvs" style={{ marginTop: 8 }}>
           <div className="kv">
@@ -69,7 +111,9 @@ export function EventPage() {
           </div>
           <div className="kv">
             <dt>query keys</dt>
-            <dd className="mono small">{e.query_keys && e.query_keys.length ? e.query_keys.join(', ') : '—'}</dd>
+            <dd className="mono small">
+              {e.query_keys && e.query_keys.length ? e.query_keys.join(', ') : '—'}
+            </dd>
           </div>
           <div className="kv">
             <dt>route family / object</dt>
@@ -105,7 +149,9 @@ export function EventPage() {
             </div>
             <div className="kv">
               <dt>reason codes</dt>
-              <dd>{e.reason_codes.length ? e.reason_codes.join(', ') : <span className="muted">none</span>}</dd>
+              <dd>
+                {e.reason_codes.length ? e.reason_codes.join(', ') : <span className="muted">none</span>}
+              </dd>
             </div>
             <div className="kv">
               <dt>phase</dt>
@@ -118,18 +164,22 @@ export function EventPage() {
             <div className="kv">
               <dt>model health</dt>
               <dd>
-                {modelHealthLabel(e.model_health)} {e.model_id ? <span className="mono small">({e.model_id})</span> : null}
+                {modelHealthLabel(e.model_health)}{' '}
+                {e.model_id ? <span className="mono small">({e.model_id})</span> : null}
               </dd>
             </div>
             <div className="kv">
               <dt>rarity percentile</dt>
               <dd>
-                {fmtPercentile(e.anomaly_percentile)} <span className="muted small">rarity vs. the account's baseline, not attack probability</span>
+                {fmtPercentile(e.anomaly_percentile)}{' '}
+                <span className="muted small">rarity vs. the account's baseline, not attack probability</span>
               </dd>
             </div>
             <div className="kv">
               <dt>model score</dt>
-              <dd className="mono">{e.model_score === null ? '— (null: no model scored this event)' : e.model_score.toFixed(4)}</dd>
+              <dd className="mono">
+                {e.model_score === null ? '— (null: no model scored this event)' : e.model_score.toFixed(4)}
+              </dd>
             </div>
             <div className="kv">
               <dt>model flagged</dt>
@@ -137,7 +187,10 @@ export function EventPage() {
             </div>
           </dl>
           <h3 style={{ marginTop: 10 }}>Measured deviations</h3>
-          <p className="muted small">Largest measured baseline differences for this event. These are measurements, not model attribution.</p>
+          <p className="muted small">
+            Largest measured baseline differences for this event. These are measurements, not model
+            attribution.
+          </p>
           {e.top_deviations.length === 0 ? (
             <Empty>No deviations recorded (rules-only or nothing above threshold).</Empty>
           ) : (
@@ -171,7 +224,11 @@ export function EventPage() {
             ) : (
               <ul className="plain">
                 {e.incident_memberships.map((m) => (
-                  <li key={`${m.incident_id}-${m.relation_type}`} className="row" style={{ padding: '3px 0' }}>
+                  <li
+                    key={`${m.incident_id}-${m.relation_type}`}
+                    className="row"
+                    style={{ padding: '3px 0' }}
+                  >
                     <IncidentLink runId={runId} incidentId={m.incident_id} />
                     <Tag>{m.relation_type}</Tag>
                     {m.rule_id ? <Tag tone="info">{m.rule_id}</Tag> : null}

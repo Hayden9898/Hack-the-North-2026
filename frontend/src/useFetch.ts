@@ -25,6 +25,7 @@ export function useFetch<T>(fn: () => Promise<T>, key: unknown[], enabled = true
     fnRef.current = fn
   })
   const gen = useRef(0)
+  const keyHash = JSON.stringify(key)
 
   const run = useCallback(async (background: boolean) => {
     const my = ++gen.current
@@ -47,13 +48,18 @@ export function useFetch<T>(fn: () => Promise<T>, key: unknown[], enabled = true
   }, [])
 
   useEffect(() => {
+    setData(null)
+    setError(null)
     if (!enabled) {
       setLoading(false)
       return
     }
     void run(false)
+    return () => {
+      gen.current += 1
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, ...key])
+  }, [enabled, keyHash, run])
 
   const reload = useCallback(() => run(true), [run])
   const set = useCallback((updater: (prev: T | null) => T | null) => setData((p) => updater(p)), [])
@@ -83,11 +89,14 @@ export function useThrottledCallback(fn: () => void, ms: number): () => void {
       return
     }
     if (!timer.current) {
-      timer.current = setTimeout(() => {
-        timer.current = null
-        last.current = Date.now()
-        fnRef.current()
-      }, Math.max(0, ms - elapsed))
+      timer.current = setTimeout(
+        () => {
+          timer.current = null
+          last.current = Date.now()
+          fnRef.current()
+        },
+        Math.max(0, ms - elapsed),
+      )
     }
   }, [ms])
 }

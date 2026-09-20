@@ -60,7 +60,13 @@ const MANUAL_RECONNECT_BASE_MS = 1_000
 
 export function useRunUpdates(runId: string | undefined, opts: UseRunUpdatesOptions): UpdatesState {
   const { enabled = true, maxErrorsBeforePolling = 4 } = opts
-  const [state, setState] = useState<UpdatesState>({ status: 'connecting', attempts: 0, lastId: null, lastMessageAt: null, polling: false })
+  const [state, setState] = useState<UpdatesState>({
+    status: 'connecting',
+    attempts: 0,
+    lastId: null,
+    lastMessageAt: null,
+    polling: false,
+  })
 
   // Handlers live in refs so the EventSource is not torn down when the caller re-renders.
   const onEventRef = useRef(opts.onEvent)
@@ -121,7 +127,7 @@ export function useRunUpdates(runId: string | undefined, opts: UseRunUpdatesOpti
         }
         patch({ lastId: lastIdRef.current, lastMessageAt: Date.now(), status: 'live' })
         if (type === 'resync_required') {
-          const latest = typeof data.latest_seq === 'number' ? data.latest_seq : lastIdRef.current ?? 0
+          const latest = typeof data.latest_seq === 'number' ? data.latest_seq : (lastIdRef.current ?? 0)
           lastIdRef.current = latest
           onResyncRef.current(latest)
         }

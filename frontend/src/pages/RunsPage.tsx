@@ -1,291 +1,315 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { api, describeError, type Dataset, type Run, type RunCreateBody } from '../api'
-import { fmtBytes, fmtNum, fmtTime, isFaultRun, runStateLabel, shortId, speedLabel } from '../format'
-import { useFetch, useInterval } from '../useFetch'
-import { Empty, ErrorState, Loading, ModelHealthBadge, PhaseBadge, Section, StateBadge, Tag } from '../ui'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { ArrowDown, ArrowUp, Plus, RefreshCw, Workflow } from 'lucide-react'
+import { api, type RunCreateBody } from '../api'
+import { fmtNum, fmtTime, shortId, speedLabel } from '../format'
+import { useWorkspace } from '../workspace'
+import { Empty, ErrorState, Loading, ModelHealthBadge, StateBadge, Tag } from '../ui'
+import { Overlay } from '../components/Overlay'
+import { PageHeader, Pagination, SearchField } from '../components/Page'
 
 export function RunsPage() {
-  const runs = useFetch<Run[]>(() => api.listRuns(), [])
-  const datasets = useFetch<Dataset[]>(() => api.listDatasets(), [])
-  useInterval(() => {
-    void runs.reload()
-    void datasets.reload()
-  }, 5_000)
-
+  const { runs, sources } = useWorkspace()
+  const [params, setParams] = useSearchParams()
+  const search = params.get('q') || ''
+  const status = params.get('status') || ''
+  const asc = params.get('sort') === 'oldest'
+  const filtered = (runs.data ?? [])
+    .filter(
+      (r) =>
+        (!status || r.state === status) &&
+        `${r.name} ${r.run_id} ${r.dataset_id}`.toLowerCase().includes(search.toLowerCase()),
+    )
+    .sort((a, b) => (asc ? 1 : -1) * a.created_at.localeCompare(b.created_at))
+  const page = Math.min(
+    Math.max(0, Number(params.get('page')) || 0),
+    Math.max(0, Math.ceil(filtered.length / 12) - 1),
+  )
+  function update(key: string, value: string) {
+    setParams((p) => {
+      if (value) p.set(key, value)
+      else p.delete(key)
+      if (key !== 'page') p.delete('page')
+      return p
+    })
+  }
   return (
-    <div className="stack">
-      <div className="page-head">
-        <h1>Runs</h1>
-        <span className="muted small">
-          Each run is an isolated detection pass over a dataset (historical replay) or a live source. Replays never contaminate each other and never
-          send real notifications unless Slack is explicitly live.
-        </span>
-      </div>
-
-      <div className="grid-2">
-        <Section title="Runs" aside={runs.refreshing ? <span className="muted">refreshing…</span> : <span className="muted">auto-refresh 5 s</span>}>
-          {runs.loading ? (
-            <Loading what="runs" />
-          ) : runs.error ? (
-            <ErrorState error={runs.error} onRetry={() => void runs.reload()} what="runs" />
-          ) : !runs.data || runs.data.length === 0 ? (
-            <Empty>No runs yet. Create one from a ready dataset.</Empty>
-          ) : (
-            <div className="table-wrap">
-              <table className="tbl">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Mode</th>
-                    <th>Phase</th>
-                    <th>State</th>
-                    <th>Model</th>
-                    <th className="right">Cursor</th>
-                    <th>Speed</th>
-                    <th>Dataset</th>
-                    <th>Created</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {runs.data.map((r) => (
-                    <tr key={r.run_id}>
-                      <td>
-                        <Link className="link" to={`/runs/${encodeURIComponent(r.run_id)}`}>
-                          {r.name || shortId(r.run_id, 12)}
-                        </Link>
-                        {isFaultRun(r.name) ? (
-                          <>
-                            {' '}
-                            <Tag tone="danger">fault injection</Tag>
-                          </>
-                        ) : null}
-                        <div className="muted small mono">{shortId(r.run_id, 18)}</div>
-                      </td>
-                      <td>
-                        <Tag tone={r.mode === 'replay' ? 'muted' : 'info'}>{r.mode === 'replay' ? 'historical replay' : 'live'}</Tag>
-                      </td>
-                      <td>
-                        <PhaseBadge phase={r.phase} />
-                      </td>
-                      <td>
-                        <StateBadge state={r.state} label={runStateLabel(r.state)} />
-                        {r.block_reason ? <div className="small muted">{r.block_reason}</div> : null}
-                      </td>
-                      <td>
-                        <ModelHealthBadge health={r.model_health} />
-                      </td>
-                      <td className="right mono nowrap">
-                        {fmtNum(r.processed_seq)} / {fmtNum(r.admitted_seq)}
-                        {r.backlog > 0 ? <div className="small muted">backlog {fmtNum(r.backlog)}</div> : null}
-                      </td>
-                      <td className="nowrap">{speedLabel(r.speed)}</td>
-                      <td className="mono small">{shortId(r.dataset_id ?? r.source_id, 16)}</td>
-                      <td className="nowrap small">{fmtTime(r.created_at)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+    <div className="stack page-stack">
+      <PageHeader
+        eyebrow="RESOURCES"
+        title="Executions"
+        description="Run detection, follow progress, and investigate the results."
+        actions={
+          <>
+            <button className="btn" onClick={() => void runs.reload()} disabled={runs.refreshing}>
+              <RefreshCw size={15} className={runs.refreshing ? 'spin' : ''} />
+              Refresh
+            </button>
+            <button className="btn btn-primary" onClick={() => update('create', '1')}>
+              <Plus size={16} />
+              Create execution
+            </button>
+          </>
+        }
+      />
+      <section className="resource-panel">
+        <header className="resource-panel-heading">
+          <div>
+            <h2>
+              All executions <span className="count">{runs.data?.length ?? '—'}</span>
+            </h2>
+            <p>Each execution processes a source independently.</p>
+          </div>
+          <span className="small muted">Latest 100 executions · refreshes every 15s</span>
+        </header>
+        <div className="table-toolbar">
+          <SearchField
+            value={search}
+            onChange={(s) => update('q', s)}
+            placeholder="Find by name, source, or execution ID"
+            label="Search executions"
+          />
+          <select
+            aria-label="Execution status"
+            value={status}
+            onChange={(e) => update('status', e.target.value)}
+          >
+            <option value="">All statuses</option>
+            {['created', 'running', 'warming', 'paused', 'completed', 'blocked'].map((s) => (
+              <option key={s} value={s}>
+                {s[0].toUpperCase() + s.slice(1)}
+              </option>
+            ))}
+          </select>
+          {(status || search) && (
+            <button className="btn btn-ghost" onClick={() => setParams({})}>
+              Clear filters
+            </button>
           )}
-        </Section>
-
-        <div className="stack">
-          <NewRunForm datasets={datasets.data ?? []} onCreated={() => void runs.reload()} />
-          <Section title="Datasets">
-            {datasets.loading ? (
-              <Loading what="datasets" />
-            ) : datasets.error ? (
-              <ErrorState error={datasets.error} onRetry={() => void datasets.reload()} what="datasets" />
-            ) : !datasets.data || datasets.data.length === 0 ? (
-              <Empty>No datasets imported. Upload one with the import script; the console does not accept filesystem paths.</Empty>
-            ) : (
-              <ul className="plain stack">
-                {datasets.data.map((d) => (
-                  <DatasetCard key={d.dataset_id} d={d} />
-                ))}
-              </ul>
-            )}
-          </Section>
         </div>
-      </div>
+        {runs.loading ? (
+          <Loading what="executions" />
+        ) : runs.error ? (
+          <ErrorState error={runs.error} onRetry={() => void runs.reload()} what="executions" />
+        ) : filtered.length === 0 ? (
+          <Empty>
+            <Workflow size={26} />
+            <h3>{search || status ? 'No matching executions' : 'Your first execution starts here'}</h3>
+            <p>
+              {search || status
+                ? 'Adjust the search or status filter.'
+                : 'Choose an imported log source to begin detection.'}
+            </p>
+            {!search && !status && (
+              <button className="btn btn-primary" onClick={() => update('create', '1')}>
+                Create execution
+              </button>
+            )}
+          </Empty>
+        ) : (
+          <div className="table-wrap">
+            <table className="tbl resource-table">
+              <thead>
+                <tr>
+                  <th>Execution</th>
+                  <th>Status</th>
+                  <th>Source</th>
+                  <th>Detection</th>
+                  <th>Progress</th>
+                  <th aria-sort={asc ? 'ascending' : 'descending'}>
+                    <button className="sort-button" onClick={() => update('sort', asc ? '' : 'oldest')}>
+                      Created {asc ? <ArrowUp size={13} /> : <ArrowDown size={13} />}
+                    </button>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.slice(page * 12, page * 12 + 12).map((r) => (
+                  <tr key={r.run_id}>
+                    <td>
+                      <Link className="resource-name" to={`/runs/${encodeURIComponent(r.run_id)}`}>
+                        <Workflow size={16} />
+                        {r.name || shortId(r.run_id, 14)}
+                      </Link>
+                      <span className="cell-secondary">
+                        {r.mode === 'replay' ? 'Historical replay' : 'Live ingestion'} <span>·</span>{' '}
+                        {speedLabel(r.speed)}
+                      </span>
+                    </td>
+                    <td>
+                      <StateBadge state={r.state} />
+                      {r.block_reason && <span className="cell-secondary text-danger">{r.block_reason}</span>}
+                    </td>
+                    <td>
+                      {r.dataset_id ? (
+                        <Link className="link" to={`/sources/${encodeURIComponent(r.dataset_id)}`}>
+                          {sources.data?.find((s) => s.dataset_id === r.dataset_id)?.original_name ??
+                            shortId(r.dataset_id, 14)}
+                        </Link>
+                      ) : (
+                        <span>{r.source_id}</span>
+                      )}
+                    </td>
+                    <td>
+                      <ModelHealthBadge health={r.model_health} />
+                    </td>
+                    <td>
+                      <div className="progress-cell">
+                        <span className="mono">
+                          {fmtNum(r.processed_seq)}
+                          <span className="muted"> / {fmtNum(r.admitted_seq)}</span>
+                        </span>
+                        <progress
+                          aria-label={`Processing progress for ${r.name}`}
+                          value={r.processed_seq}
+                          max={Math.max(r.admitted_seq, 1)}
+                        />
+                      </div>
+                    </td>
+                    <td className="small nowrap">{fmtTime(r.created_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <Pagination
+          page={page}
+          total={filtered.length}
+          size={12}
+          onChange={(p) => update('page', String(p))}
+        />
+      </section>
+      <Overlay
+        open={params.get('create') === '1'}
+        onClose={() => update('create', '')}
+        title="Create execution"
+        description="Process a log source with an isolated detection run."
+      >
+        <NewRunForm />
+      </Overlay>
     </div>
   )
 }
 
-function DatasetCard({ d }: { d: Dataset }) {
-  const [showRejects, setShowRejects] = useState(false)
-  const detail = useFetch(() => api.getDataset(d.dataset_id), [d.dataset_id, showRejects], showRejects)
-  const pct = d.total_lines && d.progress_line ? Math.min(100, Math.round((d.progress_line / d.total_lines) * 100)) : null
-  const stats = d.stats as { users?: number; status_counts?: Record<string, number> }
-  return (
-    <li className="notice" style={{ padding: 10 }}>
-      <div className="row row-between">
-        <strong>{d.original_name}</strong>
-        <StateBadge state={d.import_state} />
-      </div>
-      <div className="mono small muted">{d.dataset_id}</div>
-      <dl className="kvs" style={{ marginTop: 6 }}>
-        <div className="kv">
-          <dt>size</dt>
-          <dd>{fmtBytes(d.bytes)}</dd>
-        </div>
-        <div className="kv">
-          <dt>lines</dt>
-          <dd>
-            {fmtNum(d.progress_line)} / {fmtNum(d.total_lines)}
-            {pct !== null && d.import_state !== 'ready' ? ` (${pct}%)` : ''}
-          </dd>
-        </div>
-        <div className="kv">
-          <dt>valid / rejected</dt>
-          <dd>
-            {fmtNum(d.valid_count)} / <span className={d.rejected_count ? 'check-bad' : ''}>{fmtNum(d.rejected_count)}</span>
-          </dd>
-        </div>
-        <div className="kv">
-          <dt>range</dt>
-          <dd className="small">
-            {fmtTime(d.first_event_time)} → {fmtTime(d.last_event_time)}
-          </dd>
-        </div>
-        <div className="kv">
-          <dt>sha256</dt>
-          <dd className="mono small">{shortId(d.content_sha256, 20)}</dd>
-        </div>
-        {stats.users !== undefined ? (
-          <div className="kv">
-            <dt>accounts</dt>
-            <dd>{stats.users}</dd>
-          </div>
-        ) : null}
-      </dl>
-      {stats.status_counts ? (
-        <div className="small muted" style={{ marginTop: 4 }}>
-          status counts:{' '}
-          {Object.entries(stats.status_counts)
-            .map(([k, v]) => `${k}=${fmtNum(v)}`)
-            .join(' ')}
-        </div>
-      ) : null}
-      {d.error ? <div className="notice notice-danger" style={{ marginTop: 6 }}>import error: {d.error}</div> : null}
-      {d.rejected_count ? (
-        <div style={{ marginTop: 6 }}>
-          <button type="button" className="btn btn-sm" onClick={() => setShowRejects((s) => !s)}>
-            {showRejects ? 'Hide' : 'Show'} rejected lines
-          </button>
-          {showRejects ? (
-            detail.loading ? (
-              <Loading what="rejects" />
-            ) : detail.error ? (
-              <ErrorState error={detail.error} onRetry={() => void detail.reload()} what="rejects" />
-            ) : detail.data && detail.data.rejects_sample.length > 0 ? (
-              <ul className="plain" style={{ marginTop: 6 }}>
-                {detail.data.rejects_sample.map((r) => (
-                  <li key={r.line_number} className="evidence-line">
-                    <div className="meta">
-                      line {r.line_number} · {r.reason}
-                    </div>
-                    <pre className="code-block">
-                      <code>{r.raw_input}</code>
-                    </pre>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <Empty>No reject samples returned.</Empty>
-            )
-          ) : null}
-        </div>
-      ) : null}
-    </li>
-  )
-}
-
-function NewRunForm({ datasets, onCreated }: { datasets: Dataset[]; onCreated: () => void }) {
+function NewRunForm() {
+  const { sources, runs, health } = useWorkspace()
   const nav = useNavigate()
-  const ready = datasets.filter((d) => d.import_state === 'ready')
-  const [datasetId, setDatasetId] = useState('')
+  const [params] = useSearchParams()
+  const ready = (sources.data ?? []).filter((d) => d.import_state === 'ready')
+  const [source, setSource] = useState(params.get('source') || '')
   const [name, setName] = useState('')
+  const [speed, setSpeed] = useState('600')
   const [visibleStart, setVisibleStart] = useState('')
-  const [speed, setSpeed] = useState('')
-  const [pauseAtVisible, setPauseAtVisible] = useState(false)
-  const [modelId, setModelId] = useState('')
+  const [model, setModel] = useState('')
+  const [pause, setPause] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState<unknown | null>(null)
-
-  const chosen = datasetId || ready[0]?.dataset_id || ''
-
+  const [error, setError] = useState<unknown>(null)
+  const chosen = source || ready[0]?.dataset_id || ''
   async function submit(e: FormEvent) {
     e.preventDefault()
-    if (!chosen) return
+    if (!chosen || busy) return
     setBusy(true)
-    setErr(null)
-    const body: RunCreateBody = { dataset_id: chosen, mode: 'replay', name: name.trim(), pause_at_visible_start: pauseAtVisible }
-    if (visibleStart.trim()) body.visible_start = visibleStart.trim()
-    if (speed.trim() !== '') body.speed = Number(speed)
-    if (modelId.trim()) body.model_id = modelId.trim()
+    setError(null)
+    const body: RunCreateBody = {
+      dataset_id: chosen,
+      name: name.trim(),
+      mode: 'replay',
+      speed: Number(speed),
+      pause_at_visible_start: pause,
+    }
+    if (visibleStart) body.visible_start = `${visibleStart}:00Z`
+    if (model) body.model_id = model
     try {
-      const run = await api.createRun(body)
-      onCreated()
-      nav(`/runs/${encodeURIComponent(run.run_id)}`)
-    } catch (ex) {
-      setErr(ex)
+      const result = await api.createRun(body)
+      await runs.reload()
+      nav(`/runs/${encodeURIComponent(result.run_id)}`)
+    } catch (err) {
+      setError(err)
     } finally {
       setBusy(false)
     }
   }
-
   return (
-    <Section title="New replay run">
-      <form onSubmit={(e) => void submit(e)} className="stack">
-        <div className="form-grid">
+    <form className="stack form-stack" onSubmit={(e) => void submit(e)}>
+      <label className="field">
+        Execution name
+        <input
+          autoFocus
+          required
+          maxLength={160}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. March access review"
+        />
+        <small>A descriptive name makes this execution easier to find.</small>
+      </label>
+      <label className="field">
+        Log source
+        <select required value={chosen} onChange={(e) => setSource(e.target.value)}>
+          {!ready.length && <option value="">No ready sources</option>}
+          {ready.map((s) => (
+            <option key={s.dataset_id} value={s.dataset_id}>
+              {s.original_name} · {fmtNum(s.valid_count)} events
+            </option>
+          ))}
+        </select>
+      </label>
+      {sources.error ? (
+        <ErrorState error={sources.error} what="sources" onRetry={() => void sources.reload()} />
+      ) : (
+        !ready.length && (
+          <div className="notice">
+            Upload a log source and wait for import to finish.{' '}
+            <Link to="/sources?upload=1">Upload a source</Link>
+          </div>
+        )
+      )}
+      <label className="field">
+        Replay speed
+        <select value={speed} onChange={(e) => setSpeed(e.target.value)}>
+          <option value="1">Real time · 1×</option>
+          <option value="60">60×</option>
+          <option value="600">600×</option>
+          <option value="0">Fast-forward · unbounded</option>
+        </select>
+      </label>
+      <details className="advanced-options">
+        <summary>Advanced configuration</summary>
+        <div className="stack">
           <label className="field">
-            dataset (ready only)
-            <select value={chosen} onChange={(e) => setDatasetId(e.target.value)} required>
-              {ready.length === 0 ? <option value="">no ready dataset</option> : null}
-              {ready.map((d) => (
-                <option key={d.dataset_id} value={d.dataset_id}>
-                  {d.original_name} ({fmtNum(d.valid_count)} lines)
+            Visible window starts at (UTC)
+            <input
+              type="datetime-local"
+              value={visibleStart}
+              onChange={(e) => setVisibleStart(e.target.value)}
+            />
+            <small>Earlier events build the behavioral baseline.</small>
+          </label>
+          <label className="field">
+            Model
+            <select value={model} onChange={(e) => setModel(e.target.value)}>
+              <option value="">Server default</option>
+              {health.data?.models.artifacts.map((m) => (
+                <option key={m} value={m}>
+                  {m}
                 </option>
               ))}
             </select>
           </label>
-          <label className="field">
-            name
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. march-sequence (use 'fault' for fault injection)" />
-          </label>
-          <label className="field">
-            visible start (ISO 8601, optional)
-            <input value={visibleStart} onChange={(e) => setVisibleStart(e.target.value)} placeholder="2026-03-01T04:00:00Z" />
-          </label>
-          <label className="field">
-            speed (0 = fast-forward, unbounded)
-            <input value={speed} onChange={(e) => setSpeed(e.target.value)} type="number" min={0} step="any" placeholder="config default" />
-          </label>
-          <label className="field">
-            model id (optional; blank = rules-only if none)
-            <input value={modelId} onChange={(e) => setModelId(e.target.value)} placeholder="model_id" />
-          </label>
           <label className="check">
-            <input type="checkbox" checked={pauseAtVisible} onChange={(e) => setPauseAtVisible(e.target.checked)} /> pause at visible start
+            <input type="checkbox" checked={pause} onChange={(e) => setPause(e.target.checked)} />
+            Pause when the visible window begins
           </label>
         </div>
-        <div className="row">
-          <button type="submit" className="btn btn-primary" disabled={busy || !chosen}>
-            {busy ? 'Creating…' : 'Create run'}
-          </button>
-          <span className="muted small">Mode: historical replay. Start it from the run console.</span>
-        </div>
-        {err ? (
-          <div className="notice notice-danger">
-            {(() => {
-              const d = describeError(err)
-              return `Create failed (HTTP ${d.status ?? '—'}): ${d.text}`
-            })()}
-          </div>
-        ) : null}
-      </form>
-    </Section>
+      </details>
+      {!!error && <ErrorState error={error} what="execution creation" />}
+      <div className="form-footer">
+        <Tag tone="muted">Historical replay</Tag>
+        <button type="submit" className="btn btn-primary" disabled={busy || !chosen || !name.trim()}>
+          {busy ? 'Creating…' : 'Create execution'}
+        </button>
+      </div>
+    </form>
   )
 }

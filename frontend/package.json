@@ -8,19 +8,39 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "typecheck": "tsc -b --noEmit"
+    "typecheck": "tsc -b --noEmit && tsc -p tsconfig.e2e.json",
+    "test:e2e": "node scripts/test-browser.mjs",
+    "test:ui": "node scripts/test-browser.mjs --ui",
+    "test:report": "playwright show-report",
+    "test:live": "playwright test --config=playwright.live.config.ts",
+    "test:monitoring": "playwright test --config=playwright.monitoring.config.ts",
+    "format": "prettier --write src e2e vite.config.ts playwright.config.ts"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@radix-ui/react-dialog": "^1.1.23",
+    "@sentry/react": "^10.75.0",
+    "@visx/curve": "^4.0.0",
+    "@visx/responsive": "^4.0.0",
+    "@visx/scale": "^4.0.0",
+    "@visx/shape": "^4.0.0",
+    "cmdk": "^1.1.1",
+    "lucide-react": "^1.47.0",
+    "motion": "^13.4.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.4"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.63.0",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
     "oxlint": "^1.81.0",
+    "prettier": "^3.9.8",
     "typescript": "~6.0.2",
     "vite": "^8.3.0"
   }
