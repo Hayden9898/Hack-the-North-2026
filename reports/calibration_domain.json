@@ -1,0 +1,555 @@
+{
+  "model_id": "if_v1_domain_2026-09-19",
+  "calibration_rows": 43972,
+  "calibration_days": 59,
+  "percentiles": {
+    "99.0": {
+      "threshold": 0.590835155488319,
+      "alerts": 440,
+      "alerts_per_day": 7.46,
+      "baseline_threshold": 5.559935720321048,
+      "baseline_alerts": 440,
+      "overlap_with_baseline": 100
+    },
+    "99.5": {
+      "threshold": 0.6018399849663525,
+      "alerts": 219,
+      "alerts_per_day": 3.71,
+      "baseline_threshold": 5.633589054128358,
+      "baseline_alerts": 220,
+      "overlap_with_baseline": 71
+    },
+    "99.9": {
+      "threshold": 0.6295532944475567,
+      "alerts": 44,
+      "alerts_per_day": 0.75,
+      "baseline_threshold": 10.712374865134603,
+      "baseline_alerts": 44,
+      "overlap_with_baseline": 13
+    }
+  },
+  "flagged_breakdown": [
+    {
+      "username": "michael_t",
+      "route_family": "document",
+      "status": 403,
+      "n": 4
+    },
+    {
+      "username": "chris_b",
+      "route_family": "document",
+      "status": 403,
+      "n": 3
+    },
+    {
+      "username": "amanda_l",
+      "route_family": "document",
+      "status": 403,
+      "n": 3
+    },
+    {
+      "username": "matthew_r",
+      "route_family": "document",
+      "status": 403,
+      "n": 3
+    },
+    {
+      "username": "matthew_r",
+      "route_family": "forum_edit",
+      "status": 302,
+      "n": 2
+    },
+    {
+      "username": "michael_t",
+      "route_family": "login",
+      "status": 401,
+      "n": 2
+    },
+    {
+      "username": "joshua_c",
+      "route_family": "login",
+      "status": 200,
+      "n": 2
+    },
+    {
+      "username": "sarah_j",
+      "route_family": "document",
+      "status": 200,
+      "n": 2
+    },
+    {
+      "username": "amanda_l",
+      "route_family": "document",
+      "status": 200,
+      "n": 2
+    },
+    {
+      "username": "nicole_h",
+      "route_family": "document",
+      "status": 200,
+      "n": 2
+    },
+    {
+      "username": "jessica_w",
+      "route_family": "document",
+      "status": 200,
+      "n": 2
+    },
+    {
+      "username": "joshua_c",
+      "route_family": "document",
+      "status": 403,
+      "n": 2
+    },
+    {
+      "username": "jessica_w",
+      "route_family": "forum_edit",
+      "status": 302,
+      "n": 1
+    },
+    {
+      "username": "david_m",
+      "route_family": "forum_new",
+      "status": 302,
+      "n": 1
+    },
+    {
+      "username": "ashley_k",
+      "route_family": "forum_new",
+      "status": 302,
+      "n": 1
+    },
+    {
+      "username": "chris_b",
+      "route_family": "document",
+      "status": 200,
+      "n": 1
+    },
+    {
+      "username": "michael_t",
+      "route_family": "logout",
+      "status": 302,
+      "n": 1
+    },
+    {
+      "username": "michael_t",
+      "route_family": "document",
+      "status": 200,
+      "n": 1
+    },
+    {
+      "username": "ashley_k",
+      "route_family": "document",
+      "status": 403,
+      "n": 1
+    },
+    {
+      "username": "amanda_l",
+      "route_family": "forum_view",
+      "status": 200,
+      "n": 1
+    },
+    {
+      "username": "jessica_w",
+      "route_family": "document",
+      "status": 403,
+      "n": 1
+    },
+    {
+      "username": "sarah_j",
+      "route_family": "document",
+      "status": 403,
+      "n": 1
+    },
+    {
+      "username": "joshua_c",
+      "route_family": "login",
+      "status": 401,
+      "n": 1
+    },
+    {
+      "username": "matthew_r",
+      "route_family": "logout",
+      "status": 302,
+      "n": 1
+    },
+    {
+      "username": "david_m",
+      "route_family": "forum_edit",
+      "status": 302,
+      "n": 1
+    },
+    {
+      "username": "nicole_h",
+      "route_family": "document",
+      "status": 403,
+      "n": 1
+    },
+    {
+      "username": "ashley_k",
+      "route_family": "document",
+      "status": 200,
+      "n": 1
+    }
+  ],
+  "flagged_by_local_hour": {
+    "0": 1,
+    "1": 3,
+    "2": 4,
+    "3": 2,
+    "5": 5,
+    "6": 4,
+    "8": 17,
+    "9": 1,
+    "15": 1,
+    "20": 1,
+    "21": 3,
+    "22": 1,
+    "23": 1
+  },
+  "chosen": {
+    "percentile": 99.9,
+    "threshold": 0.6295532944475567,
+    "alerts": 44,
+    "alerts_per_day": 0.75,
+    "ties": 0
+  },
+  "samples": [
+    {
+      "line_number": 115906,
+      "event_time": "2026-01-03T06:43:20+00:00",
+      "account": "amanda_l",
+      "ip": "10.0.8.22",
+      "request": "GET /it/network_map.pdf -> 200 (1024000)",
+      "score": 0.637155233085887,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          8.662072452734321
+        ],
+        [
+          "acct_family_rarity",
+          1.6086587253464981
+        ],
+        [
+          "bytes_delta_vs_bootstrap",
+          1.3862914314395436
+        ],
+        [
+          "pair_rarity",
+          8.66814025593706e-05
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 2
+    },
+    {
+      "line_number": 115907,
+      "event_time": "2026-01-03T19:36:18+00:00",
+      "account": "michael_t",
+      "ip": "10.0.5.88",
+      "request": "GET /finance/reports/budget_v2_CONFIDENTIAL.xlsx -> 403 (245)",
+      "score": 0.6536561545926118,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          2.3565849589699295
+        ],
+        [
+          "acct_family_rarity",
+          1.6115208848935298
+        ],
+        [
+          "pair_rarity",
+          8.677166043011076e-05
+        ],
+        [
+          "pair_unfamiliar",
+          0.0
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 15
+    },
+    {
+      "line_number": 121151,
+      "event_time": "2026-01-11T01:27:55+00:00",
+      "account": "michael_t",
+      "ip": "10.0.5.88",
+      "request": "GET /logout -> 302 (0)",
+      "score": 0.6363193282095652,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          8.70267641154777
+        ],
+        [
+          "acct_family_rarity",
+          2.423074490248172
+        ],
+        [
+          "pair_rarity",
+          8.322583334670058e-05
+        ],
+        [
+          "pair_unfamiliar",
+          0.0
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 21
+    },
+    {
+      "line_number": 125355,
+      "event_time": "2026-01-16T12:11:56+00:00",
+      "account": "amanda_l",
+      "ip": "10.0.8.22",
+      "request": "GET /finance/reports/budget_v2_CONFIDENTIAL.xlsx -> 403 (245)",
+      "score": 0.6476015736908681,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          2.6268417418471346
+        ],
+        [
+          "acct_family_rarity",
+          1.606804967202194
+        ],
+        [
+          "pair_rarity",
+          7.995202882536829e-05
+        ],
+        [
+          "pair_unfamiliar",
+          0.0
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 8
+    },
+    {
+      "line_number": 126405,
+      "event_time": "2026-01-17T10:38:19+00:00",
+      "account": "nicole_h",
+      "ip": "10.0.9.05",
+      "request": "GET /exec/board_deck.pptx -> 200 (5120000)",
+      "score": 0.6783173282956421,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          8.064086009830232
+        ],
+        [
+          "bytes_delta_vs_bootstrap",
+          2.9957285626241017
+        ],
+        [
+          "acct_family_rarity",
+          1.6189316546263515
+        ],
+        [
+          "pair_rarity",
+          7.879910173098731e-05
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 6
+    },
+    {
+      "line_number": 133747,
+      "event_time": "2026-01-28T12:07:49+00:00",
+      "account": "joshua_c",
+      "ip": "10.0.8.50",
+      "request": "GET /finance/reports/q1_draft_CONFIDENTIAL.zip -> 403 (245)",
+      "score": 0.6494951693059778,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          2.533681937543243
+        ],
+        [
+          "acct_family_rarity",
+          1.6610800287672638
+        ],
+        [
+          "pair_rarity",
+          7.450732037865896e-05
+        ],
+        [
+          "pair_unfamiliar",
+          0.0
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 8
+    },
+    {
+      "line_number": 142165,
+      "event_time": "2026-02-07T10:21:37+00:00",
+      "account": "chris_b",
+      "ip": "10.0.6.34",
+      "request": "GET /marketing/assets/campaign_q1.zip -> 200 (9500000)",
+      "score": 0.673535465201553,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          8.46856301444817
+        ],
+        [
+          "bytes_delta_vs_bootstrap",
+          3.6138658321298536
+        ],
+        [
+          "acct_family_rarity",
+          1.58761130544148
+        ],
+        [
+          "pair_rarity",
+          7.009919038306804e-05
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 6
+    },
+    {
+      "line_number": 142169,
+      "event_time": "2026-02-08T05:18:36+00:00",
+      "account": "ashley_k",
+      "ip": "10.0.7.11",
+      "request": "POST /intranet/forum/new -> 302 (112)",
+      "score": 0.634405338740884,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          7.777513296728075
+        ],
+        [
+          "acct_family_rarity",
+          2.9877252681992617
+        ],
+        [
+          "pair_rarity",
+          6.995208285184492e-05
+        ],
+        [
+          "pair_unfamiliar",
+          0.0
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 1
+    },
+    {
+      "line_number": 148442,
+      "event_time": "2026-02-17T12:14:49+00:00",
+      "account": "matthew_r",
+      "ip": "10.0.7.15",
+      "request": "GET /marketing/brand_guide.pdf -> 403 (245)",
+      "score": 0.6368827907298202,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          2.551672887894572
+        ],
+        [
+          "acct_family_rarity",
+          1.6088948399884675
+        ],
+        [
+          "pair_rarity",
+          6.794632243143395e-05
+        ],
+        [
+          "pair_unfamiliar",
+          0.0
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 8
+    },
+    {
+      "line_number": 155724,
+      "event_time": "2026-02-26T12:16:42+00:00",
+      "account": "chris_b",
+      "ip": "10.0.6.34",
+      "request": "GET /finance/reports/q1_draft_CONFIDENTIAL.zip -> 403 (245)",
+      "score": 0.657234989565661,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          2.576034087831514
+        ],
+        [
+          "acct_family_rarity",
+          1.5932136023609014
+        ],
+        [
+          "pair_rarity",
+          6.418279261537662e-05
+        ],
+        [
+          "pair_unfamiliar",
+          0.0
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 8
+    },
+    {
+      "line_number": 156760,
+      "event_time": "2026-02-27T09:27:31+00:00",
+      "account": "amanda_l",
+      "ip": "10.0.8.22",
+      "request": "GET /sales/targets_q1.xlsx -> 403 (245)",
+      "score": 0.6630313553408621,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          8.051404666124968
+        ],
+        [
+          "acct_family_rarity",
+          1.608354177906714
+        ],
+        [
+          "pair_rarity",
+          6.382231868647901e-05
+        ],
+        [
+          "pair_unfamiliar",
+          0.0
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 5
+    },
+    {
+      "line_number": 157818,
+      "event_time": "2026-03-01T02:59:11+00:00",
+      "account": "joshua_c",
+      "ip": "10.0.8.50",
+      "request": "POST /api/auth/login -> 200 (128)",
+      "score": 0.6451105133344334,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          8.980109263160077
+        ],
+        [
+          "acct_family_rarity",
+          2.9558430561298428
+        ],
+        [
+          "pair_rarity",
+          6.303381766404389e-05
+        ],
+        [
+          "pair_unfamiliar",
+          0.0
+        ]
+      ],
+      "familiarity": "familiar",
+      "local_hour": 22
+    }
+  ]
+}

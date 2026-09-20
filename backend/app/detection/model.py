@@ -13,6 +13,7 @@ from typing import Any
 
 import numpy as np
 
+from app.detection.preprocess import anomaly_scores, domain_of
 from app.features.vector import FEATURE_NAMES, FEATURE_VERSION
 
 log = logging.getLogger("logorder.model")
@@ -29,8 +30,7 @@ class LoadedModel:
     artifact_sha256: str
 
     def score(self, vector: list[float]) -> float:
-        x = np.asarray([vector], dtype=float)
-        return float(-self.estimator.score_samples(x)[0])  # higher = more anomalous
+        return float(anomaly_scores(self.estimator, vector)[0])  # higher = more anomalous; includes blind-spot penalty
 
     def percentile(self, score: float) -> float:
         """Empirical rarity percentile against the calibration distribution (never a probability of attack)."""
@@ -42,6 +42,20 @@ class LoadedModel:
 
 class ModelLoadError(RuntimeError):
     pass
+
+
+def _verify_preprocessing(est: Any, manifest: dict[str, Any]) -> None:
+    """A domain pipeline must be fitted on the code's feature schema and match what the manifest claims."""
+    dom = domain_of(est)
+    declared = manifest.get("preprocessing")
+    if dom is None:
+        if declared:
+            raise ModelLoadError("manifest declares preprocessing but the artifact carries none")
+        return
+    if tuple(dom.feature_names_in_) != FEATURE_NAMES:
+        raise ModelLoadError("preprocessing stage was fitted on a different feature schema")
+    if not declared or list(declared.get("forest_features", ())) != list(dom.kept_names):
+        raise ModelLoadError("preprocessing stage does not match the manifest")
 
 
 def sha256_path(p: Path) -> str:
@@ -77,6 +91,7 @@ def load_model(model_dir: str | Path, model_id: str, expected_sha256: str | None
     if manifest.get("dependencies", {}).get("scikit-learn") != sklearn.__version__:
         raise ModelLoadError(f"scikit-learn version mismatch: artifact {manifest.get('dependencies', {}).get('scikit-learn')} vs runtime {sklearn.__version__}")
     est = joblib.load(art)
+    _verify_preprocessing(est, manifest)
     cal = np.asarray(json.loads((d / manifest["calibration_scores_file"]).read_text(encoding="utf-8")), dtype=float)
     cal.sort()
     if manifest.get("threshold") is None:

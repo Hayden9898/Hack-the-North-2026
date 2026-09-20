@@ -12,6 +12,7 @@ import numpy as np
 import psycopg
 
 from app.config import DetectionConfig
+from app.detection.preprocess import anomaly_scores as _anomaly_scores
 from app.features.vector import FEATURE_NAMES, FEATURE_VERSION
 
 
@@ -76,7 +77,8 @@ def sha256_file(p: Path) -> str:
 
 
 def anomaly_scores(est: Any, X: np.ndarray) -> np.ndarray:
-    return -est.score_samples(X)
+    """Higher = rarer; forest score plus the preprocessing stage's blind-spot penalty when the artifact carries one."""
+    return _anomaly_scores(est, X)
 
 
 def load_manifest(model_dir: Path, model_id: str) -> dict[str, Any]:

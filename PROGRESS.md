@@ -97,3 +97,21 @@ Concise record of milestones, decisions, commands and results. Newest entries at
 - Commands/reports: `reports/{investigation,evaluation,performance,sponsor-evidence,demo-script}.md`.
 - Not done / blocked: real Slack, Sentry, Tiger Cloud and Anthropic calls (no credentials supplied) — adapters tested
   with stubs only; live-mode p95 latency not measured (no live source).
+
+### M8 — ML preprocessing stage (branch `feature/ml-preprocessing`) ✅ candidate, not activated
+- Finding: 8 of 30 v1 features are constant on the Sep–Dec training partition (`pair_unfamiliar`,
+  `first_200_after_denials`, `is_admin`, `unusual_query_key_count`, `status_other`, `bytes_reference_missing`,
+  `reference_unknown`, `cold_start`); an Isolation Forest never splits on a constant column, so the active model was
+  blind to the attack indicators (that is why line 168338 scored 0.618, below threshold).
+- `app/detection/preprocess.py` (`domain_v1`): `TrainingDomain` transformer fitted on training only, first step of a
+  pickled `Pipeline`; prunes blind spots from the forest input (30 → 22) and adds +1.0 per never-seen value so zero
+  training support always outranks any in-domain score. `ml.train` builds it by default (`--no-preprocess` opt-out),
+  manifest carries `preprocessing`; `load_model` verifies schema and manifest agreement; legacy artifacts unchanged.
+- Candidate `if_v1_domain_2026-09-19` (same source run, same params, 99.9): calibration burden identical (44 alerts,
+  0.75/day, 0 departures); March model-only 36 → 50 alerts, rule events flagged 5/7 → 7/7, high-risk 1/2 → 2/2,
+  known sequence flagged 12/20 → 17/20 incl. the pivotal 168338. See `reports/preprocessing.md`.
+- Verified: `tests/unit/test_preprocess.py` 8 passed; `test_model_integration.py` 4 passed (new M05 parity +
+  blind-spot flags + refusal); mypy clean, ruff clean.
+- Not done: the candidate is **not** activated (active model still `if_v1_2026-09-19`, so `reports/evaluation.md`
+  still describes the live demo); activate with
+  `python -m ml.calibrate --model-id if_v1_domain_2026-09-19 --percentile 99.9 --activate`.
