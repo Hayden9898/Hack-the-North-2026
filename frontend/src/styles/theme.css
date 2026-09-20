@@ -1,116 +1,286 @@
 /*
  * Log & Order — design tokens.
  *
- * Palette rationale: a warm near-black / warm paper neutral base (not the blue-black every
- * security dashboard ships) with a single earned accent — brass. Verdict colours carry the
- * product's semantic load; the accent is chrome only (focus, primary action, wordmark rule).
+ * Palette source: embeddable.com's own published token set, read off their shipped CSS
+ * (see the hex values named below). The brief was "clear divisions, labels, good colour
+ * index, not dull dark", so the base is their warm paper #fafaf7 with #242635 ink, and the
+ * page gets colour from a real categorical chart ramp rather than from one tinted accent.
  *
- * Every colour below was verified >= 4.5:1 against --color-bg, --color-surface and
- * --color-surface-raised in BOTH themes with an OKLCH -> sRGB -> WCAG relative-luminance
- * check. --color-fg-subtle is held to 3:1 (non-essential text only). Re-run the check in
- * scripts/check-contrast.mjs after changing any value here.
+ * Light is the default. Dark is a selected second theme — its steps are chosen against the
+ * dark surface, not flipped from the light ones.
+ *
+ * Structure:
+ *   surfaces/ink   warm paper ramp        (embeddable --bg / --card / --core-color-neutral)
+ *   accent         orange #ff5400         (embeddable --bw-orange) — the seal/stamp colour
+ *   chart-1..6     categorical index      (embeddable primary indigo + teal/amber/rose/violet)
+ *   verdicts       red / amber / green    — these carry product meaning, never decorative
+ *   processing     cool + hatched         — invariant #6: never reads as a clean verdict
  */
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  /* Elevation. Warm-tinted rather than neutral black so shadows sit in the palette. */
-  --lo-shadow-sm: 0 1px 2px oklch(0.2 0.02 60 / 0.06), 0 1px 1px oklch(0.2 0.02 60 / 0.04);
-  --lo-shadow-md: 0 2px 4px oklch(0.2 0.02 60 / 0.06), 0 6px 16px oklch(0.2 0.02 60 / 0.08);
-  --lo-shadow-lg: 0 4px 8px oklch(0.2 0.02 60 / 0.07), 0 16px 40px oklch(0.2 0.02 60 / 0.12);
-  --lo-glow-accent: 0 0 0 1px oklch(0.52 0.125 68 / 0.28), 0 6px 24px oklch(0.52 0.125 68 / 0.16);
+  /* Elevation. Soft and close — embeddable's cards sit on the paper, they don't float. */
+  --lo-shadow-sm: 0 1px 2px rgb(36 38 53 / 0.05), 0 1px 3px rgb(36 38 53 / 0.04);
+  --lo-shadow-md: 0 1px 2px rgb(36 38 53 / 0.04), 0 4px 12px rgb(36 38 53 / 0.07);
+  --lo-shadow-lg: 0 2px 4px rgb(36 38 53 / 0.05), 0 12px 32px rgb(36 38 53 / 0.1);
+  --lo-glow-accent: 0 0 0 1px rgb(255 84 0 / 0.3), 0 6px 20px rgb(255 84 0 / 0.16);
 
-  /* Surfaces & text — warm neutral ramp */
-  --lo-bg: oklch(0.952 0.011 85);
-  --lo-surface: oklch(0.988 0.006 85);
-  --lo-surface-raised: oklch(0.998 0.003 85);
-  /* `border` is a decorative hairline (no WCAG minimum). `border-strong` bounds interactive
-     controls and is held to 3:1 per WCAG 1.4.11 — use it for inputs, not for card edges. */
-  --lo-border: oklch(0.885 0.009 80);
-  --lo-border-strong: oklch(0.625 0.014 80);
-  --lo-fg: oklch(0.22 0.01 60);
-  --lo-fg-muted: oklch(0.44 0.01 60);
-  --lo-fg-subtle: oklch(0.505 0.011 60);
+  /* Surfaces & ink — embeddable's warm paper ramp */
+  --lo-bg: #fafaf7;          /* --bg */
+  --lo-surface: #ffffff;     /* --card */
+  --lo-surface-raised: #ffffff;
+  --lo-sunken: #f1f1ee;      /* --bubble — inset wells, code strips */
+  --lo-chip: #f3f3f0;        /* --chip */
+  --lo-border: #e4e3dd;      /* warm hairline against #fafaf7 */
+  --lo-border-strong: #b4b2a8;
+  --lo-fg: #242635;          /* --core-color-neutral--1300 */
+  --lo-fg-muted: #565b70;
+  --lo-fg-subtle: #6b6f80;   /* --bw-muted */
 
-  /* The one earned accent: brass */
-  --lo-accent: oklch(0.52 0.125 68);
-  --lo-accent-fg: oklch(0.99 0.004 85);
+  /* The seal: embeddable's brand orange. Primary actions, wordmark rule, stamps. */
+  --lo-accent: #ff5400;      /* --bw-orange */
+  --lo-accent-hover: #e04800;
+  --lo-accent-soft: #ffaa81; /* --bw-orange-soft */
+  --lo-accent-wash: rgb(255 84 0 / 0.08);
+  --lo-accent-fg: #ffffff;
+
+  /*
+   * Categorical chart index. Fixed order, never cycled, never reassigned by rank.
+   * chart-1 is embeddable's own product primary (--core-color-primary--0700).
+   */
+  --lo-chart-1: #5566d6;  /* indigo  */
+  --lo-chart-2: #0e8f8c;  /* teal    */
+  --lo-chart-3: #d9822b;  /* amber   */
+  --lo-chart-4: #d2445f;  /* rose    */
+  --lo-chart-5: #7c4ddb;  /* violet  */
+  --lo-chart-6: #2e66e8;  /* blue    — embeddable --blue */
+
+  /* Low-alpha washes of the same hues, for area fills and tinted panels. */
+  --lo-chart-1-wash: rgb(85 102 214 / 0.12);
+  --lo-chart-2-wash: rgb(14 143 140 / 0.12);
+  --lo-chart-3-wash: rgb(217 130 43 / 0.12);
+  --lo-chart-4-wash: rgb(210 68 95 / 0.12);
+  --lo-chart-5-wash: rgb(124 77 219 / 0.12);
+  --lo-chart-6-wash: rgb(46 102 232 / 0.12);
+
+  /* Recessive plot furniture. */
+  --lo-grid: #e8e7e1;
+  --lo-axis: #c9c7bf;
 
   /* Verdict colours — the three threat classes. These carry product meaning. */
-  --lo-normal: oklch(0.48 0.1 165);
-  --lo-suspicious: oklch(0.52 0.14 45);
-  --lo-high-risk: oklch(0.5 0.19 25);
+  --lo-normal: #0f7a5a;
+  --lo-suspicious: #a85a08;
+  --lo-high-risk: #c2313c;
 
-  /* Processing states. Invariant #6: these are NOT a fourth threat class and must never
-     read as a clean verdict. Cool + desaturated by hue, outlined/hatched by form. */
-  --lo-pending: oklch(0.5 0.012 250);
-  --lo-late: oklch(0.48 0.09 250);
-  --lo-blocked: oklch(0.45 0.02 300);
+  /* Marks (fills/bars) may be brighter than text — they are not read as glyphs. */
+  --lo-normal-mark: #16a34a;
+  --lo-suspicious-mark: #ff9d2e;  /* --amber */
+  --lo-high-risk-mark: #e04450;
+
+  /* Processing states. Invariant #6: NOT a fourth threat class. Cool + desaturated by hue,
+     outlined/hatched by form, so they can never read as a clean verdict. */
+  --lo-pending: #6b7080;
+  --lo-late: #4a5fa8;
+  --lo-blocked: #6b5a8a;
 
   /* Tint fills — verdicts only, low-alpha wash of the parent hue */
-  --lo-normal-wash: oklch(0.48 0.1 165 / 0.1);
-  --lo-suspicious-wash: oklch(0.52 0.14 45 / 0.1);
-  --lo-high-risk-wash: oklch(0.5 0.19 25 / 0.1);
-
+  --lo-normal-wash: rgb(15 122 90 / 0.1);
+  --lo-suspicious-wash: rgb(255 157 46 / 0.14);
+  --lo-high-risk-wash: rgb(194 49 60 / 0.1);
 
   /* Neutral hover/active wash. Named `hover` (not shadcn's `accent`) because in this
-     design system `accent` is the brand brass and must never fill a hover state. */
-  --lo-hover: oklch(0.945 0.011 80);
+     design system `accent` is the brand orange and must never fill a hover state. */
+  --lo-hover: #efefe9;
+
+  /* ---- Bklit chart bridge ------------------------------------------------------------
+   * The bklit chart components (src/components/charts/) read these names directly in
+   * fill/stroke attributes, so they must be real custom properties, not @theme entries.
+   * Every one points at a token above — a chart can never drift from the page palette.
+   */
+  --chart-1: var(--lo-chart-1);
+  --chart-2: var(--lo-chart-2);
+  --chart-3: var(--lo-chart-3);
+  --chart-4: var(--lo-chart-4);
+  --chart-5: var(--lo-chart-5);
+  --chart-line-primary: var(--lo-chart-1);
+  --chart-line-secondary: var(--lo-chart-2);
+  --chart-grid: var(--lo-grid);
+  --chart-label: var(--lo-fg-subtle);
+  --chart-foreground: var(--lo-fg);
+  --chart-foreground-muted: var(--lo-fg-muted);
+  --chart-background: var(--lo-surface);
+  --chart-tooltip-background: var(--lo-surface);
+  --chart-crosshair: var(--lo-border-strong);
+  --chart-segment-line: var(--lo-border);
+  --chart-segment-background: var(--lo-chip);
+  --chart-marker-foreground: var(--lo-fg);
+  --chart-marker-border: var(--lo-border-strong);
+  --chart-marker-background: var(--lo-surface);
+  --chart-marker-badge-foreground: var(--lo-accent-fg);
+  --chart-marker-badge-background: var(--lo-accent);
+  --chart-indicator-color: var(--lo-chart-1);
+  --chart-indicator-secondary-color: var(--lo-chart-2);
+  --chart-brush-border: var(--lo-border-strong);
+  --legend: var(--lo-surface);
+  --legend-foreground: var(--lo-fg);
+  --legend-muted: var(--lo-chip);
+  --legend-muted-foreground: var(--lo-fg-subtle);
+  --legend-track: var(--lo-chip);
+
+  /* shadcn bare names a few pulled components reach for directly. */
+  --border: var(--lo-border);
+  --foreground: var(--lo-fg);
+  --muted-foreground: var(--lo-fg-muted);
 
   color-scheme: light;
 }
 
 .dark {
-  --lo-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.5);
-  --lo-shadow-md: 0 2px 4px oklch(0 0 0 / 0.4), 0 8px 24px oklch(0 0 0 / 0.45);
-  --lo-shadow-lg: 0 4px 8px oklch(0 0 0 / 0.45), 0 20px 56px oklch(0 0 0 / 0.55);
-  --lo-glow-accent: 0 0 0 1px oklch(0.78 0.135 78 / 0.35), 0 8px 32px oklch(0.78 0.135 78 / 0.22);
+  --lo-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.5);
+  --lo-shadow-md: 0 2px 4px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.45);
+  --lo-shadow-lg: 0 4px 8px rgb(0 0 0 / 0.45), 0 20px 56px rgb(0 0 0 / 0.55);
+  --lo-glow-accent: 0 0 0 1px rgb(255 122 61 / 0.35), 0 8px 32px rgb(255 122 61 / 0.2);
 
-  --lo-bg: oklch(0.165 0.006 60);
-  --lo-surface: oklch(0.205 0.007 60);
-  --lo-surface-raised: oklch(0.245 0.008 60);
-  --lo-border: oklch(0.3 0.008 60);
-  --lo-border-strong: oklch(0.53 0.012 60);
-  --lo-fg: oklch(0.95 0.005 75);
-  --lo-fg-muted: oklch(0.75 0.008 70);
-  --lo-fg-subtle: oklch(0.655 0.009 70);
+  --lo-bg: #0b0d11;          /* --bg dark */
+  --lo-surface: #14181f;     /* --card dark */
+  --lo-surface-raised: #1b212b;
+  --lo-sunken: #0f1319;
+  --lo-chip: #232b37;        /* --chip dark */
+  --lo-border: #2b3340;      /* --border dark */
+  --lo-border-strong: #4a5464;
+  --lo-fg: #eef0f4;
+  --lo-fg-muted: #a7adbd;
+  --lo-fg-subtle: #858b9c;
 
-  --lo-accent: oklch(0.78 0.135 78);
-  --lo-accent-fg: oklch(0.2 0.02 78);
+  --lo-accent: #ff7a3d;
+  --lo-accent-hover: #ff9560;
+  --lo-accent-soft: #ffb089;
+  --lo-accent-wash: rgb(255 122 61 / 0.12);
+  --lo-accent-fg: #1a0d05;
 
-  --lo-normal: oklch(0.76 0.105 165);
-  --lo-suspicious: oklch(0.75 0.155 48);
-  --lo-high-risk: oklch(0.7 0.185 22);
+  /* Re-stepped for the dark surface, not flipped. */
+  --lo-chart-1: #8593e5;  /* --core-color-primary--0500 */
+  --lo-chart-2: #3cc3bd;
+  --lo-chart-3: #e3a94a;
+  --lo-chart-4: #f0788c;
+  --lo-chart-5: #a98bff;
+  --lo-chart-6: #6d97e6;
 
-  --lo-pending: oklch(0.68 0.015 250);
-  --lo-late: oklch(0.72 0.065 245);
-  --lo-blocked: oklch(0.66 0.03 300);
+  --lo-chart-1-wash: rgb(133 147 229 / 0.18);
+  --lo-chart-2-wash: rgb(60 195 189 / 0.18);
+  --lo-chart-3-wash: rgb(227 169 74 / 0.18);
+  --lo-chart-4-wash: rgb(240 120 140 / 0.18);
+  --lo-chart-5-wash: rgb(169 139 255 / 0.18);
+  --lo-chart-6-wash: rgb(109 151 230 / 0.18);
 
-  --lo-normal-wash: oklch(0.76 0.105 165 / 0.14);
-  --lo-suspicious-wash: oklch(0.75 0.155 48 / 0.14);
-  --lo-high-risk-wash: oklch(0.7 0.185 22 / 0.14);
+  --lo-grid: #222a35;
+  --lo-axis: #39424f;
 
+  --lo-normal: #5fd98e;
+  --lo-suspicious: #e3a94a;
+  --lo-high-risk: #f4737f;
 
-  --lo-hover: oklch(0.265 0.008 60);
+  --lo-normal-mark: #5fd98e;
+  --lo-suspicious-mark: #ff9d2e;
+  --lo-high-risk-mark: #f4737f;
+
+  --lo-pending: #8a90a0;
+  --lo-late: #7c8ad8;
+  --lo-blocked: #a98bff;
+
+  --lo-normal-wash: rgb(95 217 142 / 0.14);
+  --lo-suspicious-wash: rgb(255 157 46 / 0.16);
+  --lo-high-risk-wash: rgb(244 115 127 / 0.14);
+
+  --lo-hover: #1e2530;
+
+  /* ---- Bklit chart bridge (dark steps come from the --lo-* values above) ------------------------------------------------------------
+   * The bklit chart components (src/components/charts/) read these names directly in
+   * fill/stroke attributes, so they must be real custom properties, not @theme entries.
+   * Every one points at a token above — a chart can never drift from the page palette.
+   */
+  --chart-1: var(--lo-chart-1);
+  --chart-2: var(--lo-chart-2);
+  --chart-3: var(--lo-chart-3);
+  --chart-4: var(--lo-chart-4);
+  --chart-5: var(--lo-chart-5);
+  --chart-line-primary: var(--lo-chart-1);
+  --chart-line-secondary: var(--lo-chart-2);
+  --chart-grid: var(--lo-grid);
+  --chart-label: var(--lo-fg-subtle);
+  --chart-foreground: var(--lo-fg);
+  --chart-foreground-muted: var(--lo-fg-muted);
+  --chart-background: var(--lo-surface);
+  --chart-tooltip-background: var(--lo-surface);
+  --chart-crosshair: var(--lo-border-strong);
+  --chart-segment-line: var(--lo-border);
+  --chart-segment-background: var(--lo-chip);
+  --chart-marker-foreground: var(--lo-fg);
+  --chart-marker-border: var(--lo-border-strong);
+  --chart-marker-background: var(--lo-surface);
+  --chart-marker-badge-foreground: var(--lo-accent-fg);
+  --chart-marker-badge-background: var(--lo-accent);
+  --chart-indicator-color: var(--lo-chart-1);
+  --chart-indicator-secondary-color: var(--lo-chart-2);
+  --chart-brush-border: var(--lo-border-strong);
+  --legend: var(--lo-surface);
+  --legend-foreground: var(--lo-fg);
+  --legend-muted: var(--lo-chip);
+  --legend-muted-foreground: var(--lo-fg-subtle);
+  --legend-track: var(--lo-chip);
+
+  /* shadcn bare names a few pulled components reach for directly. */
+  --border: var(--lo-border);
+  --foreground: var(--lo-fg);
+  --muted-foreground: var(--lo-fg-muted);
 
   color-scheme: dark;
 }
 
 @theme inline {
-  /* ---- Semantic colour tokens (contract §5) ---- */
+  /* ---- Semantic colour tokens ---- */
   --color-bg: var(--lo-bg);
   --color-fg: var(--lo-fg);
   --color-surface: var(--lo-surface);
   --color-fg-muted: var(--lo-fg-muted);
   --color-surface-raised: var(--lo-surface-raised);
   --color-fg-subtle: var(--lo-fg-subtle);
+  --color-sunken: var(--lo-sunken);
+  --color-chip: var(--lo-chip);
   --color-border: var(--lo-border);
   --color-accent: var(--lo-accent);
   --color-border-strong: var(--lo-border-strong);
   --color-accent-fg: var(--lo-accent-fg);
-
+  --color-accent-hover: var(--lo-accent-hover);
+  --color-accent-soft: var(--lo-accent-soft);
+  --color-accent-wash: var(--lo-accent-wash);
 
   --color-hover: var(--lo-hover);
+
+  /* ---- Chart categorical index ---- */
+  --color-chart-1: var(--lo-chart-1);
+  --color-chart-2: var(--lo-chart-2);
+  --color-chart-3: var(--lo-chart-3);
+  --color-chart-4: var(--lo-chart-4);
+  --color-chart-5: var(--lo-chart-5);
+  --color-chart-6: var(--lo-chart-6);
+  --color-chart-1-wash: var(--lo-chart-1-wash);
+  --color-chart-2-wash: var(--lo-chart-2-wash);
+  --color-chart-3-wash: var(--lo-chart-3-wash);
+  --color-chart-4-wash: var(--lo-chart-4-wash);
+  --color-chart-5-wash: var(--lo-chart-5-wash);
+  --color-chart-6-wash: var(--lo-chart-6-wash);
+  --color-grid: var(--lo-grid);
+  --color-axis: var(--lo-axis);
+
+  /* Bklit legend utilities (text-legend-foreground, bg-legend-muted, …). The raw --legend-*
+     customs are declared per-theme above; these register them as Tailwind colours too. */
+  --color-legend: var(--legend);
+  --color-legend-foreground: var(--legend-foreground);
+  --color-legend-muted: var(--legend-muted);
+  --color-legend-muted-foreground: var(--legend-muted-foreground);
+  --color-legend-track: var(--legend-track);
 
   /* ---- Elevation ---- */
   --shadow-sm: var(--lo-shadow-sm);
@@ -144,6 +314,9 @@
   --color-normal: var(--lo-normal);
   --color-suspicious: var(--lo-suspicious);
   --color-high-risk: var(--lo-high-risk);
+  --color-normal-mark: var(--lo-normal-mark);
+  --color-suspicious-mark: var(--lo-suspicious-mark);
+  --color-high-risk-mark: var(--lo-high-risk-mark);
   --color-normal-wash: var(--lo-normal-wash);
   --color-suspicious-wash: var(--lo-suspicious-wash);
   --color-high-risk-wash: var(--lo-high-risk-wash);
@@ -153,15 +326,15 @@
   --color-late: var(--lo-late);
   --color-blocked: var(--lo-blocked);
 
-  /* ---- Radii: deliberately NOT all the same value ---- */
-  --radius-sm: 0.1875rem; /*  3px — chips, tags, inline marks */
-  --radius-md: 0.3125rem; /*  5px — buttons, inputs, interactive controls */
-  --radius-lg: 0.5rem; /*  8px — popovers, menus */
-  --radius-xl: 0.875rem; /* 14px — sheets, modals */
-  /* Evidence and record surfaces are documents, not controls: square. Using this instead of
-     --radius-lg on log strips, the run record and the system-state panel is what makes the
-     page read as paper with UI on top, rather than as uniformly rounded web cards. */
-  --radius-doc: 0.0625rem; /*  1px — log strips, record panels, exhibits */
+  /* ---- Radii ----
+   * Softer than before. Embeddable's cards are ~8-12px; the document surfaces stay square
+   * so evidence still reads as paper rather than as another web card.
+   */
+  --radius-sm: 0.25rem;   /*  4px — chips, tags, inline marks */
+  --radius-md: 0.5rem;    /*  8px — buttons, inputs, interactive controls */
+  --radius-lg: 0.75rem;   /* 12px — cards, popovers, menus */
+  --radius-xl: 1rem;      /* 16px — sheets, modals, feature panels */
+  --radius-doc: 0.125rem; /*  2px — log strips, record panels, exhibits */
 
   /* ---- Type scale ---- */
   --text-display: 4rem;

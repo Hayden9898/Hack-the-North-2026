@@ -1,31 +1,44 @@
+/*
+ * Legacy console palette — now an ALIAS LAYER over the shared tokens in styles/theme.css.
+ *
+ * These variable names are used by ~2,700 lines of hand-rolled console CSS below. Rather than
+ * rewrite that, every name is pointed at its --lo-* equivalent, so the six console screens
+ * inherit the embeddable palette and follow the light/dark toggle for free. `.dark` is set on
+ * <html>, which is the same element as `:root`, so the var() substitutions below resolve to
+ * whichever theme is active.
+ *
+ * Do not reintroduce literal hex values here. A colour that is not in theme.css is a colour
+ * that cannot follow the theme.
+ */
 :root {
-  color-scheme: dark;
-  --bg: #0e1116;
-  --bg-2: #151a22;
-  --bg-3: #1c232e;
-  --bg-hover: #222b38;
-  --line: #2a3442;
-  --line-strong: #3a4757;
-  --fg: #e6ebf2;
-  --fg-2: #aab6c6;
-  --fg-3: #7d8a9c;
-  --accent: #6ab0ff;
-  --accent-2: #3d7fd6;
-  --ok: #3ccf91;
-  --ok-bg: #12352a;
-  --warn: #f2b94b;
-  --warn-bg: #3a2d10;
-  --danger: #ff6b6b;
-  --danger-bg: #431c1c;
-  --info: #7cc4ff;
-  --info-bg: #15304a;
-  --pending: #8a95a5;
-  --pending-bg: #262d37;
-  --ai: #c79bff;
-  --ai-bg: #2b1f3f;
-  --mono: ui-monospace, 'Cascadia Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
-  --sans: system-ui, -apple-system, 'Segoe UI', Roboto, Inter, sans-serif;
-  --radius: 6px;
+  --bg: var(--lo-bg);
+  --bg-2: var(--lo-surface);
+  --bg-3: var(--lo-chip);
+  --bg-hover: var(--lo-hover);
+  --line: var(--lo-border);
+  --line-strong: var(--lo-border-strong);
+  --fg: var(--lo-fg);
+  --fg-2: var(--lo-fg-muted);
+  --fg-3: var(--lo-fg-subtle);
+  --accent: var(--lo-chart-1);
+  --accent-fg: var(--lo-accent-fg);
+  --accent-2: var(--lo-chart-6);
+  --ok: var(--lo-normal);
+  --ok-bg: var(--lo-normal-wash);
+  --warn: var(--lo-suspicious);
+  --warn-bg: var(--lo-suspicious-wash);
+  --danger: var(--lo-high-risk);
+  --danger-bg: var(--lo-high-risk-wash);
+  --info: var(--lo-chart-6);
+  --info-bg: var(--lo-chart-6-wash);
+  --pending: var(--lo-pending);
+  --pending-bg: var(--lo-chip);
+  --ai: var(--lo-chart-5);
+  --ai-bg: var(--lo-chart-5-wash);
+  --sunken: var(--lo-sunken);
+  --mono: var(--font-mono, ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace);
+  --sans: var(--font-sans, system-ui, -apple-system, 'Segoe UI', Roboto, Inter, sans-serif);
+  --radius: 8px;
 }
 
 * {
@@ -82,17 +95,17 @@
   margin: 0;
 }
 .code-block {
-  background: #0a0d12;
+  background: var(--sunken);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 8px 10px;
   overflow-x: auto;
   white-space: pre-wrap;
   word-break: break-all;
-  color: #d5deea;
+  color: var(--fg);
 }
 .code-inline {
-  background: #0a0d12;
+  background: var(--sunken);
   border: 1px solid var(--line);
   border-radius: 4px;
   padding: 1px 5px;
@@ -254,16 +267,16 @@ button.link {
   padding: 10px 12px;
 }
 .card-ai {
-  border-color: #4a3a6a;
+  border-color: color-mix(in srgb, var(--ai) 35%, transparent);
 }
 .card-ai .card-head {
   background: var(--ai-bg);
 }
 .card-fact .card-head {
-  background: #16302a;
+  background: var(--ok-bg);
 }
 .card-unknown .card-head {
-  background: #2c2a1c;
+  background: var(--warn-bg);
 }
 .card-aside {
   display: flex;
@@ -282,23 +295,23 @@ button.link {
 }
 .banner-danger {
   background: var(--danger-bg);
-  color: #ffd2d2;
-  border-color: #6a2b2b;
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 35%, transparent);
 }
 .banner-warn {
   background: var(--warn-bg);
-  color: #ffe4b0;
-  border-color: #6a5220;
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 35%, transparent);
 }
 .banner-info {
   background: var(--info-bg);
-  color: #cfe7ff;
-  border-color: #2b4f75;
+  color: var(--info);
+  border-color: color-mix(in srgb, var(--info) 35%, transparent);
 }
 .banner-ai {
   background: var(--ai-bg);
-  color: #e8d9ff;
-  border-color: #4a3a6a;
+  color: var(--ai);
+  border-color: color-mix(in srgb, var(--ai) 35%, transparent);
 }
 .banner ul {
   margin: 4px 0 0;
@@ -325,22 +338,22 @@ button.link {
 .badge-normal {
   background: var(--ok-bg);
   color: var(--ok);
-  border-color: #1f5a44;
+  border-color: color-mix(in srgb, var(--ok) 35%, transparent);
 }
 .badge-suspicious {
   background: var(--warn-bg);
   color: var(--warn);
-  border-color: #6a5220;
+  border-color: color-mix(in srgb, var(--warn) 35%, transparent);
 }
 .badge-high_risk {
   background: var(--danger-bg);
   color: var(--danger);
-  border-color: #7a3030;
+  border-color: color-mix(in srgb, var(--danger) 35%, transparent);
 }
 .badge-pending {
   background: var(--pending-bg);
   color: var(--pending);
-  border-color: #3a4350;
+  border-color: var(--line-strong);
   font-weight: 500;
 }
 .badge-phase {
@@ -350,13 +363,13 @@ button.link {
   font-weight: 500;
 }
 .badge-phase-warmup {
-  color: #c9b27c;
-  border-color: #5a4c2a;
-  background: #2a2417;
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 35%, transparent);
+  background: var(--warn-bg);
 }
 .badge-phase-visible {
-  color: #8fd2ff;
-  border-color: #2b4f75;
+  color: var(--info);
+  border-color: color-mix(in srgb, var(--info) 35%, transparent);
   background: var(--info-bg);
 }
 .badge-state {
@@ -371,7 +384,7 @@ button.link {
 .badge-state-sent {
   background: var(--ok-bg);
   color: var(--ok);
-  border-color: #1f5a44;
+  border-color: color-mix(in srgb, var(--ok) 35%, transparent);
 }
 .badge-state-paused,
 .badge-state-reconnecting,
@@ -383,7 +396,7 @@ button.link {
 .badge-state-importing {
   background: var(--warn-bg);
   color: var(--warn);
-  border-color: #6a5220;
+  border-color: color-mix(in srgb, var(--warn) 35%, transparent);
 }
 .badge-state-blocked,
 .badge-state-failed,
@@ -392,24 +405,24 @@ button.link {
 .badge-state-error {
   background: var(--danger-bg);
   color: var(--danger);
-  border-color: #7a3030;
+  border-color: color-mix(in srgb, var(--danger) 35%, transparent);
 }
 .badge-state-completed,
 .badge-state-closed,
 .badge-state-done {
   background: var(--info-bg);
   color: var(--info);
-  border-color: #2b4f75;
+  border-color: color-mix(in srgb, var(--info) 35%, transparent);
 }
 .badge-model-ok {
   background: var(--ok-bg);
   color: var(--ok);
-  border-color: #1f5a44;
+  border-color: color-mix(in srgb, var(--ok) 35%, transparent);
 }
 .badge-model-warn {
   background: var(--warn-bg);
   color: var(--warn);
-  border-color: #8a6a20;
+  border-color: color-mix(in srgb, var(--warn) 45%, transparent);
 }
 .tag {
   display: inline-block;
@@ -424,22 +437,22 @@ button.link {
 }
 .tag-info {
   color: var(--info);
-  border-color: #2b4f75;
+  border-color: color-mix(in srgb, var(--info) 35%, transparent);
   background: var(--info-bg);
 }
 .tag-warn {
   color: var(--warn);
-  border-color: #6a5220;
+  border-color: color-mix(in srgb, var(--warn) 35%, transparent);
   background: var(--warn-bg);
 }
 .tag-danger {
   color: var(--danger);
-  border-color: #7a3030;
+  border-color: color-mix(in srgb, var(--danger) 35%, transparent);
   background: var(--danger-bg);
 }
 .tag-ok {
   color: var(--ok);
-  border-color: #1f5a44;
+  border-color: color-mix(in srgb, var(--ok) 35%, transparent);
   background: var(--ok-bg);
 }
 .tag-muted {
@@ -545,10 +558,10 @@ table.tbl {
 .btn-primary {
   background: var(--accent-2);
   border-color: var(--accent-2);
-  color: #fff;
+  color: var(--accent-fg, #fff);
 }
 .btn-primary:hover:not(:disabled) {
-  background: #4a8de6;
+  background: var(--accent);
 }
 .btn-sm {
   padding: 2px 8px;
@@ -620,7 +633,7 @@ label.check {
 }
 .state-error {
   background: var(--danger-bg);
-  color: #ffd2d2;
+  color: var(--danger);
   border-radius: var(--radius);
 }
 .state-error.state-db {
@@ -724,7 +737,7 @@ label.check {
   text-transform: uppercase;
 }
 .facts li.highlight {
-  background: #2a2a1a;
+  background: var(--warn-bg);
   outline: 1px solid var(--warn);
   border-radius: 4px;
   padding-left: 6px;
@@ -755,7 +768,7 @@ ul.bul {
   border-radius: var(--radius);
   padding: 8px 10px;
   margin-bottom: 8px;
-  background: #1c1628;
+  background: var(--ai-bg);
 }
 .hyp .hyp-title {
   color: var(--ai);
@@ -816,19 +829,19 @@ ul.bul {
   padding: 6px 10px;
 }
 .notice-warn {
-  color: #ffe4b0;
+  color: var(--warn);
   background: var(--warn-bg);
-  border-color: #6a5220;
+  border-color: color-mix(in srgb, var(--warn) 35%, transparent);
 }
 .notice-danger {
-  color: #ffd2d2;
+  color: var(--danger);
   background: var(--danger-bg);
-  border-color: #7a3030;
+  border-color: color-mix(in srgb, var(--danger) 35%, transparent);
 }
 .notice-ai {
-  color: #e8d9ff;
+  color: var(--ai);
   background: var(--ai-bg);
-  border-color: #4a3a6a;
+  border-color: color-mix(in srgb, var(--ai) 35%, transparent);
 }
 .check-ok {
   color: var(--ok);

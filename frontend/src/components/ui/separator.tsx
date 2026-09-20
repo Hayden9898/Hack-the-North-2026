@@ -2,6 +2,7 @@ import * as React from "react"
 import { cn } from "@/lib/cn"
 import { Separator as SeparatorPrimitive } from "radix-ui"
 
+/** A warm hairline. Same weight as every card border, so divisions read as one system. */
 function Separator({
   className,
   orientation = "horizontal",

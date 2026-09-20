@@ -58,17 +58,21 @@ const PROCESSING: Record<ProcessingState, Meta & { tone: string }> = {
   },
 }
 
+/**
+ * Verdicts: a low-alpha wash of their own hue plus a 1px border of the same hue. On white
+ * paper that is enough to read as a filled stamp without shouting over the brand orange.
+ */
 const VERDICT_TONE: Record<Verdict, string> = {
-  normal: 'text-normal bg-normal-wash border-normal/30',
-  suspicious: 'text-suspicious bg-suspicious-wash border-suspicious/30',
-  high_risk: 'text-high-risk bg-high-risk-wash border-high-risk/35',
+  normal: 'text-normal bg-normal-wash border-normal/35',
+  suspicious: 'text-suspicious bg-suspicious-wash border-suspicious/35',
+  high_risk: 'text-high-risk bg-high-risk-wash border-high-risk/40',
 }
 
 type Size = 'sm' | 'md'
 
 const SIZE: Record<Size, string> = {
-  sm: 'gap-1 px-1.5 py-0.5 text-[0.625rem] [&>svg]:size-2.5',
-  md: 'gap-1.5 px-2 py-1 text-[0.6875rem] [&>svg]:size-3',
+  sm: 'gap-1 px-1.5 py-1 text-[0.625rem] [&>svg]:size-2.5',
+  md: 'gap-1.5 px-2 py-1.5 text-[0.6875rem] [&>svg]:size-3',
 }
 
 type Props = { size?: Size; className?: string; showIcon?: boolean } & (
@@ -87,6 +91,8 @@ type Props = { size?: Size; className?: string; showIcon?: boolean } & (
  * Verdicts render as a tinted FILL. Processing states render as an OUTLINE with a diagonal
  * hatch and no fill. That difference is structural, so the two can never be confused — not
  * in greyscale, not by a colour-blind user, and not at a glance from across a demo table.
+ *
+ * The icon ships by default for the same reason: identity is never colour alone.
  */
 export function StatusChip({ verdict, state, size = 'md', showIcon = true, className }: Props) {
   const isVerdict = verdict !== undefined
@@ -101,7 +107,7 @@ export function StatusChip({ verdict, state, size = 'md', showIcon = true, class
       title={meta.title}
       className={cn(
         'inline-flex w-fit shrink-0 items-center whitespace-nowrap rounded-sm border',
-        'font-mono font-medium uppercase tracking-[0.06em]',
+        'font-mono font-medium uppercase leading-none tracking-[0.07em]',
         SIZE[size],
         isVerdict
           ? VERDICT_TONE[verdict]

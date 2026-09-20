@@ -4,7 +4,33 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="description"
+      content="Log &amp; Order replays 180,800 HTTP requests in causal order, scores each against five deterministic rules, and shows the query behind every claim."
+    />
     <title>Log &amp; Order — investigation console</title>
+    <!--
+      Applies the stored theme before first paint. Without this the page renders in the light
+      default for a frame and then snaps to dark for anyone who chose it — the flash is worse
+      than the wrong theme. Mirrors readStored() in src/lib/theme.tsx; keep the two in sync.
+    -->
+    <script>
+      (function () {
+        try {
+          var v = localStorage.getItem('logorder.theme')
+          var dark =
+            v === 'dark' ||
+            (v === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+          if (dark) {
+            document.documentElement.classList.add('dark')
+            document.documentElement.style.colorScheme = 'dark'
+          }
+        } catch (e) {
+          /* private mode — fall through to the light default */
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>
