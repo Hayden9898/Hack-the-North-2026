@@ -1,0 +1,182 @@
+/*
+ * Log & Order — design tokens.
+ *
+ * Palette rationale: a warm near-black / warm paper neutral base (not the blue-black every
+ * security dashboard ships) with a single earned accent — brass. Verdict colours carry the
+ * product's semantic load; the accent is chrome only (focus, primary action, wordmark rule).
+ *
+ * Every colour below was verified >= 4.5:1 against --color-bg, --color-surface and
+ * --color-surface-raised in BOTH themes with an OKLCH -> sRGB -> WCAG relative-luminance
+ * check. --color-fg-subtle is held to 3:1 (non-essential text only). Re-run the check in
+ * scripts/check-contrast.mjs after changing any value here.
+ */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* Surfaces & text — warm neutral ramp */
+  --lo-bg: oklch(0.985 0.004 85);
+  --lo-surface: oklch(0.965 0.005 85);
+  --lo-surface-raised: oklch(1 0 0);
+  /* `border` is a decorative hairline (no WCAG minimum). `border-strong` bounds interactive
+     controls and is held to 3:1 per WCAG 1.4.11 — use it for inputs, not for card edges. */
+  --lo-border: oklch(0.9 0.006 80);
+  --lo-border-strong: oklch(0.64 0.014 80);
+  --lo-fg: oklch(0.22 0.01 60);
+  --lo-fg-muted: oklch(0.44 0.01 60);
+  --lo-fg-subtle: oklch(0.56 0.01 60);
+
+  /* The one earned accent: brass */
+  --lo-accent: oklch(0.52 0.125 68);
+  --lo-accent-fg: oklch(0.99 0.004 85);
+
+  /* Verdict colours — the three threat classes. These carry product meaning. */
+  --lo-normal: oklch(0.48 0.1 165);
+  --lo-suspicious: oklch(0.52 0.14 45);
+  --lo-high-risk: oklch(0.5 0.19 25);
+
+  /* Processing states. Invariant #6: these are NOT a fourth threat class and must never
+     read as a clean verdict. Cool + desaturated by hue, outlined/hatched by form. */
+  --lo-pending: oklch(0.5 0.012 250);
+  --lo-late: oklch(0.48 0.09 250);
+  --lo-blocked: oklch(0.45 0.02 300);
+
+  /* Tint fills — verdicts only, low-alpha wash of the parent hue */
+  --lo-normal-wash: oklch(0.48 0.1 165 / 0.1);
+  --lo-suspicious-wash: oklch(0.52 0.14 45 / 0.1);
+  --lo-high-risk-wash: oklch(0.5 0.19 25 / 0.1);
+
+
+  /* Neutral hover/active wash. Named `hover` (not shadcn's `accent`) because in this
+     design system `accent` is the brand brass and must never fill a hover state. */
+  --lo-hover: oklch(0.935 0.006 80);
+
+  color-scheme: light;
+}
+
+.dark {
+  --lo-bg: oklch(0.165 0.006 60);
+  --lo-surface: oklch(0.205 0.007 60);
+  --lo-surface-raised: oklch(0.245 0.008 60);
+  --lo-border: oklch(0.3 0.008 60);
+  --lo-border-strong: oklch(0.53 0.012 60);
+  --lo-fg: oklch(0.95 0.005 75);
+  --lo-fg-muted: oklch(0.75 0.008 70);
+  --lo-fg-subtle: oklch(0.6 0.008 70);
+
+  --lo-accent: oklch(0.78 0.135 78);
+  --lo-accent-fg: oklch(0.2 0.02 78);
+
+  --lo-normal: oklch(0.76 0.105 165);
+  --lo-suspicious: oklch(0.75 0.155 48);
+  --lo-high-risk: oklch(0.7 0.185 22);
+
+  --lo-pending: oklch(0.68 0.015 250);
+  --lo-late: oklch(0.72 0.065 245);
+  --lo-blocked: oklch(0.66 0.03 300);
+
+  --lo-normal-wash: oklch(0.76 0.105 165 / 0.14);
+  --lo-suspicious-wash: oklch(0.75 0.155 48 / 0.14);
+  --lo-high-risk-wash: oklch(0.7 0.185 22 / 0.14);
+
+
+  --lo-hover: oklch(0.265 0.008 60);
+
+  color-scheme: dark;
+}
+
+@theme inline {
+  /* ---- Semantic colour tokens (contract §5) ---- */
+  --color-bg: var(--lo-bg);
+  --color-fg: var(--lo-fg);
+  --color-surface: var(--lo-surface);
+  --color-fg-muted: var(--lo-fg-muted);
+  --color-surface-raised: var(--lo-surface-raised);
+  --color-fg-subtle: var(--lo-fg-subtle);
+  --color-border: var(--lo-border);
+  --color-accent: var(--lo-accent);
+  --color-border-strong: var(--lo-border-strong);
+  --color-accent-fg: var(--lo-accent-fg);
+
+
+  --color-hover: var(--lo-hover);
+
+  /* ---- shadcn/ui bridge ----------------------------------------------------------
+   * shadcn primitives are kept unmodified so they stay upgradable; these aliases point
+   * their token names at ours. One deliberate exception: shadcn's `accent` means "hover
+   * surface", which collides with our brand accent, so those usages were rewritten to
+   * `hover` in the components themselves. Do not add --color-accent-foreground here.
+   */
+  --color-background: var(--lo-bg);
+  --color-foreground: var(--lo-fg);
+  --color-card: var(--lo-surface);
+  --color-card-foreground: var(--lo-fg);
+  --color-popover: var(--lo-surface-raised);
+  --color-popover-foreground: var(--lo-fg);
+  --color-primary: var(--lo-accent);
+  --color-primary-foreground: var(--lo-accent-fg);
+  --color-secondary: var(--lo-surface-raised);
+  --color-secondary-foreground: var(--lo-fg);
+  --color-muted: var(--lo-surface);
+  --color-muted-foreground: var(--lo-fg-muted);
+  --color-destructive: var(--lo-high-risk);
+  --color-input: var(--lo-border);
+  --color-ring: var(--lo-accent);
+
+  /* ---- Verdict colours ---- */
+  --color-normal: var(--lo-normal);
+  --color-suspicious: var(--lo-suspicious);
+  --color-high-risk: var(--lo-high-risk);
+  --color-normal-wash: var(--lo-normal-wash);
+  --color-suspicious-wash: var(--lo-suspicious-wash);
+  --color-high-risk-wash: var(--lo-high-risk-wash);
+
+  /* ---- Processing-state colours ---- */
+  --color-pending: var(--lo-pending);
+  --color-late: var(--lo-late);
+  --color-blocked: var(--lo-blocked);
+
+  /* ---- Radii: deliberately NOT all the same value ---- */
+  --radius-sm: 0.1875rem; /*  3px — chips, tags, inline marks */
+  --radius-md: 0.3125rem; /*  5px — buttons, inputs */
+  --radius-lg: 0.5rem; /*  8px — cards, popovers */
+  --radius-xl: 0.875rem; /* 14px — sheets, modals, hero slabs */
+
+  /* ---- Type scale ---- */
+  --text-display: 4rem;
+  --text-display--line-height: 0.94;
+  --text-display--letter-spacing: -0.03em;
+  --text-display--font-weight: 400;
+
+  --text-title: 2rem;
+  --text-title--line-height: 1.1;
+  --text-title--letter-spacing: -0.02em;
+  --text-title--font-weight: 400;
+
+  --text-heading: 1.0625rem;
+  --text-heading--line-height: 1.35;
+  --text-heading--letter-spacing: -0.011em;
+  --text-heading--font-weight: 600;
+
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.6;
+  --text-body--letter-spacing: -0.003em;
+
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.4;
+  --text-caption--letter-spacing: 0.04em;
+  --text-caption--font-weight: 500;
+
+  --text-mono: 0.8125rem;
+  --text-mono--line-height: 1.55;
+  --text-mono--letter-spacing: 0;
+
+  /* ---- Families ---- */
+  --font-sans: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-serif: 'Instrument Serif', ui-serif, Georgia, 'Times New Roman', serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
+
+  /* ---- Motion (mirrors src/lib/motion.ts; keep the two in sync) ---- */
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out-quint: cubic-bezier(0.65, 0, 0.35, 1);
+}
