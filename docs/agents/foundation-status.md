@@ -96,8 +96,9 @@ Fonts: `font-sans` (IBM Plex Sans) · `font-serif` (Instrument Serif, display on
   to dark keeps them pixel-identical to before. Light mode is fully supported by my tokens
   and components — the legacy console will look wrong in light until you convert it. Not a
   bug, and nothing for you to work around.
-- `npm run check:contrast` parses `theme.css` and asserts WCAG AA. All tokens pass today
-  (4.5:1 text, 3:1 for `fg-subtle` and `border-strong`). Run it if you add a colour.
+- `npm run check:contrast` parses `theme.css` and asserts WCAG AA (4.5:1 text, 3:1 non-text).
+  Run it if you add a colour. **It currently reports 10 failures, all real** — see
+  "Known: the light palette is below AA" below. Do not treat a red run as noise.
 - Verified: `/` and `/app` both 200, console renders, `typecheck && lint && build` green.
   Lint emits 5 pre-existing `only-export-components` fast-refresh warnings; oxlint exits 0.
 - The shadcn CLI mis-resolved `@/` and installed an unrelated npm package called `cn`.
@@ -155,8 +156,10 @@ to do — it just means don't re-add `outline-none` when you pull a new shadcn c
 
 ### Also available to you
 
-- `npm run check:contrast` — parses `theme.css`, asserts WCAG (4.5:1 text, 3:1 for `fg-subtle`
-  and `border-strong`, decorative `border` exempt). All tokens pass. Run it if you add a colour.
+- `npm run check:contrast` — parses `theme.css`, asserts WCAG (4.5:1 text, 3:1 for non-text
+  `border-strong` and the chart marks; decorative `border`, `grid`, `axis` and `chart-shadow`
+  exempt; `sunken`/`chip` are surfaces, not ink). Run it if you add a colour. Red today, and
+  the failures are real — see "Known: the light palette is below AA".
 - `node scripts/shoot.mjs <outDir>` — dependency-free headless-Chrome screenshots, full-page,
   both themes, 1440×900 and 390×844. `SHOOT_PAGES="/app:runs,/app/runs/<id>:console"` to point
   it at your screens. It seeds the theme in localStorage before load, so you get a real light
@@ -172,3 +175,107 @@ Round 1 of the review loop scored a mean of 7.42/10 across three blind judges (l
 except `api.ts`, `format.ts` and `useFetch.ts`, all read-only.
 
 **REQUEST from you:** none outstanding. Nothing blocks me.
+
+## 2026-09-19 (later still) — R4 fixed: `cn()` was dropping tokens. Pull this one.
+
+**R4 is fixed and pushed** (`fix(design): cn() was silently dropping colour and size tokens`).
+Thank you for the diagnosis — it was exactly right, and worse than it looked.
+
+`twMerge` only recognises t-shirt sizes as font sizes, so it filed every `--text-*` token under
+**colours**, put `text-heading` in the same conflict group as `text-fg`, and kept whichever came
+last. Six of eight probe cases were losing a token, including `text-mono text-fg` — the pair
+`CodeBlock` uses for every raw log line, so this was corrupting evidence rendering on my side too.
+
+`cn.ts` now registers both scales with `extendTailwindMerge`. A size and a colour survive
+together; genuine same-group conflicts still collapse to the last one, as they should:
+
+```
+text-heading text-fg      -> text-heading text-fg     (was: text-fg)
+text-mono text-fg         -> text-mono text-fg        (was: text-fg)
+text-body text-caption    -> text-caption             (correct: both are sizes)
+text-fg text-fg-muted     -> text-fg-muted            (correct: both are colours)
+```
+
+**You can revert your five workarounds** and write the natural `cn('text-heading text-fg', …)`
+again. `npm run check:cn` locks the behaviour in — worth running if you add a token, because the
+failure mode is invisible in review: nothing errors, the class just disappears.
+
+**If you add a `--text-*` step**, add it to `FONT_SIZES` in `cn.ts` or it will silently fight the
+colour utilities. `check:cn` will catch it.
+
+### On the theme default
+
+You're right that my comment was stale, and I've corrected it. Dark stays the default — but now
+because it is the theme the product was designed around and the one the demo runs in, not because
+your screens were unfinished. It is a one-word change in `lib/theme.tsx` if the owner prefers
+`system`; I'm leaving it as the owner's call rather than changing demo behaviour this late.
+
+### On R5 (`GET /api/v1/runs` returns empty `counts`)
+
+Agreed with how you handled it, and noting it here so it reaches the reviewer from both branches:
+rendering honest cursor progress beats N+1 fetches that look fine with two runs and collapse with
+fifty. That one is the backend teammate's to serve.
+
+### Landing status
+
+Four judging rounds run: 7.42 → 7.71 → 7.41 → (round 4 scoring now). The dips are the panel
+getting more forensic each round, not regressions — round 3 caught a hero capsule that was
+truncating a raw log line into a fragment that exists in no log file, which is exactly the class
+of bug this product cannot ship. Fixed, and the capsule now shares one code path with the
+Exhibit A strips.
+
+## 2026-09-20 — final. PR branch cut; 4 rounds run, threshold not met.
+
+**Stopped at 4 rounds on the owner's instruction** (asked to speed up and test), below the
+mean ≥8.5 threshold. Final means: hierarchy 7.33 · typography 7.67 · spacing 6.83 ·
+colour 7.67 · motion 8.50 · density 7.50 · originality 8.67 · craft 6.50 → **7.58**.
+Craft and spacing are both under 7. Not rounding up.
+
+Round means were 7.42 → 7.71 → 7.41 → 7.58. Roughly flat, because each panel measured more
+precisely than the last and found real defects the previous one had accepted by eye. What the
+loop bought was defect removal, not score: the blank light page, a hero capsule truncating a
+raw log line into `IDENTIAL.zip`, the `77` and the AFTER strip painted in the verdict colour,
+978px then 405px of mobile overflow, and `fg-subtle` at 4.26:1 in light.
+
+**PR is from `hayden/frontend-foundation-pr`, not `hayden/frontend-foundation`.** The ML
+teammate committed into the same working tree after I checked my branch out into it, so nine
+backend/ML commits landed on my branch — three exist nowhere else. I cherry-picked my 20
+commits onto a clean branch rather than force-push and risk orphaning their work. The original
+branch is untouched and still holds them. The PR branch touches `frontend/` and `docs/agents/`
+only.
+
+Nothing merged. Nothing on `main`.
+
+## 2026-09-20 (post-merge) — Known: the light palette is below AA
+
+`npm run check:contrast` had been **crashing, not passing**, since the palette rebuild
+(`eec144b`). The script only ever parsed `--lo-<name>: oklch(...)`, and that commit moved the
+whole palette to hex, so it matched zero tokens and then threw on `tokens['accent-fg']`. Every
+"all tokens pass" note above it was written against a gate that was not running.
+
+The parser now reads hex (and still reads oklch), and the token taxonomy matches how the
+tokens are actually painted: `sunken`/`chip` are surfaces, `grid`/`axis`/`chart-shadow` are
+decorative, and the three `*-mark` tokens are non-text graphics held to 3:1.
+
+With that, **10 real failures remain, and 9 of them are in the light theme**:
+
+| token | light | needs | painted as |
+| --- | --- | --- | --- |
+| `accent` | 3.08 | 4.5 | `text-accent` ×14 (buttons, badges, chart legends) |
+| `accent-hover` | 3.94 | 4.5 | text |
+| `accent-soft` | 1.77 | 4.5 | text |
+| `accent-fg` | 3.22 on accent | 4.5 | text on the accent fill |
+| `chart-2` | 3.77 | 4.5 | `text-chart-2` ×12 with 3/4 |
+| `chart-3` | 2.80 | 4.5 | text |
+| `chart-4` | 4.24 | 4.5 | text |
+| `suspicious-mark` | 1.99 | 3.0 | `bg-`/`stroke-` chart marks |
+| `border-strong` | 2.03 | 3.0 | control bounds |
+| `border-strong` (dark) | 2.54 | 3.0 | control bounds |
+
+These are not the gate being pedantic. `#ff5400` as body text on `#fafaf7` is genuinely hard
+to read, and it is the brand accent, so it is on every primary button and link in light mode.
+
+Fixing it is a palette decision, not a mechanical one — darkening `accent` to clear 4.5:1
+changes the brand colour, and the alternative (reserve `accent` for fills, introduce a darker
+`accent-ink` for text) means touching the 14 `text-accent` sites. Deliberately left for a human
+call rather than silently recoloured. Dark mode passes everything except `border-strong`.

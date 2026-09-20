@@ -22,7 +22,11 @@ const VIEWPORTS = [
 ]
 const THEMES = ['dark', 'light']
 const PAGES = (process.env.SHOOT_PAGES ?? '/:landing').split(',').map((p) => {
+  // `lastIndexOf` returns -1 when the spec has no `:name` suffix, and `slice(0, -1)` would
+  // silently drop the last character of the path ('/app' -> '/ap', which 404s and screenshots
+  // the wrong page under a plausible filename). Treat a missing suffix as "derive the name".
   const i = p.lastIndexOf(':')
+  if (i === -1) return { path: p, name: p.replace(/^\/+|\/+$/g, '').replace(/\W+/g, '-') || 'root' }
   return { path: p.slice(0, i), name: p.slice(i + 1) }
 })
 

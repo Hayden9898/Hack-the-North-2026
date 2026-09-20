@@ -8,7 +8,7 @@ function readStored(): ThemePreference {
   } catch {
     /* private mode / storage disabled — fall through to the default */
   }
-  return 'dark'
+  return 'light'
 }
 
 function systemTheme(): ResolvedTheme {
@@ -19,8 +19,10 @@ function systemTheme(): ResolvedTheme {
  * Applies the resolved theme as a `dark` class on <html>, matching the
  * `@custom-variant dark` selector in styles/theme.css.
  *
- * Default is dark: the legacy console screens are dark-only until Agent B restyles them,
- * so defaulting to dark keeps them looking exactly as they did before this change.
+ * Default is LIGHT. The page is built on embeddable's warm paper palette (#fafaf7 / #242635
+ * ink) and the colour index only reads correctly against it — landing on dark would show the
+ * selected second theme rather than the designed one. Dark remains fully supported via the
+ * toggle. Switching to 'system' is a one-word change here if that is preferred.
  */
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<ThemePreference>(readStored)
