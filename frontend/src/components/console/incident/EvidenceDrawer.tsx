@@ -150,8 +150,14 @@ export function EvidenceDrawer({
                 ))}
               </div>
             </>
+          ) : proof && proof.recomputed_count === 0 ? (
+            <p className="max-w-[62ch] text-body text-fg-muted">
+              The recount returned <span className="font-medium text-fg">no rows</span>, and that is the finding: the
+              query above ran against every row under the cutoff and matched nothing. An empty result here is what
+              makes the later response a change rather than routine.
+            </p>
           ) : (
-            <p className="text-body text-fg-muted">
+            <p className="max-w-[62ch] text-body text-fg-muted">
               This fact records a value rather than a set of events, so there are no separate evidence lines to page
               through.
             </p>

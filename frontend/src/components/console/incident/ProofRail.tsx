@@ -129,6 +129,9 @@ function ClaimCard({ fact, onShowEvidence }: { fact: Fact; onShowEvidence: (f: F
  */
 function evidenceLabel(fact: Fact): string {
   if (fact.query && typeof fact.value === 'number') {
+    // "0 lines →" reads like a dead link, but a zero count is a real proof: the recount went
+    // looking and found none, which is exactly what makes the later success a change.
+    if (fact.value === 0) return 'recount'
     return `${fmtNum(fact.value)} ${fact.value === 1 ? 'line' : 'lines'}`
   }
   const n = fact.evidence_event_ids.length

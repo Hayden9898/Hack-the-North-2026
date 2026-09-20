@@ -276,7 +276,12 @@ export function RunActivityChart({
 
       {/* the table-view twin: every value reachable without colour or hover */}
       {showTable ? (
-        <div className="mt-3 max-h-64 overflow-y-auto rounded-lg border border-border">
+        <div
+          className="mt-3 max-h-64 overflow-y-auto rounded-lg border border-border"
+          tabIndex={0}
+          role="region"
+          aria-label="Activity series as a table, scrollable"
+        >
           <table className="w-full border-collapse font-mono text-mono" id={`${uid}-table`}>
             <thead className="sticky top-0 bg-surface-raised">
               <tr className="border-b border-border text-left">

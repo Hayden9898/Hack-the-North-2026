@@ -89,7 +89,7 @@ export function ActivityPanel({ runId, processedSeq, run }: { runId: string; pro
         ) : ts.error && !ts.data ? (
           <ErrorState title="Could not load the activity series" detail={describeError(ts.error).text} onRetry={() => void ts.reload()} />
         ) : model ? (
-          <div className={ts.loading ? 'opacity-60 transition-opacity' : undefined}>
+          <div className={ts.loading ? 'opacity-60 transition-opacity motion-reduce:transition-none' : undefined}>
             <RunActivityChart
               bins={model.bins}
               widthMs={model.widthMs}

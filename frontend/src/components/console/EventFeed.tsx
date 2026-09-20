@@ -210,6 +210,9 @@ export function EventFeed({ runId, tick, cutoff }: { runId: string; tick: number
             ref={virt.ref as (el: HTMLDivElement | null) => void}
             onScroll={virt.onScroll}
             className="max-h-[27rem] overflow-y-auto"
+            tabIndex={0}
+            role="region"
+            aria-label="Event feed rows, scrollable"
           >
             <div style={{ height: virt.window.padTop }} />
             {rows.slice(virt.window.start, virt.window.end).map((ev) => (

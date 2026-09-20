@@ -166,7 +166,12 @@ export function TimelinePanel({
 }) {
   if (timeline.length === 0) return <Empty>No evidence events under the current cutoff.</Empty>
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
+    <div
+      className="overflow-x-auto rounded-lg border border-border"
+      tabIndex={0}
+      role="region"
+      aria-label="Timeline of evidence events, horizontally scrollable"
+    >
       <table className="w-full border-collapse font-mono text-mono">
         <thead>
           <tr className="border-b border-border bg-surface-raised text-left">
