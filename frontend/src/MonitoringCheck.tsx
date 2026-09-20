@@ -1,13 +1,20 @@
 import { useState } from 'react'
-import { api, describeError } from './api'
+import { api, describeError, subscribeOperatorToken } from './api'
+import { useEffect } from 'react'
 import { sendObservabilityDiagnostic } from './observability'
 
 /** Explicit, synthetic diagnostic. It never reads a run, incident, or provider result. */
 export function MonitoringCheck() {
   const [message, setMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [authenticated, setAuthenticated] = useState(false)
+  useEffect(() => subscribeOperatorToken(setAuthenticated), [])
 
   async function send() {
+    if (!authenticated) {
+      setMessage('Set the operator token first; production diagnostics are authenticated.')
+      return
+    }
     setBusy(true)
     const browserEventId = sendObservabilityDiagnostic()
     try {
