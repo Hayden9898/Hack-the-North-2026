@@ -108,3 +108,67 @@ Fonts: `font-sans` (IBM Plex Sans) · `font-serif` (Instrument Serif, display on
 
 **Next for me:** landing page design + the §8 rate-and-iterate loop. I will not touch your
 six screens again.
+
+## 2026-09-19 (later) — three changes that touch your screens. Please pull.
+
+You merged Phase 0 at `3831907`. Four commits since then, three of which affect you.
+
+### 1. Legacy console CSS is now scoped to `.app` — `index.css`
+
+`index.css` targeted `h1/h2/h3/a/p/code/pre/input` as **bare elements**, so it escaped the
+console and restyled the landing page (`h2` forced UPPERCASE and a muted colour onto every
+section heading on `/`). Those rules are now `.app h2 { … }` etc., and the font stack plus the
+14px base moved onto `.app` itself.
+
+**Your screens render byte-identically** — I screenshotted `/app` and `/app/runs/:id` before
+and after to confirm. It only matters to you if you add a component that renders **outside**
+`.app`: it will no longer inherit the legacy element styles. Everything under the shell is
+unchanged. As you convert a screen, deleting its rules from `index.css` still works the same way.
+
+### 2. `CodeBlock` no longer wraps by default — **behaviour change**
+
+`wrap` now defaults to **`false`**. Wrapped log lines were splitting mid-token — a timestamp
+broke as `[05/Aug/2025:1` + `3:05:36`, a path broke inside the word `reports`. On the one
+component whose entire job is byte-exact evidence, that is a fidelity bug. Lines now scroll
+horizontally with a right-edge fade mask, and the container is width-constrained so an
+overflowing line can never widen the page.
+
+```tsx
+<CodeBlock code={raw} />                  // scrolls, line stays intact  ← new default
+<CodeBlock code={raw} wrap />             // old behaviour, if you want it somewhere
+<CodeBlock code={raw} lineNumbers maxHeight="24rem" />   // for the 77-denial evidence rail
+```
+
+For your paged 77-denial list I would keep the default (no wrap): a judge comparing 77 lines
+wants them aligned in a column, and a wrapped line destroys that. **REQUEST → me:** if the
+evidence rail needs a different affordance (line numbers in a sticky gutter, a "copy all"
+action, virtualised rows), say so and I will build it into `CodeBlock` rather than have you
+fork it.
+
+### 3. One focus treatment everywhere — `components/ui/*`
+
+shadcn primitives shipped `outline-none` plus a 50%-alpha box-shadow ring, so buttons had a
+weaker and visually different focus indicator than every link. Removed the opt-out; the single
+2px solid accent outline from `styles/base.css` now applies to everything. Verified by tabbing
+the page over CDP: 14 focusables, all with a visible ring (3 had none before). Nothing for you
+to do — it just means don't re-add `outline-none` when you pull a new shadcn component.
+
+### Also available to you
+
+- `npm run check:contrast` — parses `theme.css`, asserts WCAG (4.5:1 text, 3:1 for `fg-subtle`
+  and `border-strong`, decorative `border` exempt). All tokens pass. Run it if you add a colour.
+- `node scripts/shoot.mjs <outDir>` — dependency-free headless-Chrome screenshots, full-page,
+  both themes, 1440×900 and 390×844. `SHOOT_PAGES="/app:runs,/app/runs/<id>:console"` to point
+  it at your screens. It seeds the theme in localStorage before load, so you get a real light
+  capture rather than a flash. I used it for every round of the review loop; it will save you
+  the same setup.
+- `--color-hover` exists for neutral hover surfaces. Use it rather than `--color-accent` —
+  brass is chrome (focus, primary action, links), never a hover fill.
+
+### Landing page status
+
+Round 1 of the review loop scored a mean of 7.42/10 across three blind judges (lowest: motion
+6.0, craft 6.33). Round 2 is running. Nothing on the landing page imports from your files
+except `api.ts`, `format.ts` and `useFetch.ts`, all read-only.
+
+**REQUEST from you:** none outstanding. Nothing blocks me.
