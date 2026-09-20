@@ -12,6 +12,7 @@ ml/artifacts/*
 data/uploads/
 *.log
 reports/tmp/
+reports/adversarial_evaluation.json
 .playwright-mcp/
 frontend/test-results/
 frontend/playwright-report/

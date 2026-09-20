@@ -18,8 +18,8 @@ Honest status per integration. "Verified" means exercised against the real servi
 
 ## Sentry Tracing + Logs — wired, project unverified
 
-- SDK `sentry-sdk[fastapi]` 2.29.1, initialised per process (`api`, `detector`, `side-effects`, CLIs) with
-  `traces_sample_rate` from config and Logs enabled (`_experiments.enable_logs`). Disabled visibly when `SENTRY_DSN`
+- SDK `sentry-sdk[fastapi]` 2.69.2, initialised per process (`api`, `detector`, `side-effects`, CLIs) with
+  `traces_sample_rate` from config and Logs enabled (`enable_logs=True`). Disabled visibly when `SENTRY_DSN`
   is empty (`/health/ready` → `integrations.sentry = disabled_no_dsn`).
 - Spans: `ingest.import`, `ingest.persist`, `detector.batch`, `features`, `model.score`, `rules.evaluate`, `correlate`,
   `notify.deliver`, `explanation`, `explanation.call`, `explanation.validate`, `analytics.refresh`. Trace context is
@@ -28,8 +28,8 @@ Honest status per integration. "Verified" means exercised against the real servi
   `explanation_timeout`, `notification_failed`, `aggregate_stale`, `run_phase_visible`. Correlation keys are opaque
   run/incident ids; usernames, raw URLs, webhook URLs and prompts are not attached; request bodies/cookies/auth headers
   are scrubbed in `before_send`.
-- Observability-driven fix: the slow events page query (79.7 ms → 2.9 ms) was found through the UI review; with a DSN
-  the same span (`GET /api/v1/runs/{id}/events`) would show it. Labelled fault injection for the demo:
+- The slow events page query (79.7 ms → 2.9 ms) was found through UI review, **not Sentry**; with a DSN the same span
+  (`GET /api/v1/runs/{id}/events`) would make comparable behavior observable. Labelled fault injection for the demo:
   `python -m scripts.inject_invalid_claim --run-id <run>` emits `claim_rejected` for each validator reason.
 - **Unverified**: no DSN was available, so no trace or log has actually been sent to Sentry. Installing the SDK is not
   claimed as completion.

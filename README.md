@@ -7,6 +7,8 @@ and lets a constrained AI step *select* facts and qualified hypotheses that a va
 
 Specification: `overview.md` → `architecture.md` → `plan(3).md`. Progress and decisions: `PROGRESS.md`.
 Reports: `reports/investigation.md`, `reports/evaluation.md`, `reports/performance.md`, `reports/sponsor-evidence.md`.
+The dedicated synthetic adversarial regression gate and its honest scope are in
+[`docs/adversarial-evaluation.md`](docs/adversarial-evaluation.md).
 
 ## What is real, preview, or unverified
 

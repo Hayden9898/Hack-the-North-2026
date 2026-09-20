@@ -7,6 +7,34 @@ from urllib.parse import unquote, urlsplit
 
 TEST_LOCK_ID = 627043611337
 
+# Every table holding test-generated state. Consumers may truncate only after
+# validate_test_database has established that the target is disposable.
+TRUNCATE_ORDER = (
+    "analyst_feedback",
+    "ui_updates",
+    "notification_outbox",
+    "explanations",
+    "explanation_jobs",
+    "fact_packets",
+    "incident_relations",
+    "incident_evidence",
+    "incident_versions",
+    "incidents",
+    "rule_matches",
+    "processed_events",
+    "detections",
+    "feature_snapshots",
+    "entity_stats",
+    "run_late_events",
+    "run_events",
+    "runs",
+    "models",
+    "ingestion_rejects",
+    "raw_events",
+    "event_registry",
+    "datasets",
+)
+
 
 def validate_test_database(test_url: str, application_url: str, *, allow_remote: bool = False) -> None:
     """Refuse ambiguous/production targets before opening a connection or truncating tables."""
