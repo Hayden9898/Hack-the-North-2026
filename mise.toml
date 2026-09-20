@@ -1,0 +1,4 @@
+# Local toolchain pin. The project requires Python 3.12 and Node 20+ (README).
+[tools]
+python = "3.12.13"
+node = "24.11.1"
