@@ -109,6 +109,13 @@ export interface DatasetDetail extends Dataset {
   rejects_sample: { line_number: number; reason: string; raw_input: string }[]
 }
 
+export interface ObservabilityCheck {
+  status: 'disabled' | 'queued' | 'not_queued'
+  event_id: string | null
+  check_id: string | null
+  delivery_verified: false
+}
+
 export type Deviation = Record<string, unknown>
 
 export interface EventRow {
@@ -694,6 +701,7 @@ export const api = {
     body.append('file', file)
     return request<Dataset & { job: 'queued' | 'existing' }>(`${API}/datasets`, { method: 'POST', body })
   },
+  checkObservability: () => request<ObservabilityCheck>(`${API}/observability/check`, { method: 'POST' }),
 
   listEvents: (runId: string, q: EventsQuery) => request<EventsPage>(`${API}/runs/${enc(runId)}/events${qs({ ...q })}`),
   getEvent: (runId: string, seq: number | string) => request<EventDetail>(`${API}/runs/${enc(runId)}/events/${enc(String(seq))}`),

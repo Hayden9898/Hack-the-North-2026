@@ -181,7 +181,7 @@ class Verification:
         }
         command = [NPM, "run", "test:e2e"] + (["--", "--headed"] if headed else [])
         ok = self.step(
-            "Production-browser workflows, accessibility and responsive layouts",
+            "Production-browser multipart upload workflow",
             command,
             cwd=FRONTEND,
             timeout=300,

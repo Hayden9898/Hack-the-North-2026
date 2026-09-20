@@ -1,5 +1,17 @@
 # Frontend verification — September 19, 2026
 
+## Current checkout — September 20, 2026
+
+- `python3 tasks.py verify-frontend` passed: TypeScript, Oxlint, production build, one Chromium multipart-upload
+  workflow and one Chromium Sentry diagnostic/local-transport workflow. No test was skipped, retried, or flaky. Report:
+  `reports/verification/20260920T034601.365603Z-frontend/index.html`.
+- The upload workflow asserts the browser preserves the multipart boundary and renders the queued import state. The
+  monitoring workflow uses a loopback DSN, intercepts the envelope, and asserts the synthetic diagnostic is emitted
+  without a raw-log field. No external Sentry event is sent.
+- This is deliberately narrower than the historical UI records below. Treat those records as history, not evidence that
+  the corresponding browser suites are present in this checkout. Broader frontend interaction coverage is a remaining
+  release task.
+
 ## Latest follow-up: investigation brief and evidence-version isolation
 
 - `python3 tasks.py verify-frontend`: types/lint/build, **25 UI checks + 1 real SDK transport/privacy check**, all passed,

@@ -229,6 +229,15 @@ button.link {
 .row-between {
   justify-content: space-between;
 }
+.monitoring-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: min(560px, 42vw);
+}
+.monitoring-check [role='status'] {
+  overflow-wrap: anywhere;
+}
 
 /* Cards */
 .card {

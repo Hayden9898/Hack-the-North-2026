@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { api, describeError, subscribeDbStatus, type Health } from './api'
 import { degradedModeLabel } from './format'
+import { MonitoringCheck } from './MonitoringCheck'
 import { useFetch, useInterval } from './useFetch'
 
 export default function App() {
@@ -26,6 +27,7 @@ export default function App() {
           </NavLink>
         </nav>
         <span className="spacer" />
+        <MonitoringCheck />
         <HealthChip health={health.data} error={health.error} loading={health.loading} onRetry={() => void health.reload()} />
       </header>
 

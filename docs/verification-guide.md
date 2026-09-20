@@ -24,13 +24,13 @@ start/resume an execution, deploy, send Slack, or call an AI provider. It disabl
 | Gate | Command | What a pass proves |
 | --- | --- | --- |
 | Environment | `python3 tasks.py doctor` | Dependency, Docker, test-DB, API and UI readiness; artifact presence is separately labelled |
-| Frontend | `python3 tasks.py verify-frontend` | Types, lint, production build, Chromium interaction/accessibility/layout and case-export checks, plus real Sentry SDK privacy/transport check |
+| Frontend | `python3 tasks.py verify-frontend` | Types, lint, production build, Chromium multipart-upload workflow, plus a local Sentry SDK privacy/transport check |
 | Backend | `python3 tasks.py verify-backend` | Python types/lint, non-DB tests, serial API/worker/detector tests against dedicated TimescaleDB |
 | Canonical replay | `python3 tasks.py verify-live RUN_ID=<completed-id>` | Read-only checks of the actual running app, original dataset, model-active result and evidence proof |
 | External Sentry | Follow [Sentry acceptance](sentry-observability.md) | Events, traces and logs actually received in the chosen project, not merely queued |
 
-The frontend gate runs a fresh production preview on **4174**, not a potentially stale dev server. Monitoring gets a
-separate build on **4175**, a dummy loopback DSN, and an intercepted local collector. No real Sentry events are sent.
+The frontend gate runs a fresh production preview on **4173**, not a potentially stale dev server. Monitoring runs
+sequentially with a dummy loopback DSN and an intercepted local collector. No real Sentry events are sent.
 Zero skipped tests, retries or flaky passes are accepted. Synthetic fixtures stay in test directories; the app never uses them.
 To watch the interactions: `python3 tasks.py verify-frontend HEADED=1`; for interactive debugging use `cd frontend && npm run test:ui`.
 

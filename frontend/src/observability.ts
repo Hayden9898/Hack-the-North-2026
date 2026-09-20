@@ -12,6 +12,7 @@ function routeTemplate(name: unknown): string {
 }
 
 function safeEvent(event: SentryErrorEvent): SentryErrorEvent {
+  const diagnostic = event.tags?.check === 'observability_check'
   const exception = event.exception?.values?.map((value) => ({
     type: value.type ?? 'Error',
     value: 'Exception details withheld by privacy policy',
@@ -37,7 +38,8 @@ function safeEvent(event: SentryErrorEvent): SentryErrorEvent {
     level: event.level,
     transaction: routeTemplate(event.transaction),
     exception: exception ? { values: exception } : undefined,
-    message: 'Application diagnostic',
+    message: diagnostic ? 'logorder.observability_check' : 'Application diagnostic',
+    tags: diagnostic ? { check: 'observability_check' } : undefined,
   }
 }
 
@@ -73,6 +75,7 @@ export function initObservability(): void {
 
 /** An explicit synthetic browser event for the operator's Sentry acceptance check. */
 export function sendObservabilityDiagnostic(): string | undefined {
+  if (!Sentry.getClient()) return undefined
   return Sentry.captureMessage('logorder.observability_check', {
     level: 'info',
     tags: { check: 'observability_check' },
