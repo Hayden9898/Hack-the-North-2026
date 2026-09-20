@@ -1,0 +1,78 @@
+/*
+ * Document-level base styles.
+ *
+ * Lives in @layer app-base, which is declared AFTER `legacy` in app.css. That means these
+ * rules beat the legacy console stylesheet, so keep this file to document-level concerns
+ * only (html/body/focus/selection/scrollbar). Do NOT add element typography resets here —
+ * h1/h2/h3/p/a/code/pre belong to the legacy console until Agent B restyles them, and
+ * anything added here would silently restyle six screens we do not own.
+ */
+
+@layer app-base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: 1.6;
+    font-synthesis-weight: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background-color: color-mix(in oklch, var(--color-accent) 28%, transparent);
+    color: var(--color-fg);
+  }
+
+  /* One focus ring for the whole app. Always visible, never removed. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  /* Tabular numerals wherever numbers are compared vertically. */
+  table,
+  [data-numeric] {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer app-base {
+  /* Accessibility: honour the OS setting globally, not per-component. Motion.dev's
+     useReducedMotion covers React animations; this covers CSS ones and anything we miss. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /*
+   * Processing-state hatching (architecture invariant #6).
+   *
+   * Verdicts are rendered as tinted FILLS. Processing states are rendered as OUTLINE +
+   * diagonal hatch. The distinction is structural, not just hue, so pending/late/blocked
+   * can never be mistaken for a clean verdict even in greyscale or by a colour-blind user.
+   */
+  .state-hatch {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      color-mix(in oklch, currentColor 15%, transparent) 0 1px,
+      transparent 1px 5px
+    );
+  }
+}

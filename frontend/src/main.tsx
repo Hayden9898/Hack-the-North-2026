@@ -1,8 +1,12 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
-import './index.css'
+import './styles/app.css'
 import App from './App.tsx'
+import { LegacyRunsRedirect } from './components/LegacyRunsRedirect.tsx'
+import { TooltipProvider } from './components/ui/tooltip.tsx'
+import { ThemeProvider } from './lib/theme.tsx'
+import { Landing } from './pages/Landing/index.tsx'
 import { EventPage } from './pages/EventPage.tsx'
 import { IncidentPage } from './pages/IncidentPage.tsx'
 import { NotFound } from './pages/NotFound.tsx'
@@ -14,8 +18,10 @@ import { initObservability } from './observability.ts'
 initObservability()
 
 const router = createBrowserRouter([
+  // The judge-facing landing page owns `/` and renders outside the console shell.
+  { path: '/', element: <Landing />, errorElement: <RouteError shell /> },
   {
-    path: '/',
+    path: '/app',
     element: <App />,
     errorElement: <RouteError shell />,
     children: [
@@ -33,10 +39,17 @@ const router = createBrowserRouter([
       },
     ],
   },
+  // Pre-migration deep links.
+  { path: '/runs/*', element: <LegacyRunsRedirect />, errorElement: <RouteError shell /> },
+  { path: '*', element: <NotFound />, errorElement: <RouteError shell /> },
 ])
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <ThemeProvider>
+      <TooltipProvider>
+        <RouterProvider router={router} />
+      </TooltipProvider>
+    </ThemeProvider>
   </StrictMode>,
 )

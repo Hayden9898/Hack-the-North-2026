@@ -326,7 +326,7 @@ function ActivityChart({ bins }: { bins: Bin[] }) {
           <stop offset="100%" stopColor="var(--accent-2)" />
         </linearGradient>
         <filter id="activity-bar-shadow" x="-20%" y="-20%" width="140%" height="160%">
-          <feDropShadow dx="0" dy="3" stdDeviation="2" floodColor="#07111f" floodOpacity="0.75" />
+          <feDropShadow dx="0" dy="3" stdDeviation="2" floodColor="var(--lo-chart-shadow)" floodOpacity="var(--lo-chart-shadow-opacity)" />
         </filter>
       </defs>
       {[0.25, 0.5, 0.75].map((ratio) => (

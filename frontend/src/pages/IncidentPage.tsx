@@ -68,7 +68,7 @@ export function IncidentPage() {
   return (
     <div className="stack">
       <div className="crumbs">
-        <Link to="/">Runs</Link> / <Link to={`/runs/${encodeURIComponent(runId)}`}>{shortId(runId, 18)}</Link> / incident{' '}
+        <Link to="/app">Runs</Link> / <Link to={`/app/runs/${encodeURIComponent(runId)}`}>{shortId(runId, 18)}</Link> / incident{' '}
         <span className="mono">{shortId(incidentId, 18)}</span>
       </div>
 
@@ -195,7 +195,7 @@ export function IncidentPage() {
                       <tr
                         key={`${t.event_id}-${t.relation_type}`}
                         className={`clickable ${t.run_seq === v.trigger_seq ? 'row-high_risk' : ''}`}
-                        onClick={() => nav(`/runs/${encodeURIComponent(runId)}/events/${t.run_seq}`)}
+                        onClick={() => nav(`/app/runs/${encodeURIComponent(runId)}/events/${t.run_seq}`)}
                       >
                         <td className="right mono">
                           <EventLink runId={runId} seq={t.run_seq}>

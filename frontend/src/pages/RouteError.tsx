@@ -15,7 +15,7 @@ export function RouteError({ shell = false }: { shell?: boolean }) {
       </div>
       <p className="small muted">
         This is a console rendering problem, not a finding about the run. Reload the page or go back to the run list.{' '}
-        <Link to="/">Back to runs</Link>
+        <Link to="/app">Back to runs</Link>
       </p>
     </div>
   )
@@ -23,7 +23,7 @@ export function RouteError({ shell = false }: { shell?: boolean }) {
   return (
     <div className="app">
       <header className="topbar">
-        <Link to="/" className="brand">
+        <Link to="/app" className="brand">
           Log &amp; Order <small>behavioral security investigation console</small>
         </Link>
       </header>

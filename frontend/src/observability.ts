@@ -4,10 +4,13 @@ import type { ErrorEvent as SentryErrorEvent, TransactionEvent } from '@sentry/c
 
 function routeTemplate(name: unknown): string {
   const value = String(name ?? '')
-  if (value === '/' || value === '/runs') return value
-  if (/^\/runs\/[^/?#]+$/.test(value)) return '/runs/{run_id}'
-  if (/^\/runs\/[^/?#]+\/incidents\/[^/?#]+$/.test(value)) return '/runs/{run_id}/incidents/{incident_id}'
-  if (/^\/runs\/[^/?#]+\/events\/[^/?#]+$/.test(value)) return '/runs/{run_id}/events/{seq}'
+  // The console lives under /app; `/` is the public landing page. Legacy /runs/* paths still
+  // reach the app via LegacyRunsRedirect, so both prefixes normalise to the same template.
+  if (value === '/' || value === '/app' || value === '/app/runs') return value
+  const path = value.replace(/^\/app(?=\/|$)/, '') || '/'
+  if (/^\/runs\/[^/?#]+$/.test(path)) return '/app/runs/{run_id}'
+  if (/^\/runs\/[^/?#]+\/incidents\/[^/?#]+$/.test(path)) return '/app/runs/{run_id}/incidents/{incident_id}'
+  if (/^\/runs\/[^/?#]+\/events\/[^/?#]+$/.test(path)) return '/app/runs/{run_id}/events/{seq}'
   return 'application'
 }
 
