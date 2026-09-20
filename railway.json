@@ -5,7 +5,7 @@
     "dockerfilePath": "Dockerfile"
   },
   "deploy": {
-    "startCommand": "python -m scripts.migrate && python -m scripts.serve_api",
+    "startCommand": "sh -c 'if [ \"${SERVICE_ROLE:-api}\" = worker ]; then python -m scripts.wait_for_db && exec python -m scripts.serve_worker; else python -m scripts.migrate && exec python -m scripts.serve_api; fi'",
     "healthcheckPath": "/health/live",
     "healthcheckTimeout": 120,
     "restartPolicyType": "ON_FAILURE",
