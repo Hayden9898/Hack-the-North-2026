@@ -22,7 +22,7 @@ export function EventPage() {
 
   if (ev.loading && !ev.data) {
     return (
-      <div className="mx-auto w-full max-w-5xl space-y-4 px-4 py-6 sm:px-6">
+      <div className="mx-auto w-full max-w-[84rem] space-y-4 px-4 py-6 sm:px-6 lg:px-8">
         <Skeleton className="h-4 w-56" />
         <Skeleton className="h-28 w-full rounded-lg" />
         <Skeleton className="h-52 w-full rounded-lg" />
@@ -48,7 +48,7 @@ export function EventPage() {
   const flagged = 'verdict' in status && status.verdict !== 'normal'
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-[84rem] space-y-6 px-4 py-6 sm:px-6 lg:px-8">
       <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5">
         <Link to="/app" className="text-caption text-fg-muted normal-case tracking-normal hover:text-fg">
           Runs
@@ -74,6 +74,8 @@ export function EventPage() {
 
         <CodeBlock
           code={e.raw_line}
+          lineNumbers
+          startLine={e.line_number ?? e.run_seq}
           label={
             <span className="font-mono normal-case">
               line {e.line_number ?? '—'} · run_seq {e.run_seq} · {fmtTime(e.event_time)}

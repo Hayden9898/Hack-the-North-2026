@@ -8,7 +8,7 @@ import { CodeBlock } from '@/components/ui/code-block'
 import { ErrorState } from '@/components/ui/error-state'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
-import { claimView } from './facts'
+import { claimView, formatDelta } from './facts'
 
 const PAGE = 25
 
@@ -119,6 +119,7 @@ export function EvidenceDrawer({
                 Original log lines — showing {fmtNum(offset + 1)}–{fmtNum(offset + rows.length)} of {fmtNum(total)}
               </SectionLabel>
               <EvidenceRows
+                total={total}
                 rows={rows.map((r) => ({
                   run_seq: r.run_seq,
                   line_number: r.line_number,
@@ -141,6 +142,8 @@ export function EvidenceDrawer({
                   <CodeBlock
                     key={e.event_id}
                     code={e.raw_line}
+                    lineNumbers
+                    startLine={e.line_number ?? e.run_seq}
                     label={
                       <span className="font-mono normal-case">
                         line {e.line_number ?? '—'} · run_seq {e.run_seq} · {fmtTime(e.event_time)}
@@ -245,38 +248,100 @@ interface Row {
   raw_line: string | null
 }
 
-function EvidenceRows({ rows }: { rows: Row[] }) {
+/**
+ * Columns whose value never varies across the page are not evidence, they are a heading.
+ *
+ * On the 77-denial fact, `status` is 403 seventy-seven times and `request` is the same path
+ * seventy-seven times — so nearly half the table width was spent restating a constant while
+ * truncating the very path that proves these are denials of the *right* resource. Invariants
+ * are hoisted into one line above the table; only what actually varies gets a column.
+ */
+function invariantsOf(rows: Row[]): { constant: Record<string, string>; varies: Set<string> } {
+  const constant: Record<string, string> = {}
+  const varies = new Set<string>()
+  const cols: [string, (r: Row) => string][] = [
+    ['request', (r) => `${r.method} ${r.path}`],
+    ['status', (r) => String(r.status)],
+    ['account', (r) => `${r.username}@${r.ip_raw}`],
+  ]
+  for (const [key, get] of cols) {
+    const first = rows.length ? get(rows[0]) : ''
+    if (rows.length > 1 && rows.every((r) => get(r) === first)) constant[key] = first
+    else varies.add(key)
+  }
+  return { constant, varies }
+}
+
+function EvidenceRows({ rows, total }: { rows: Row[]; total: number }) {
+  const { constant, varies } = invariantsOf(rows)
+  const constantKeys = Object.keys(constant)
+
   return (
-    <div className="overflow-hidden rounded-lg border border-border">
-      <table className="w-full border-collapse font-mono text-mono">
-        <caption className="sr-only">Original log lines behind this fact</caption>
-        <thead>
-          <tr className="border-b border-border bg-surface-raised text-left">
-            <Th className="text-right">line</Th>
-            <Th>time (UTC)</Th>
-            <Th>account@ip</Th>
-            <Th>request</Th>
-            <Th className="text-right">status</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.run_seq} className="border-b border-border/60 last:border-0 hover:bg-hover">
-              <Td className="text-right tabular-nums text-fg-muted">{r.line_number ?? r.run_seq}</Td>
-              <Td className="whitespace-nowrap tabular-nums">{fmtTime(r.event_time)}</Td>
-              <Td className="whitespace-nowrap">
-                {r.username}@{r.ip_raw}
-              </Td>
-              <Td className="max-w-[22ch] truncate" title={`${r.method} ${r.path}`}>
-                {r.method} {r.path}
-              </Td>
-              <Td className="text-right tabular-nums">{r.status}</Td>
+    <div className="space-y-2">
+      {constantKeys.length > 0 ? (
+        <p className="rounded-md border border-border bg-surface-raised px-3 py-2 font-mono text-mono text-fg-muted">
+          <span className="text-fg-muted">every one of these {fmtNum(total)}: </span>
+          <span className="break-all text-fg">
+            {constant.account ? `${constant.account} ` : ''}
+            {constant.request ?? ''}
+            {constant.status ? ` → ${constant.status}` : ''}
+          </span>
+        </p>
+      ) : null}
+
+      <div
+        className="overflow-x-auto rounded-lg border border-border"
+        tabIndex={0}
+        role="region"
+        aria-label="Original log lines behind this fact, scrollable"
+      >
+        <table className="w-full border-collapse font-mono text-mono">
+          <caption className="sr-only">Original log lines behind this fact</caption>
+          <thead>
+            <tr className="border-b border-border bg-surface-raised text-left">
+              <Th className="text-right">line</Th>
+              <Th>time (UTC)</Th>
+              <Th className="text-right">gap</Th>
+              {varies.has('account') ? <Th>account@ip</Th> : null}
+              {varies.has('request') ? <Th>request</Th> : null}
+              {varies.has('status') ? <Th className="text-right">status</Th> : null}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={r.run_seq} className="border-b border-border/60 last:border-0 hover:bg-hover">
+                <Td className="text-right tabular-nums text-fg-muted">{r.line_number ?? r.run_seq}</Td>
+                <Td className="whitespace-nowrap tabular-nums">{fmtTime(r.event_time)}</Td>
+                {/* Hoisting the invariants freed the width; spend it on something that varies.
+                    The cadence of the denials is the shape of the story. */}
+                <Td className="text-right tabular-nums text-fg-muted">{gapLabel(rows, i)}</Td>
+                {varies.has('account') ? (
+                  <Td className="whitespace-nowrap">
+                    {r.username}@{r.ip_raw}
+                  </Td>
+                ) : null}
+                {varies.has('request') ? (
+                  <Td className="break-all" title={`${r.method} ${r.path}`}>
+                    {r.method} {r.path}
+                  </Td>
+                ) : null}
+                {varies.has('status') ? <Td className="text-right tabular-nums">{r.status}</Td> : null}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
+}
+
+/** Time since the previous row on this page; blank for the first. */
+function gapLabel(rows: Row[], i: number): string {
+  if (i === 0) return '—'
+  const prev = Date.parse(rows[i - 1].event_time)
+  const cur = Date.parse(rows[i].event_time)
+  if (!Number.isFinite(prev) || !Number.isFinite(cur)) return '—'
+  return `+${formatDelta((cur - prev) / 1000)}`
 }
 
 function Th({ children, className }: { children: React.ReactNode; className?: string }) {

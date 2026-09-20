@@ -143,7 +143,7 @@ function Pill({ children, tone }: { children: React.ReactNode; tone?: 'ok' | 'wa
     <span
       className={cn(
         'inline-flex items-center rounded-sm border px-2 py-0.5 text-caption font-medium normal-case tracking-normal',
-        tone === 'ok' && 'border-normal/30 text-normal',
+        tone === 'ok' && 'border-border text-fg-muted',
         tone === 'warn' && 'border-late/45 text-late',
         !tone && 'border-border text-fg-muted',
       )}

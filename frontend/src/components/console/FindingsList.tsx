@@ -94,7 +94,7 @@ function FindingCard({ incident: i, runId }: { incident: IncidentRow; runId: str
             ? fmtTime(i.first_event_time)
             : `${fmtTime(i.first_event_time)} → ${fmtTime(i.last_event_time)}`}
         </span>
-        <span>{fmtNum(i.evidence_count)} evidence</span>
+        <span>{fmtNum(i.evidence_strength?.distinct_evidence_events ?? i.evidence_count)} evidence events</span>
         <span>v{i.current_version}</span>
         {i.explanation_state === 'rejected' ? (
           <span className="font-medium text-blocked">AI proposal rejected by the validator</span>

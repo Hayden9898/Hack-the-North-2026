@@ -79,7 +79,7 @@ function ClaimCard({ fact, onShowEvidence }: { fact: Fact; onShowEvidence: (f: F
           }
         : {})}
       className={cn(
-        'group/claim flex w-full items-start gap-4 rounded-lg border border-border bg-surface px-4 py-3.5 text-left',
+        'group/claim flex w-full items-baseline gap-4 rounded-lg border border-border bg-surface px-4 py-3.5 text-left',
         hasEvidence &&
           'cursor-pointer transition-colors hover:border-border-strong hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none',
       )}
@@ -93,7 +93,7 @@ function ClaimCard({ fact, onShowEvidence }: { fact: Fact; onShowEvidence: (f: F
             'w-[5.5rem] shrink-0 text-right leading-none tabular-nums',
             // Never a verdict token: this is a counted value, not a classification.
             v.isIdentifier
-              ? 'self-center font-mono text-mono text-fg-muted'
+              ? 'font-mono text-mono text-fg-muted'
               : 'font-sans text-[2rem] font-semibold tracking-tight text-fg',
           )}
         >
@@ -110,7 +110,7 @@ function ClaimCard({ fact, onShowEvidence }: { fact: Fact; onShowEvidence: (f: F
       </span>
 
       {hasEvidence ? (
-        <span className="mt-1 flex shrink-0 items-center gap-1.5 text-caption text-fg-muted normal-case tracking-normal group-hover/claim:text-accent">
+        <span className="flex shrink-0 items-center gap-1.5 text-caption text-fg-muted normal-case tracking-normal group-hover/claim:text-accent">
           {evidenceLabel(fact)}
           <ArrowRight className="size-3.5" aria-hidden />
         </span>

@@ -251,7 +251,10 @@ function RunStatePill({ state }: { state: RunState }) {
     <span
       className={cn(
         'inline-flex items-center gap-1.5 rounded-sm border px-1.5 py-0.5 text-[0.6875rem] font-medium uppercase',
-        state === 'blocked' ? 'state-hatch border-blocked/50 text-blocked' : 'border-border text-fg-muted',
+        state === 'blocked' && 'state-hatch border-blocked/50 text-blocked',
+        (state === 'warming' || state === 'paused') && 'state-hatch border-pending/50 text-pending',
+        state === 'running' && 'border-accent/45 text-accent',
+        (state === 'completed' || state === 'created') && 'border-border text-fg-muted',
       )}
     >
       {live ? <span aria-hidden className="inline-block size-1.5 animate-pulse rounded-full bg-accent motion-reduce:animate-none" /> : null}

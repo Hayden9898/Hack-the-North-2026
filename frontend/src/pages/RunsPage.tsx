@@ -133,7 +133,7 @@ function LeadRunCard({ run }: { run: Run }) {
         </Button>
       </div>
 
-      <div className="mt-4 flex items-center gap-3">
+      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <div
           className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-raised"
           role="progressbar"
@@ -149,7 +149,7 @@ function LeadRunCard({ run }: { run: Run }) {
         </div>
         {/* A full bar does not mean finished -- a paused run can be caught up on its backlog
             and still have most of the dataset ahead of it. Say which. */}
-        <span className="shrink-0 font-mono text-mono text-fg-muted">
+        <span className="min-w-0 font-mono text-mono break-words text-fg-muted sm:shrink-0 sm:whitespace-nowrap">
           {run.state === 'completed' ? 'all admitted events evaluated' : `${runStateLabel(run.state)} · caught up to ${fmtNum(run.admitted_seq)} admitted`}
         </span>
       </div>
@@ -192,7 +192,12 @@ function StatePill({ run }: { run: Run }) {
     <span
       className={cn(
         'inline-flex items-center gap-1.5 rounded-sm border px-1.5 py-0.5 text-[0.6875rem] font-medium uppercase',
-        run.state === 'blocked' ? 'state-hatch border-blocked/50 text-blocked' : 'border-border text-fg-muted',
+        run.state === 'blocked' && 'state-hatch border-blocked/50 text-blocked',
+        // warming/paused are transient: not finished, and not to be read as finished.
+        (run.state === 'warming' || run.state === 'paused') && 'state-hatch border-pending/50 text-pending',
+        run.state === 'completed' && 'border-border text-fg-muted',
+        run.state === 'running' && 'border-accent/45 text-accent',
+        run.state === 'created' && 'border-border text-fg-muted',
       )}
     >
       {live ? <span aria-hidden className="inline-block size-1.5 animate-pulse rounded-full bg-accent motion-reduce:animate-none" /> : null}
