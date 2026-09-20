@@ -4,7 +4,7 @@
 Usage: python tasks.py <target> [KEY=VALUE ...]
 Use python3 on macOS/Linux; python may still resolve to Python 2.
 Targets: doctor verify verify-frontend verify-backend verify-live verify-report dev migrate import train calibrate evaluate
-         replay-demo test benchmark build lint typecheck db-up db-down investigate demo-inject
+         adversarial-evaluate replay-demo test benchmark build lint typecheck db-up db-down investigate demo-inject
 Verification: verify runs frontend first, then protected backend tests. verify-live RUN_ID=... is read-only.
 """
 
@@ -157,6 +157,11 @@ def target_calibrate(**kw: str) -> None:
 
 def target_evaluate(**kw: str) -> None:
     run([PY, "-m", "ml.evaluate", *_passthrough(kw)])
+
+
+def target_adversarial_evaluate(**kw: str) -> None:
+    """Run the synthetic detector gate only against the dedicated test database."""
+    run([PY, "-m", "scripts.adversarial_evaluation", *_passthrough(kw)])
 
 
 def target_replay_demo(**kw: str) -> None:

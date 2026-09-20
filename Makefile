@@ -3,7 +3,7 @@
 PY ?= python
 DATASET_PATH ?= ./htn_challenge_logs_2026.txt
 
-.PHONY: dev migrate import train calibrate evaluate replay-demo test benchmark build lint typecheck db-up db-down investigate demo-inject
+.PHONY: dev migrate import train calibrate evaluate adversarial-evaluate replay-demo test benchmark build lint typecheck db-up db-down investigate demo-inject
 
 dev:
 	$(PY) tasks.py dev
@@ -21,6 +21,8 @@ calibrate:
 	$(PY) tasks.py calibrate
 evaluate:
 	$(PY) tasks.py evaluate
+adversarial-evaluate:
+	$(PY) tasks.py adversarial-evaluate
 replay-demo:
 	$(PY) tasks.py replay-demo
 test:
