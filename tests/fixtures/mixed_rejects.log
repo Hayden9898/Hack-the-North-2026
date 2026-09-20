@@ -1,0 +1,8 @@
+10.0.9.05 - nicole_h [02/Mar/2026:08:15:01 +0000] "POST /api/auth/login HTTP/1.1" 200 512
+10.0.9.05 - nicole_h [02/Mar/2026:08:15:44 +0000] "GET /dashboard HTTP/1.1" 200 4096
+10.0.9.21 - david_k [02/Mar/2026:08:16:02 +0000] "GET /intranet/forum/view/204 HTTP/1.1" 200 2048
+10.0.9.05 - nicole_h [02/Mar/2026:08:16:30 +0000] "GET /assets/app.css HTTP/1.1" 200 1024
+this line is garbage
+10.0.9.21 - david_k [02/Mar/2026:08:17:11 +0000] "GET /api/notifications/poll?since=9 HTTP/1.1" 200 96
+10.0.9.05 - nicole_h [02/Mar/2026:08:17:58 +0000] "POST /logout HTTP/1.1" 302 0
+10.0.9.21 - david_k [32/Mar/2026:08:18:20 +0000] "GET /dashboard HTTP/1.1" 200 4096

@@ -15,3 +15,6 @@ reports/tmp/
 
 # Supplied dataset stays out of git (17 MB); point DATASET_PATH at it.
 htn_challenge_logs_2026.txt
+
+# Test fixtures are log-shaped on purpose; the blanket *.log rule above must not eat them.
+!tests/fixtures/*.log
