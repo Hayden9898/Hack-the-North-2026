@@ -2,7 +2,7 @@ import { ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { StatusChip } from '@/components/ui/status-chip'
-import { DATASET, RUN } from './data'
+import { DATASET, EXHIBIT, RUN } from './data'
 import { Section, Stamp } from './parts'
 
 /**
@@ -13,7 +13,7 @@ export function OpeningStatement() {
   return (
     <Section className="pt-14 pb-16 sm:pt-20 sm:pb-20">
       <div className="grid gap-x-12 gap-y-12 lg:grid-cols-12">
-        <div className="lg:col-span-7">
+        <div className="min-w-0 lg:col-span-7">
           <Stamp>
             {DATASET.sha256Short} · {DATASET.lines.toLocaleString()} lines · {DATASET.from} — {DATASET.to}
           </Stamp>
@@ -31,6 +31,8 @@ export function OpeningStatement() {
             recomputed against the original lines, and disagreed with.
           </p>
 
+          <ProofCapsule />
+
           <div className="mt-9 flex flex-wrap items-center gap-3">
             <Button asChild size="lg">
               <Link to="/app">
@@ -44,11 +46,35 @@ export function OpeningStatement() {
           </div>
         </div>
 
-        <div className="lg:col-span-5">
+        <div className="min-w-0 lg:col-span-5">
           <Record />
         </div>
       </div>
     </Section>
+  )
+}
+
+function ProofCapsule() {
+  const { count, proof, grant } = EXHIBIT
+  return (
+    <a
+      href="#exhibit"
+      className="mt-8 block rounded-lg border border-border bg-surface p-4 transition-colors duration-150 hover:border-border-strong"
+    >
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span className="font-mono text-caption text-fg-subtle uppercase">Worked example</span>
+        <span className="font-mono text-caption text-fg-subtle">
+          recorded {proof.recorded} · recomputed {proof.recomputed} ·{' '}
+          <span className="text-normal">{proof.matches ? 'match' : 'MISMATCH'}</span>
+        </span>
+      </div>
+      <p className="mt-2 text-body text-fg-muted">
+        <span className="font-mono text-fg">403</span> for seven months, then{' '}
+        <span className="font-mono text-fg">200</span> — after{' '}
+        <span className="font-mono text-fg">{count}</span> counted denials of the same request.
+      </p>
+      <p className="mt-2 truncate font-mono text-mono text-fg-subtle">{grant.raw}</p>
+    </a>
   )
 }
 

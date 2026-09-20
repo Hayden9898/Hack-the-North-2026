@@ -1,4 +1,5 @@
 import { ArrowRight } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { Link } from 'react-router-dom'
 import { api, describeError, type Health } from '@/api'
 import { degradedModeLabel } from '@/format'
@@ -25,8 +26,8 @@ export function SystemStatus() {
             <Stamp>System state</Stamp>
             <p className="mt-5 max-w-[42ch] text-body text-fg-muted">
               Read live from <span className="font-mono text-fg">/health/ready</span> when this page
-              loaded. Degraded modes are declared, not hidden — the console will tell you when it is
-              running with something switched off.
+              loaded. Degraded modes are declared. The console tells you when it is running with
+              something switched off.
             </p>
           </div>
 
@@ -53,9 +54,7 @@ export function SystemStatus() {
                   <span className="text-fg-subtle">
                     models{' '}
                     <span className="text-fg">
-                      {health.data.models.artifacts.length === 0
-                        ? 'none on this machine'
-                        : health.data.models.artifacts.join(', ')}
+                      {formatArtifacts(health.data.models.artifacts)}
                     </span>
                   </span>
                 </div>
@@ -99,6 +98,36 @@ export function SystemStatus() {
             ) : null}
           </div>
         </div>
+      </div>
+    </Section>
+  )
+}
+
+/**
+ * The API can list the same artifact filename more than once (one entry per model directory).
+ * Repeating the identical string tells the reader nothing, so collapse duplicates and show the
+ * count instead — no information is dropped.
+ */
+function formatArtifacts(artifacts: string[]) {
+  if (artifacts.length === 0) return 'none on this machine'
+  const counts = new Map<string, number>()
+  for (const a of artifacts) counts.set(a, (counts.get(a) ?? 0) + 1)
+  return [...counts].map(([name, n]) => (n > 1 ? `${name} (${n})` : name)).join(', ')
+}
+
+export function Closing() {
+  return (
+    <Section className="pt-4 pb-14">
+      <div className="flex flex-col items-start gap-4 border-border border-t pt-10 sm:flex-row sm:items-center sm:justify-between">
+        <p className="max-w-[48ch] text-body text-fg-muted">
+          Everything above resolves to a line you can open. The console is the same data, live.
+        </p>
+        <Button asChild size="lg">
+          <Link to="/app">
+            Open the console
+            <ArrowRight className="size-4" />
+          </Link>
+        </Button>
       </div>
     </Section>
   )
