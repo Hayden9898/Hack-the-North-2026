@@ -197,7 +197,7 @@ export function OpeningStatement() {
  */
 function Headline() {
   const reduced = useReducedMotion()
-  const cls = 'mt-7 font-serif text-[clamp(2.75rem,7vw,4.5rem)] leading-[0.95] tracking-[-0.03em]'
+  const cls = 'mt-7 font-sans text-[clamp(2.75rem,7vw,4.5rem)] leading-[0.95] tracking-[-0.03em]'
 
   if (reduced) {
     return (

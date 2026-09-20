@@ -20,7 +20,7 @@
 
 /* Self-hosted — no CDN, no network at runtime. */
 /*
- * Latin-only, matching the mono and serif below. The variable package ships no per-subset
+ * Latin-only, matching the mono face below. The variable package ships no per-subset
  * entry point — importing `wght.css` emits all six subsets (cyrillic, cyrillic-ext, greek,
  * latin-ext, vietnamese, latin), ~117 kB of woff2 this English-language app never renders.
  * Declaring the one face we use keeps only the 46 kB latin file. Copied verbatim from
@@ -38,7 +38,6 @@
 }
 @import '@fontsource/ibm-plex-mono/latin-400.css';
 @import '@fontsource/ibm-plex-mono/latin-500.css';
-@import '@fontsource/instrument-serif/latin-400.css';
 
 @import '../index.css' layer(legacy);
 

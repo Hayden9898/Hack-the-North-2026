@@ -580,7 +580,7 @@ export function Closing() {
         <div className="grid gap-10 lg:grid-cols-[1.5fr_auto] lg:items-end">
           <div className="min-w-0">
             <Stamp>Closing</Stamp>
-            <p className="mt-6 max-w-[20ch] font-serif text-title sm:text-display">
+            <p className="mt-6 max-w-[20ch] font-sans text-title sm:text-display">
               Everything above resolves to a line you can open.
             </p>
             <p className="mt-5 max-w-[46ch] text-body text-fg-muted">
@@ -638,7 +638,7 @@ export function Footer() {
           <div className="min-w-0">
             {/* Closes the loop with the masthead's accent hairline. */}
             <div aria-hidden className="h-0.5 w-14 rounded-full bg-accent" />
-            <p className="mt-4 font-serif text-title leading-none">Log &amp; Order</p>
+            <p className="mt-4 font-sans text-title leading-none">Log &amp; Order</p>
             <p className="mt-3 max-w-[52ch] font-normal text-caption text-fg-subtle normal-case">
               Built for Hack the North 2026 · CSE challenge. Dataset{' '}
               <span className="font-mono">{DATASET.id}</span> — {DATASET.lines.toLocaleString()} lines,{' '}

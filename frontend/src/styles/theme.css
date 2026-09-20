@@ -372,7 +372,9 @@
 
   /* ---- Families ---- */
   --font-sans: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-serif: 'Instrument Serif', ui-serif, Georgia, 'Times New Roman', serif;
+  /* Display copy deliberately shares the product sans family: the console should feel precise,
+     not editorial, and no browser-serif fallback can leak into a judge-facing screen. */
+  --font-serif: var(--font-sans);
   --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
 
   /* ---- Motion (mirrors src/lib/motion.ts; keep the two in sync) ---- */

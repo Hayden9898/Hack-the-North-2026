@@ -43,7 +43,7 @@ export default function App() {
         <div className="flex items-center gap-5 px-5 py-2.5 sm:px-8">
           <NavLink to="/app" className="group flex items-baseline gap-2.5 rounded-sm no-underline">
             <span aria-hidden className="h-4 w-0.5 shrink-0 self-center rounded-full bg-accent" />
-            <span className="font-serif text-[1.25rem] text-fg leading-none tracking-tight">Log &amp; Order</span>
+            <span className="font-sans text-[1.25rem] text-fg leading-none tracking-tight">Log &amp; Order</span>
             <span className="hidden font-mono text-caption text-fg-subtle uppercase sm:inline">console</span>
           </NavLink>
 

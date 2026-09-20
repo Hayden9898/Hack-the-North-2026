@@ -90,7 +90,7 @@ export function Docket() {
             Docket · {RUN.incidentsTotal} incidents · March 2026 · rules only
           </Stamp>
 
-          <h2 className="mt-7 max-w-[22ch] font-serif text-[clamp(1.875rem,3.6vw,2.75rem)] leading-[1.05] tracking-[-0.02em]">
+          <h2 className="mt-7 max-w-[22ch] font-sans text-[clamp(1.875rem,3.6vw,2.75rem)] leading-[1.05] tracking-[-0.02em]">
             Three things in eight months looked wrong.
           </h2>
           <p className="mt-5 max-w-[58ch] text-body text-fg-muted">

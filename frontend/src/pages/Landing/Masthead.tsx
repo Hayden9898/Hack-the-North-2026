@@ -135,7 +135,7 @@ export function Masthead() {
         )}
       >
         <Link to="/" className="flex shrink-0 items-baseline gap-2.5 rounded-sm">
-          <span className="font-serif text-[1.375rem] leading-none tracking-tight">Log &amp; Order</span>
+          <span className="font-sans text-[1.375rem] leading-none tracking-tight">Log &amp; Order</span>
           <span className="hidden font-mono text-caption text-fg-subtle uppercase sm:inline">
             investigation console
           </span>

@@ -62,7 +62,7 @@ export function Limits() {
       <div className="grid gap-x-12 gap-y-12 lg:grid-cols-12">
         <div className="lg:sticky lg:top-24 lg:col-span-4 lg:self-start">
           <Stamp>Limits · {UNKNOWNS.length} declared unknowns</Stamp>
-          <h2 className="mt-7 font-serif text-[clamp(1.875rem,3.6vw,2.75rem)] leading-[1.05] tracking-[-0.02em]">
+          <h2 className="mt-7 font-sans text-[clamp(1.875rem,3.6vw,2.75rem)] leading-[1.05] tracking-[-0.02em]">
             What this cannot tell you.
           </h2>
           <p className="mt-5 max-w-[40ch] text-body text-fg-muted">
@@ -219,7 +219,7 @@ export function Method() {
 
       <div className="mt-8 grid gap-x-12 gap-y-10 lg:grid-cols-12">
         <div className="min-w-0 lg:col-span-7">
-          <h2 className="font-serif text-[clamp(1.5rem,2.6vw,2rem)] leading-[1.1] tracking-[-0.02em]">
+          <h2 className="font-sans text-[clamp(1.5rem,2.6vw,2rem)] leading-[1.1] tracking-[-0.02em]">
             Five rules, then a validator.
           </h2>
           <p className="mt-5 max-w-[62ch] text-body text-fg-muted">
@@ -228,7 +228,7 @@ export function Method() {
             qualified hypotheses, but a validator checks every claim against the recorded facts
             before it reaches the screen.
           </p>
-          <blockquote className="mt-6 max-w-[54ch] border-accent border-l-2 pl-5 font-serif text-[1.375rem] text-fg leading-[1.35] tracking-[-0.01em]">
+          <blockquote className="mt-6 max-w-[54ch] border-accent border-l-2 pl-5 font-sans text-[1.375rem] text-fg leading-[1.35] tracking-[-0.01em]">
             The language step cannot invent a fact, and it cannot downgrade a detector verdict.
             Rejected proposals are displayed as rejected.
           </blockquote>
