@@ -124,6 +124,7 @@ def get_response_packet(
     md = packet_mod.render(
         conn, ctx, service.applicable_actions(ctx, s.config_dir),
         app_base_url=s.app_base_url, execution_mode="live" if getattr(adapter, "name", "preview") != "preview" else "preview",
+        config_dir=s.config_dir,
     )
     if download:
         name = f"response-packet-{incident_id[:12]}-v{ctx['version_number']}.md"
@@ -158,6 +159,7 @@ def store_response_packet(
     md = packet_mod.render(
         conn, ctx, service.applicable_actions(ctx, s.config_dir),
         app_base_url=s.app_base_url, execution_mode="live" if getattr(adapter, "name", "preview") != "preview" else "preview",
+        config_dir=s.config_dir,
     )
     digest = packet_mod.sha256(md)
     packet_id = "rp_" + canonical_hash({"run": run_id, "incident": incident_id, "v": ctx["version_number"], "sha": digest})[:20]

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import pytest
+
 from app.actions import binding
 from app.actions.catalog import by_id, load_catalog
 from app.settings import get_settings

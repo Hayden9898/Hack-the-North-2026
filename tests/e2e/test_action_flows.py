@@ -9,7 +9,13 @@ from datetime import date, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
-from tests.fixtures.synth import TZ, baseline_traffic, default_world, scenario_access_change, scenario_auth_burst
+from tests.fixtures.synth import (
+    TZ,
+    baseline_traffic,
+    default_world,
+    scenario_access_change,
+    scenario_auth_burst,
+)
 from tests.helpers import drive, import_world, make_config, q
 
 from app.api.main import create_app
@@ -244,6 +250,10 @@ def test_response_packet_renders_from_committed_evidence(client, db, tmp_path):
     assert "## What these logs cannot tell you" in md
     assert "## Containment actions bound to this incident" in md
     assert "no parameter came from a language model" in md
+
+    # Deterministic: the same committed evidence renders to the same bytes and the same hash.
+    again = client.get(f"/api/v1/runs/{rid}/incidents/{iid}/response-packet").json()
+    assert again["markdown"] == md and again["content_sha256"] == body["content_sha256"]
 
     dl = client.get(f"/api/v1/runs/{rid}/incidents/{iid}/response-packet", params={"download": True})
     assert dl.headers["content-type"].startswith("text/markdown")

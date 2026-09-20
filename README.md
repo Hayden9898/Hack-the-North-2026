@@ -4,6 +4,9 @@ A behavioral security investigation console for HTTP access logs. It replays or 
 computes history-relative features, runs independent deterministic rules (R1–R5) and a frozen Isolation Forest,
 groups matches into versioned incidents with typed, provable facts, previews Slack alerts through a durable outbox,
 and lets a constrained AI step *select* facts and qualified hypotheses that a validator checks before anything is shown.
+It then closes the loop: each applicable playbook step becomes a typed **containment action** whose parameters are
+bound by code from the proven facts, which an operator dry-runs, approves, executes, verifies against the log, and can
+roll back — with every phase in an append-only action log and a one-click response packet for handoff.
 
 Specification: `overview.md` → `architecture.md` → `plan(3).md`. Progress and decisions: `PROGRESS.md`.
 Reports: `reports/investigation.md`, `reports/evaluation.md`, `reports/performance.md`, `reports/sponsor-evidence.md`.
@@ -18,6 +21,7 @@ Reports: `reports/investigation.md`, `reports/evaluation.md`, `reports/performan
 | Tiger Cloud | **unverified** — no connection string was available; the code uses only standard TimescaleDB features |
 | Railway deployment (`Dockerfile`, `railway*.json`, `docs/DEPLOY.md`) | image + config real, verified end-to-end in containers against the local TimescaleDB; **no cloud project deployed yet** |
 | Slack | **preview mode** (messages rendered + stored, nothing sent). Live adapter + retry semantics unit-tested with stubs; real webhook **unverified** |
+| Containment actions (`config/actions.yaml`, dry run → execute → verify → rollback, response packet) | real: binding, sequencing refusals, action log, verification queries and packet tested end-to-end (11 e2e + 18 unit). Execution is **preview mode** by default — recorded in full, no system contacted; the `live` webhook adapter is unit-shaped like Slack's and **unverified** against a real endpoint |
 | Sentry Tracing + Logs | wired (spans, structured events, trace context on jobs) and reported as disabled when `SENTRY_DSN` is empty; real project **unverified** |
 | AI review (Anthropic `claude-opus-5` via the official SDK 1.7.0) | adapter + validator + pipeline tested with a scripted provider; **deterministic-only mode** without `LLM_API_KEY`; real calls **unverified** |
 
@@ -60,6 +64,32 @@ line 168338 (R2 → R5 high risk).
 
 Fault injection (labelled): `python -m scripts.inject_invalid_claim --run-id <run>` submits a fabricated AI proposal
 for a real incident and shows the validator rejecting it (`explanation.state = rejected`, deterministic fallback shown).
+
+### Containment: from "what happened" to "what I did about it"
+
+Open a high-risk incident. Below the playbooks, **Containment actions** lists every action whose playbook applies,
+already bound: `restore_acl` carries the exact `account` and `path` read out of the `prior_denials_count` fact,
+`block_source` the unfamiliar source, `revert_role_change` the admin endpoint — each value shows the fact id it came
+from. Actions whose preconditions fail (a closed incident, a familiar source, a missing fact) are listed with the
+reason rather than hidden.
+
+1. **Dry run** shows the exact request an approval would issue, the precondition checks, and a preview of the
+   verification query.
+2. **Approve & execute** re-checks preconditions and refuses if the facts moved since the dry run
+   (`binding_changed`), if there was no dry run (`dry_run_required`), or if it already ran (`already_executed`).
+   In preview mode the outcome is `preview` and the incident is stamped `contained (preview)` — never "applied".
+3. **Verify** recomputes the criterion (e.g. "no further 2xx on this path by this account") over everything processed
+   past the approval point and reports `satisfied` / `contradicted` / `pending` with the observed count.
+4. **Roll back** reverses a reversible action; the containment stamp clears when no executed containment remains.
+
+**Response packet** renders one Markdown handoff (facts with evidence refs, what the logs cannot show, playbooks,
+bound actions, the action log) and pushes a link through the existing notification outbox. The run console shows
+*contained / actionable* and median time to containment.
+
+CLI equivalent: `python -m scripts.contain_incident --run-id <run> [--action restore_acl [--execute] [--verify]] [--packet]`.
+
+To make execution real, set `ACTION_MODE=live` and `ACTION_WEBHOOK_URL=<your remediation endpoint>`: the POST body
+is the same object the dry run displays.
 
 ## Commands
 
@@ -107,5 +137,5 @@ reported as accepted / duplicate / conflict / rejected / late; late records are 
 
 ## Layout
 
-`backend/app/{api,ingest,db,features,detection,incidents,investigation,notifications,observability,workers}`,
+`backend/app/{api,ingest,db,features,detection,incidents,investigation,actions,notifications,observability,workers}`,
 `frontend/src`, `config/`, `ml/`, `tests/{unit,integration,e2e,fixtures}`, `scripts/`, `reports/`.

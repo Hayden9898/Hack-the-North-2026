@@ -153,14 +153,14 @@ def _check(pre: dict[str, Any], *, incident: dict[str, Any], facts: list[dict[st
         hit = sorted(set(want) & set(rule_ids))
         return Check(kind, bool(hit), f"matched {', '.join(hit)}" if hit else f"this version matched {', '.join(rule_ids) or 'no rule'}, not {'/'.join(want)}")
     if kind == "fact_present":
-        want = str(pre["kind"])
-        f = _first_fact(facts, want)
-        return Check(kind, f is not None, f"{want} present" if f else f"no {want} fact in this packet")
+        wanted_kind = str(pre["kind"])
+        f = _first_fact(facts, wanted_kind)
+        return Check(kind, f is not None, f"{wanted_kind} present" if f else f"no {wanted_kind} fact in this packet")
     if kind == "fact_value_in":
-        want, values = str(pre["kind"]), [str(v) for v in pre.get("values") or []]
-        f = _first_fact(facts, want)
+        wanted_kind, values = str(pre["kind"]), [str(v) for v in pre.get("values") or []]
+        f = _first_fact(facts, wanted_kind)
         if f is None:
-            return Check(kind, False, f"no {want} fact in this packet")
+            return Check(kind, False, f"no {wanted_kind} fact in this packet")
         got = str(f.get("value"))
-        return Check(kind, got in values, f"{want} is {got!r}" + ("" if got in values else f", not one of {values}"))
+        return Check(kind, got in values, f"{wanted_kind} is {got!r}" + ("" if got in values else f", not one of {values}"))
     return Check(kind, False, f"unknown precondition {kind!r}")

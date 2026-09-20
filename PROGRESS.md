@@ -121,3 +121,41 @@ Concise record of milestones, decisions, commands and results. Newest entries at
 - Not done: no Railway project created and no Tiger Cloud connection string, so the deployment itself is
   **unverified**; `ml/artifacts/` is empty in this checkout, so a deploy from git is rules-only until an artifact is
   force-added; the left-over `deploy-check` live run in the local dev database is a verification artifact.
+
+### M9 — containment actions: the call to action ✅
+- Problem: the console ended at *reading* — playbooks rendered as prose under "nothing here executes". Added the
+  loop that turns a described incident into an approved, verifiable operation without pretending to touch a system
+  that does not exist behind a replayed log.
+- `config/actions.yaml` (7 actions, 6 containment + 1 handoff) maps each playbook step to a typed action. D-008
+  **The AI never supplies a parameter**: `actions/binding.py` reads every value from the incident row or a typed fact
+  (`fact:<kind>.args.<key>`, `fact:<kind>.value`, optional `split` for `account|path` keys) and keeps the fact id as
+  provenance; a missing fact makes the action *unavailable with the reason*, never partially bound. Preconditions
+  (`incident_status_open`, `rule_any`, `fact_present`, `fact_value_in`) are evaluated by code and shown as checks.
+- `actions/service.py` sequences dry run → execute → verify → rollback. Refusals are typed 409s: `dry_run_required`,
+  `already_executed`, `binding_changed` (the `params_hash` pinned at dry run no longer matches a re-binding),
+  `preconditions_unmet` (re-evaluated at execute time, not trusted from the dry run), `not_executed`/`not_reversible`.
+  Every phase appends to `action_log` (operator, adapter, exact request, result) before state moves.
+- D-009 Execution adapters mirror Slack: `PreviewAdapter` (default) records the request and reports
+  `applied_to_external_system: false`; `WebhookAdapter` POSTs the same object when `ACTION_MODE=live` +
+  `ACTION_WEBHOOK_URL`. `incidents.contained_at` + `containment_mode ∈ {preview, applied}` — a preview is stamped as
+  a preview, and `runs.counts.containment` reports `contained/actionable`, `preview`, `applied`, `median_seconds`.
+- `actions/verify.py`: six named SQL identities over `processed_events` under the cutoff (`success_on_path_after`,
+  `events_from_source_after`, `admin_post_2xx_after`, …). In a replay the log is fixed, so `contradicted` means "the
+  recorded activity continued past the approval point" — surfaced as such rather than hidden.
+- `actions/packet.py`: response packet (Markdown) from committed rows only — facts with evidence refs, timeline,
+  unknown codes, playbooks, bound actions, action log, dispositions; `sha256` + fact packet hash; `POST` stores it
+  and queues a `response_packet` message through the existing outbox (same preview/live rules, idempotent key).
+- API `api/actions.py`: `GET …/actions`, `POST …/actions/{id}/{dry-run,execute,verify,rollback}`,
+  `GET|POST …/response-packet` (`?download=true` → `.md` attachment). Migration `0004` (`action_proposals`,
+  `action_log`, `response_packets`, containment columns). Health `integrations.actions`.
+- UI: `pages/ActionsSection.tsx` under the playbooks — bound parameters with "bound from" column, impact /
+  permissions / rollback / verification, dry-run request viewer, confirm-to-execute, verification banner, rollback,
+  append-only log, response packet preview/download/send. Run console gains a **Containment** block.
+- CLI: `scripts/contain_incident.py` (list / dry run / execute / verify / packet) over the same service layer.
+- Verified: `tests/unit/test_action_binding.py` 18 passed; `tests/e2e/test_action_flows.py` 11 passed (273 s) —
+  provenance listing, unavailable reasons, full loop with containment stamp + clear on rollback, append-only log and
+  SSE `action` updates, `binding_changed`, execute-time precondition re-check via a closing disposition, 404 for an
+  inapplicable action, `block_source` binding on an R1 incident, packet render/download, outbox handoff idempotency,
+  run containment counts. `ruff`, `mypy` (68 files), `tsc`, `oxlint` clean.
+- Not done: no real remediation endpoint, so the `live` adapter is **unverified**; the catalog is reviewed content,
+  not a claim about CSE's systems; no Slack Block Kit buttons (would need an interactive app, not a webhook).

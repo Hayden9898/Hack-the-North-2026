@@ -8,7 +8,7 @@ evidence it was written from, and it states plainly what the logs do not contain
 from __future__ import annotations
 
 import hashlib
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
 import psycopg
@@ -24,6 +24,7 @@ def render(
     *,
     app_base_url: str,
     execution_mode: str,
+    config_dir: str | None = None,
 ) -> str:
     inc, ver, v = ctx["incident"], ctx["version"], ctx["version_number"]
     run_id, incident_id = ctx["run"]["run_id"], inc["incident_id"]
@@ -59,15 +60,17 @@ def render(
 
     kinds = {f["kind"] for f in facts}
     rule_ids = [str(r) for r in (ver.get("rule_ids") or [])]
-    playbooks = pb_mod.applicable(pb_mod.load_catalog(), rule_ids, kinds)
+    playbooks = pb_mod.applicable(pb_mod.load_catalog(config_dir), rule_ids, kinds)
     selected = set(((expl or {}).get("validated") or {}).get("playbook_ids") or [])
 
     L: list[str] = []
     w = L.append
     w(f"# Response packet — incident {incident_id[:12]} v{v}")
     w("")
-    w(f"*Rendered {datetime.now(UTC).isoformat(timespec='seconds')} from committed evidence under run cutoff "
-      f"#{ctx['cutoff_seq']}. Nothing in this document was written by a language model.*")
+    # No wall-clock stamp: the packet is a pure function of committed rows under the cutoff, so identical evidence
+    # renders to an identical document and an identical sha256 (which is also its idempotency key when sent).
+    w(f"*Rendered from committed evidence under run cutoff #{ctx['cutoff_seq']} (last event "
+      f"{_ts(ctx['run'].get('last_processed_time'))}). Nothing in this document was written by a language model.*")
     w("")
     w("| | |")
     w("|---|---|")

@@ -199,7 +199,7 @@ function ActionCard({
         </p>
 
         {Object.keys(action.params).length > 0 ? (
-          <table className="table compact" style={{ marginBottom: 6 }}>
+          <table className="tbl" style={{ marginBottom: 6 }}>
             <thead>
               <tr>
                 <th>parameter</th>
