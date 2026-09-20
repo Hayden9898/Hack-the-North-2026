@@ -33,7 +33,11 @@ export function ActivityPanel({ runId, processedSeq, run }: { runId: string; pro
         bucket_minutes: bucketMinutes,
         group_by_account: !!account,
       }),
-    [runId, account, asOf, bucketMinutes],
+    // processedSeq belongs in the key: with the cutoff box ticked the request carries it, so
+    // leaving it out froze the chart at whatever seq was current on first load while the label
+    // beside the box kept counting up. Omitted when asOf is off, or every replay tick would
+    // refetch a query whose result cannot change.
+    [runId, account, asOf, bucketMinutes, asOf ? processedSeq : 0],
   )
 
   const model = useMemo(() => {

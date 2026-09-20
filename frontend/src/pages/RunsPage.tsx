@@ -1,7 +1,7 @@
 import { ArrowRight, CircleSlash, Database, FlaskConical, Plus, Upload } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api, describeError, type Dataset, type Model, type Run, type RunCreateBody } from '../api'
+import { api, describeError, type Dataset, type DatasetDetail, type Model, type Run, type RunCreateBody } from '../api'
 import { fmtBytes, fmtNum, fmtTime, isFaultRun, modelHealthLabel, runStateLabel, shortId, speedLabel } from '../format'
 import { useFetch, useInterval } from '../useFetch'
 import { cn } from '@/lib/cn'
@@ -254,26 +254,110 @@ function DatasetStrip({ datasets, loading }: { datasets: Dataset[]; loading: boo
       </h2>
       <ul className="grid gap-2">
         {datasets.map((d) => (
-          <li key={d.dataset_id} className="flex flex-wrap items-center gap-x-5 gap-y-1 rounded-lg border border-border bg-surface px-4 py-2.5">
-            <Database className="size-3.5 shrink-0 text-fg-muted" aria-hidden />
-            <span className="font-mono text-mono text-fg">{d.original_name}</span>
-            <span className="font-mono text-mono text-fg-muted">
-              {fmtNum(d.valid_count)} valid
-              <span className={d.rejected_count ? 'text-late' : 'text-fg-muted'}> · {fmtNum(d.rejected_count)} rejected</span>
-            </span>
-            <span className="font-mono text-mono text-fg-muted">{fmtBytes(d.bytes)}</span>
-            {d.first_event_time ? (
-              <span className="font-mono text-mono text-fg-muted">
-                {fmtTime(d.first_event_time)} → {fmtTime(d.last_event_time)}
-              </span>
-            ) : null}
-            <span className="ms-auto font-mono text-mono text-fg-muted" title={d.content_sha256}>
-              sha256 {shortId(d.content_sha256, 12)}
-            </span>
-          </li>
+          <DatasetRow key={d.dataset_id} d={d} />
         ))}
       </ul>
     </section>
+  )
+}
+
+/**
+ * One dataset.
+ *
+ * Compressed to a line, but not to the point of lying: an import that is still running and an
+ * import that FAILED both report zero valid and zero rejected, so a strip that shows only the
+ * counts renders a broken import identically to a healthy empty one. State, progress and the
+ * error come first; the rejected lines stay one click away, because the upload dialog promises
+ * they appear here.
+ */
+function DatasetRow({ d }: { d: Dataset }) {
+  const [showRejects, setShowRejects] = useState(false)
+  const detail = useFetch<DatasetDetail>(() => api.getDataset(d.dataset_id), [d.dataset_id, showRejects], showRejects)
+
+  const ready = d.import_state === 'ready'
+  const failed = d.import_state === 'failed' || !!d.error
+  const pct =
+    d.total_lines && d.progress_line !== null ? Math.min(100, Math.round((d.progress_line / d.total_lines) * 100)) : null
+
+  return (
+    <li className="rounded-lg border border-border bg-surface px-4 py-2.5">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+        <Database className="size-3.5 shrink-0 text-fg-muted" aria-hidden />
+        <span className="font-mono text-mono text-fg">{d.original_name}</span>
+
+        {ready ? null : (
+          <span
+            className={cn(
+              'rounded-sm border px-1.5 py-0.5 font-mono text-[0.6875rem] uppercase',
+              failed ? 'border-high-risk/35 bg-high-risk-wash text-high-risk' : 'border-pending/35 text-pending',
+            )}
+          >
+            {d.import_state}
+            {!failed && pct !== null ? ` ${pct}%` : ''}
+          </span>
+        )}
+
+        <span className="font-mono text-mono text-fg-muted">
+          {fmtNum(d.valid_count)} valid
+          <span className={d.rejected_count ? 'text-late' : 'text-fg-muted'}> · {fmtNum(d.rejected_count)} rejected</span>
+        </span>
+        <span className="font-mono text-mono text-fg-muted">{fmtBytes(d.bytes)}</span>
+        {d.first_event_time ? (
+          <span className="font-mono text-mono text-fg-muted">
+            {fmtTime(d.first_event_time)} → {fmtTime(d.last_event_time)}
+          </span>
+        ) : null}
+        <span className="ms-auto font-mono text-mono text-fg-muted" title={d.content_sha256}>
+          sha256 {shortId(d.content_sha256, 12)}
+        </span>
+      </div>
+
+      {!ready && !failed && pct !== null ? (
+        <p className="mt-1.5 font-mono text-mono text-fg-muted">
+          validated {fmtNum(d.progress_line)} of {fmtNum(d.total_lines)} lines
+        </p>
+      ) : null}
+
+      {d.error ? <p className="mt-1.5 max-w-[80ch] text-body text-high-risk">{d.error}</p> : null}
+
+      {d.rejected_count ? (
+        <>
+          <button
+            type="button"
+            className="mt-1.5 font-mono text-mono text-fg-muted underline underline-offset-2 hover:text-fg"
+            aria-expanded={showRejects}
+            onClick={() => setShowRejects((v) => !v)}
+          >
+            {showRejects ? 'Hide' : 'Show'} rejected lines
+          </button>
+          {showRejects ? (
+            detail.loading && !detail.data ? (
+              <Skeleton className="mt-2 h-16 w-full rounded-md" />
+            ) : detail.error ? (
+              <p className="mt-2 font-mono text-mono text-late">
+                Could not load rejected lines: {describeError(detail.error).text}
+              </p>
+            ) : (
+              <ul className="mt-2 grid gap-1.5">
+                {(detail.data?.rejects_sample ?? []).map((r) => (
+                  <li key={r.line_number} className="rounded-md border border-border bg-surface-raised px-3 py-1.5">
+                    <p className="font-mono text-mono text-fg-muted">
+                      line {fmtNum(r.line_number)} · {r.reason}
+                    </p>
+                    <p className="mt-0.5 font-mono text-mono break-all text-fg">{r.raw_input}</p>
+                  </li>
+                ))}
+                {(detail.data?.rejects_sample ?? []).length === 0 ? (
+                  <li className="font-mono text-mono text-fg-muted">
+                    The API kept no sample of the rejected lines for this dataset.
+                  </li>
+                ) : null}
+              </ul>
+            )
+          ) : null}
+        </>
+      ) : null}
+    </li>
   )
 }
 

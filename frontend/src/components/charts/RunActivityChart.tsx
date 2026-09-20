@@ -78,6 +78,28 @@ export function RunActivityChart({
   // Marks are for rare things. Past this share of buckets they collide into a field of colour
   // that overstates the finding, so the flagged layer becomes a counted strip instead.
   const dense = flagged.length > Math.max(12, bins.length * 0.15)
+
+  /**
+   * Which stagger row each flagged mark sits on.
+   *
+   * Comparing only against the immediately previous mark and offsetting to a single alternate
+   * row de-collides pairs and nothing else: three flagged buckets inside the 12px threshold
+   * put marks 2 and 3 back on the same row, rebuilding the blob the stagger exists to break.
+   * Track the last x placed on each row instead and take the first row that has clearance;
+   * if every row is crowded, fall back to the one whose last mark is furthest left.
+   */
+  const markRow = ((): number[] => {
+    const ROWS = 3
+    const MIN_GAP = 12
+    const lastX: number[] = Array.from({ length: ROWS }, () => Number.NEGATIVE_INFINITY)
+    return flagged.map((b) => {
+      const cx = band(bins.indexOf(b)) + band.bandwidth / 2
+      let row = lastX.findIndex((x) => cx - x >= MIN_GAP)
+      if (row === -1) row = lastX.indexOf(Math.min(...lastX))
+      lastX[row] = cx
+      return row
+    })
+  })()
   const maxFlagged = Math.max(1, ...bins.map((b) => b.high_risk + b.suspicious))
   const hovered = hover !== null ? bins[hover] : null
 
@@ -164,11 +186,9 @@ export function RunActivityChart({
           const i = bins.indexOf(b)
           const cx = band(i) + band.bandwidth / 2
           const isHigh = b.high_risk > 0
-          // Neighbouring flagged buckets would draw their dots on top of each other; stagger
-          // the row so each stays a countable mark rather than a blob.
-          const prev = fi > 0 ? flagged[fi - 1] : null
-          const crowded = prev !== null && Math.abs(cx - (band(bins.indexOf(prev)) + band.bandwidth / 2)) < 12
-          const cy = PAD.t + 6 + (crowded ? 11 : 0)
+          // Row assigned in `markRow` above, which tracks all three rows rather than just the
+          // previous mark, so runs of crowded buckets stay countable.
+          const cy = PAD.t + 6 + markRow[fi] * 11
           return (
             <g key={`f-${b.start}`}>
               <line

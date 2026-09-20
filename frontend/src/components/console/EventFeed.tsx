@@ -76,6 +76,10 @@ export function EventFeed({ runId, tick, cutoff }: { runId: string; tick: number
     return follow ? out.slice(0, WINDOW_ROWS) : out.slice(out.length - WINDOW_ROWS)
   }, [newest.data, olderPages, follow])
 
+  // True only once the window actually had to drop rows off one end; below that, `rows` is
+  // everything loaded and calling it "the newest N" or "the oldest N" would both be wrong.
+  const windowed = rows.length >= WINDOW_ROWS
+
   const virt = useVirtualRows(rows.length, ROW_H)
   const lastPage = olderPages.length ? olderPages[olderPages.length - 1] : newest.data
   const hasOlder = !!lastPage?.has_more
@@ -108,8 +112,12 @@ export function EventFeed({ runId, tick, cutoff }: { runId: string; tick: number
           <h2 id="feed" className="text-heading normal-case tracking-normal text-fg">
             Event feed
           </h2>
+          {/* Once paging back has loaded more than one window, `rows` is the OLDEST slice, not
+              the newest — so "showing the newest 300" contradicted the rows under it. Name the
+              window by which end of the feed it is actually pinned to. */}
           <p className="text-caption text-fg-muted normal-case tracking-normal">
-            every event evaluated under cutoff #{fmtNum(newest.data?.cutoff_seq ?? cutoff)} · showing the newest{' '}
+            every event evaluated under cutoff #{fmtNum(newest.data?.cutoff_seq ?? cutoff)} · showing{' '}
+            {windowed ? (follow ? 'the newest ' : 'the oldest loaded ') : ''}
             {fmtNum(rows.length)}
           </p>
         </div>

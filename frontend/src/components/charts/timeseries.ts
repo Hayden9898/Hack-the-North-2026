@@ -85,8 +85,15 @@ export function toBins(rows: readonly TimeseriesRow[], serverMinutes: number): B
   let unit: BinUnit = 'server'
   let width = serverMinutes * MINUTE_MS
   if (distinct.size > MAX_BUCKETS && serverMinutes < 1440) {
-    unit = 'hour'
-    width = Math.max(width, HOUR_MS)
+    // Only claim a roll-up when one actually happens. `Math.max(width, HOUR_MS)` is a no-op
+    // once the server already returns hourly-or-wider buckets, so setting unit='hour'
+    // unconditionally made binUnitLabel report "hourly (rolled up client-side)" for data that
+    // arrived hourly and was never re-bucketed — a false provenance line on the one panel
+    // whose job is saying where its numbers came from.
+    if (HOUR_MS > width) {
+      unit = 'hour'
+      width = HOUR_MS
+    }
     if ((tMax - tMin) / width > MAX_BUCKETS) {
       unit = 'day'
       width = DAY_MS

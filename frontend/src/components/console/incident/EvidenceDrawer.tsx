@@ -9,6 +9,7 @@ import { ErrorState } from '@/components/ui/error-state'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { claimView, formatDelta } from './facts'
+import { splitInvariants } from '../invariants'
 
 const PAGE = 25
 
@@ -54,10 +55,17 @@ export function EvidenceDrawer({
     !!fact,
   )
 
+  // useFetch keeps the previous response on screen while the next one is in flight, and the
+  // guard below only draws a skeleton when there is no data at all. Switching facts therefore
+  // painted the NEW fact's heading, hero figure and provenance over the OLD fact's log rows —
+  // on the one screen whose entire claim is "these are the exact lines behind this number".
+  // The response names the fact it belongs to, so ignore it until it is the one on screen.
+  const data = res.data && res.data.fact.fact_id === factId ? res.data : null
+
   const view = fact ? claimView(fact) : null
-  const proof = res.data?.aggregate_proof ?? null
+  const proof = data?.aggregate_proof ?? null
   const rows = proof?.rows ?? null
-  const evidence = res.data?.evidence ?? []
+  const evidence = data?.evidence ?? []
   const total = typeof proof?.recomputed_count === 'number' ? proof.recomputed_count : evidence.length
 
   return (
@@ -97,13 +105,13 @@ export function EvidenceDrawer({
         {fact ? <Provenance fact={fact} /> : null}
 
         <div className="px-6 py-5">
-          {res.loading && !res.data ? (
+          {!data && !res.error ? (
             <div className="space-y-2">
               {Array.from({ length: 6 }, (_, i) => (
                 <Skeleton key={i} className="h-7 w-full" />
               ))}
             </div>
-          ) : res.error && !res.data ? (
+          ) : res.error && !data ? (
             <ErrorState
               title="Could not load this evidence"
               detail={describeError(res.error).text}
@@ -136,9 +144,14 @@ export function EvidenceDrawer({
             </>
           ) : evidence.length > 0 ? (
             <>
-              <SectionLabel>Exact evidence lines ({fmtNum(evidence.length)})</SectionLabel>
+              {/* The request is already limit/offset paged, so `evidence` is one page. The old
+                  header printed its length as if it were the whole set and then rendered a
+                  silently truncated 25 with no way forward. Say what is on screen, and page. */}
+              <SectionLabel>
+                Exact evidence lines — showing {fmtNum(offset + 1)}–{fmtNum(offset + evidence.length)}
+              </SectionLabel>
               <div className="space-y-3">
-                {evidence.slice(0, PAGE).map((e) => (
+                {evidence.map((e) => (
                   <CodeBlock
                     key={e.event_id}
                     code={e.raw_line}
@@ -150,6 +163,7 @@ export function EvidenceDrawer({
                   />
                 ))}
               </div>
+              <Pager offset={offset} count={evidence.length} onChange={setOffset} busy={res.loading} />
             </>
           ) : proof && proof.recomputed_count === 0 ? (
             <p className="max-w-[62ch] text-body text-fg-muted">
@@ -254,43 +268,37 @@ interface Row {
 }
 
 /**
- * Columns whose value never varies across the page are not evidence, they are a heading.
+ * Columns whose value never varies are not evidence, they are a heading.
  *
  * On the 77-denial fact, `status` is 403 seventy-seven times and `request` is the same path
  * seventy-seven times — so nearly half the table width was spent restating a constant while
  * truncating the very path that proves these are denials of the *right* resource. Invariants
  * are hoisted into one line above the table; only what actually varies gets a column.
+ *
+ * Uses the shared helper rather than a local copy: the incident timeline renders the same kind
+ * of table, and the two disagreeing about what counts as invariant on one incident is worse
+ * than neither hoisting at all.
  */
-function invariantsOf(rows: Row[]): { constant: Record<string, string>; varies: Set<string> } {
-  const constant: Record<string, string> = {}
-  const varies = new Set<string>()
-  const cols: [string, (r: Row) => string][] = [
-    ['request', (r) => `${r.method} ${r.path}`],
-    ['status', (r) => String(r.status)],
-    ['account', (r) => `${r.username}@${r.ip_raw}`],
-  ]
-  for (const [key, get] of cols) {
-    const first = rows.length ? get(rows[0]) : ''
-    if (rows.length > 1 && rows.every((r) => get(r) === first)) constant[key] = first
-    else varies.add(key)
-  }
-  return { constant, varies }
-}
+const EVIDENCE_COLUMNS: { key: string; label: string; get: (r: Row) => string }[] = [
+  { key: 'account', label: 'account@ip', get: (r) => `${r.username}@${r.ip_raw}` },
+  { key: 'request', label: 'request', get: (r) => `${r.method} ${r.path}` },
+  { key: 'status', label: 'status', get: (r) => String(r.status) },
+]
 
 function EvidenceRows({ rows, total }: { rows: Row[]; total: number }) {
-  const { constant, varies } = invariantsOf(rows)
-  const constantKeys = Object.keys(constant)
+  const { constant, varies } = splitInvariants(rows, EVIDENCE_COLUMNS)
 
   return (
     <div className="space-y-2">
-      {constantKeys.length > 0 ? (
+      {constant.length > 0 ? (
         <p className="rounded-md border border-border bg-surface-raised px-3 py-2 font-mono text-mono text-fg-muted">
-          <span className="text-fg-muted">every one of these {fmtNum(total)}: </span>
-          <span className="break-all text-fg">
-            {constant.account ? `${constant.account} ` : ''}
-            {constant.request ?? ''}
-            {constant.status ? ` → ${constant.status}` : ''}
+          {/* Scoped to the page, because that is all this has seen. Labelling it with `total`
+              asserted a property of all 77 rows from the 25 in hand — and the hoisting removes
+              the column that would have disproved it. */}
+          <span className="text-fg-muted">
+            {rows.length >= total ? `every one of these ${fmtNum(total)}: ` : `every one of these ${fmtNum(rows.length)} on this page: `}
           </span>
+          <span className="break-all text-fg">{constant.map((c) => c.value).join(' · ')}</span>
         </p>
       ) : null}
 
@@ -361,6 +369,11 @@ function Td({ children, className, title }: { children: React.ReactNode; classNa
   )
 }
 
+/**
+ * `total` is optional: the aggregate branch knows the recomputed count, the raw-evidence branch
+ * does not (the endpoint pages without reporting a total). When it is unknown, a full page is
+ * the only evidence that another one exists — so offer Next and do not claim a count.
+ */
 function Pager({
   offset,
   count,
@@ -370,17 +383,19 @@ function Pager({
 }: {
   offset: number
   count: number
-  total: number
+  total?: number
   onChange: (n: number) => void
   busy: boolean
 }) {
   const hasPrev = offset > 0
-  const hasNext = offset + count < total
+  const hasNext = total === undefined ? count === PAGE : offset + count < total
   if (!hasPrev && !hasNext) return null
   return (
     <div className="mt-4 flex items-center justify-between gap-3">
       <span className="text-caption text-fg-muted normal-case tracking-normal">
-        Every one of the {fmtNum(total)} is here — page through them.
+        {total === undefined
+          ? 'Every line behind this fact is here — page through them.'
+          : `Every one of the ${fmtNum(total)} is here — page through them.`}
       </span>
       <div className="flex gap-2">
         <Button variant="outline" size="sm" disabled={!hasPrev || busy} onClick={() => onChange(Math.max(0, offset - PAGE))}>

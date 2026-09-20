@@ -295,8 +295,15 @@ function BlockedBanner({ run }: { run: Run }) {
   )
 }
 
+/** One page of findings. Runs regularly exceed this, so the count has to be paged, not capped. */
+const FINDINGS_PAGE = 50
+
 function Findings({ runId, tick, cutoff }: { runId: string; tick: number; cutoff: number }) {
-  const inc = useFetch<IncidentsPage>(() => api.listIncidents(runId, { limit: 50, offset: 0 }), [runId])
+  // The request was capped at 50 while the heading printed `total`, so a run with 137 incidents
+  // announced 137 above a list of 50 and the rest were unreachable from the console. The cap
+  // stays (the list is long), but it now grows on demand and the heading says what is shown.
+  const [limit, setLimit] = useState(FINDINGS_PAGE)
+  const inc = useFetch<IncidentsPage>(() => api.listIncidents(runId, { limit, offset: 0 }), [runId, limit])
   const first = useRef(true)
   useEffect(() => {
     if (first.current) {
@@ -317,7 +324,10 @@ function Findings({ runId, tick, cutoff }: { runId: string; tick: number; cutoff
           Findings
           {inc.data ? (
             <span className="ms-2 text-caption text-fg-muted normal-case tracking-normal">
-              {fmtNum(inc.data.total)} under cutoff #{fmtNum(inc.data.cutoff_seq)}
+              {items.length < inc.data.total
+                ? `showing ${fmtNum(items.length)} of ${fmtNum(inc.data.total)}`
+                : fmtNum(inc.data.total)}{' '}
+              under cutoff #{fmtNum(inc.data.cutoff_seq)}
               {high > 0 ? ` · ${fmtNum(high)} high risk` : ''}
             </span>
           ) : null}
@@ -335,6 +345,16 @@ function Findings({ runId, tick, cutoff }: { runId: string; tick: number; cutoff
       ) : (
         <>
           <FindingsList incidents={items} runId={runId} />
+          {inc.data && items.length < inc.data.total ? (
+            <button
+              type="button"
+              className="mt-3 w-full rounded-lg border border-border bg-surface px-4 py-2 text-caption text-fg-muted uppercase transition-colors duration-150 hover:border-border-strong hover:text-fg disabled:opacity-60"
+              disabled={inc.loading}
+              onClick={() => setLimit((n) => n + FINDINGS_PAGE)}
+            >
+              Show {fmtNum(Math.min(FINDINGS_PAGE, inc.data.total - items.length))} more of {fmtNum(inc.data.total)}
+            </button>
+          ) : null}
           {items.length === 0 && cutoff === 0 ? (
             <p className="mt-2 text-caption text-fg-muted normal-case tracking-normal">This run has not evaluated anything yet.</p>
           ) : null}
