@@ -120,13 +120,13 @@ Concise record of milestones, decisions, commands and results. Newest entries at
 - Root cause of the "rules-only mode" banner on UI-created runs: `model_id` was per run, the run form's model field
   was free text defaulting to blank, and nothing resolved the active model on the operator's behalf. Only
   `replay-demo` looked it up, so `hybrid-full` scored with ML while every UI-created run was rules-only.
-- `runs.create_run` now defaults `model_id` to the newest active model (`runs.active_model_id`); rules-only is an
-  explicit opt-out (`use_active_model=False`, API `rules_only: true`, CLI `--rules-only`). `model_id` + `rules_only`
-  together is a 422. No active model still degrades visibly to `rules_only` (never a fabricated model).
-- New `GET /api/v1/models` (status, threshold, `is_default`, `artifact_present`); run form is a model picker that
-  shows the active model as the default option and a labelled rules-only opt-out; `pending_load` gets a label.
+- `runs.create_run` now attaches the newest active model (`runs.active_model_id`) whenever `model_id` is not
+  pinned. There is no opt-out anywhere (UI, API or CLI): every run is rules + ML. The only rules-only run is one
+  created before any model is active (bootstrap snapshot pass); it degrades visibly, never with a fabricated model.
+- New `GET /api/v1/models` (status, threshold, `is_default`, `artifact_present`); the run form has no model choice,
+  it states which model every run gets; `pending_load` gets a label.
 - `/health/ready` reports `models.active` and a `no_active_model_rules_only` degraded mode; the artifacts list now
   names model ids (it listed `manifest.json` twice before).
-- Verified: `tests/integration/test_run_default_model.py` 4 passed (default/newest/explicit/opt-out, API, health);
+- Verified: `tests/integration/test_run_default_model.py` 4 passed (default/newest/pinned, API, health);
   full suite 100 passed (11 min); mypy, ruff, tsc, oxlint, vite build clean. The running API must be restarted to
   pick this up (`serve_api` runs without reload).

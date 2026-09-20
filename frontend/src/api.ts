@@ -79,9 +79,8 @@ export interface RunCreateBody {
   visible_start?: string
   speed?: number
   pause_at_visible_start: boolean
+  /** Pins a registered model; omitted = the newest active model. Every run scores with rules and the model. */
   model_id?: string
-  /** Explicit opt-out. Without it (and without model_id) the newest active model is attached. */
-  rules_only?: boolean
 }
 
 export interface Model {

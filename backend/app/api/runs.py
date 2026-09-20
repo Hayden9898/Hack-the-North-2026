@@ -25,8 +25,7 @@ class RunCreate(BaseModel):
     visible_start: datetime | None = None
     range_start: datetime | None = None
     range_end: datetime | None = None
-    model_id: str | None = None
-    rules_only: bool = False  # explicit opt-out; otherwise the newest active model is attached
+    model_id: str | None = None  # pin a registered model; default: the newest active model
     speed: float | None = Field(default=None, ge=0)
     pause_at_visible_start: bool = False
     source_id: str | None = None
@@ -107,8 +106,6 @@ def create_run(
             row = cur.fetchone()
         if row is None or row["import_state"] != "ready":
             raise HTTPException(status_code=409, detail="dataset is not ready")
-    if body.model_id and body.rules_only:
-        raise HTTPException(status_code=422, detail="model_id and rules_only are mutually exclusive")
     if body.model_id:
         with conn.cursor() as cur:
             cur.execute("SELECT 1 FROM models WHERE model_id=%s", (body.model_id,))
@@ -117,7 +114,7 @@ def create_run(
     run = runs_mod.create_run(
         conn, cfg, dataset_id=body.dataset_id, mode=body.mode, name=body.name, visible_start=body.visible_start,
         range_start=body.range_start, range_end=body.range_end, model_id=body.model_id, speed=body.speed,
-        pause_at_visible_start=body.pause_at_visible_start, source_id=body.source_id, use_active_model=not body.rules_only,
+        pause_at_visible_start=body.pause_at_visible_start, source_id=body.source_id,
     )
     if body.mode == "live":
         runs_mod.control(conn, run["run_id"], "start")

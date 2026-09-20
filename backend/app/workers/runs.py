@@ -43,12 +43,11 @@ def create_run(
     pause_at_visible_start: bool = False,
     source_id: str | None = None,
     reference: Reference | None = None,
-    use_active_model: bool = True,
 ) -> dict[str, Any]:
-    """Create an isolated run. Without an explicit model_id the newest active model is attached; pass
-    use_active_model=False for a deliberately rules-only pass (e.g. the causal snapshot run that feeds training)."""
+    """Create an isolated run. Every run scores with rules AND the newest active model; `model_id` only pins a
+    specific registered model (tests, evaluation). The run is rules-only solely when no active model exists yet."""
     run_id = str(uuid.uuid4())
-    if model_id is None and use_active_model:
+    if model_id is None:
         model_id = active_model_id(conn)
     if reference is None:
         if dataset_id:

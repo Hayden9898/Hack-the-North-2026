@@ -28,8 +28,7 @@ def main() -> int:
     ap.add_argument("--visible-start", default=None, help="ISO timestamp; default: evaluation partition start")
     ap.add_argument("--range-start", default=None)
     ap.add_argument("--range-end", default=None)
-    ap.add_argument("--model-id", default=None, help="default: the newest active model")
-    ap.add_argument("--rules-only", action="store_true", help="attach no model (e.g. the causal snapshot pass that feeds training)")
+    ap.add_argument("--model-id", default=None, help="pin a registered model; default: the newest active model")
     ap.add_argument("--speed", type=float, default=0.0, help="0 = unbounded")
     ap.add_argument("--pause-at-visible-start", action="store_true")
     ap.add_argument("--no-drive", action="store_true", help="create+start only; leave processing to the detector worker")
@@ -52,7 +51,7 @@ def main() -> int:
     run = runs_mod.create_run(
         conn, cfg, dataset_id=row["id"], name=args.name, visible_start=parse_dt(args.visible_start),
         range_start=parse_dt(args.range_start), range_end=parse_dt(args.range_end), model_id=args.model_id,
-        speed=args.speed, pause_at_visible_start=args.pause_at_visible_start, use_active_model=not args.rules_only,
+        speed=args.speed, pause_at_visible_start=args.pause_at_visible_start,
     )
     runs_mod.control(conn, run["run_id"], "start")
     conn.commit()

@@ -76,7 +76,7 @@ export function modelHealthExplanation(h: ModelHealth): string | null {
     case 'pending_load':
       return 'A model is attached to this run and loads when the detector processes its first batch.'
     case 'rules_only':
-      return 'Rules-only mode: this run was created without a model, so no artifact is scoring its events. ML scores are null; rule detections still apply. New runs attach the active model unless rules-only is chosen explicitly.'
+      return 'Rules-only: no model was active when this run was created, so no artifact is scoring its events. ML scores are null; rule detections still apply. Calibrate a model with --activate and create a new run.'
     case 'degraded':
       return 'Degraded model mode: model scores may be missing or stale. Rule detections still apply.'
     case 'shadow':

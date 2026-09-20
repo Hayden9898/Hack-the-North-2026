@@ -204,8 +204,6 @@ function DatasetCard({ d }: { d: Dataset }) {
   )
 }
 
-const RULES_ONLY = '__rules_only__'
-
 function NewRunForm({ datasets, models, onCreated }: { datasets: Dataset[]; models: Model[]; onCreated: () => void }) {
   const nav = useNavigate()
   const ready = datasets.filter((d) => d.import_state === 'ready')
@@ -215,7 +213,6 @@ function NewRunForm({ datasets, models, onCreated }: { datasets: Dataset[]; mode
   const [visibleStart, setVisibleStart] = useState('')
   const [speed, setSpeed] = useState('')
   const [pauseAtVisible, setPauseAtVisible] = useState(false)
-  const [modelId, setModelId] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<unknown | null>(null)
 
@@ -229,8 +226,6 @@ function NewRunForm({ datasets, models, onCreated }: { datasets: Dataset[]; mode
     const body: RunCreateBody = { dataset_id: chosen, mode: 'replay', name: name.trim(), pause_at_visible_start: pauseAtVisible }
     if (visibleStart.trim()) body.visible_start = visibleStart.trim()
     if (speed.trim() !== '') body.speed = Number(speed)
-    if (modelId === RULES_ONLY) body.rules_only = true
-    else if (modelId) body.model_id = modelId
     try {
       const run = await api.createRun(body)
       onCreated()
@@ -269,21 +264,14 @@ function NewRunForm({ datasets, models, onCreated }: { datasets: Dataset[]; mode
             speed (0 = fast-forward, unbounded)
             <input value={speed} onChange={(e) => setSpeed(e.target.value)} type="number" min={0} step="any" placeholder="config default" />
           </label>
-          <label className="field">
-            model
-            <select value={modelId} onChange={(e) => setModelId(e.target.value)}>
-              <option value="">{defaultModel ? `active model (default): ${defaultModel.model_id}` : 'no active model: rules-only (calibrate one with --activate)'}</option>
-              {models
-                .filter((m) => !m.is_default)
-                .map((m) => (
-                  <option key={m.model_id} value={m.model_id}>
-                    {m.model_id} ({m.status}
-                    {m.artifact_present ? '' : ', artifact missing'})
-                  </option>
-                ))}
-              <option value={RULES_ONLY}>rules-only (no model; explicit opt-out)</option>
-            </select>
-          </label>
+          <div className="field">
+            model (rules + ML on every run)
+            {defaultModel ? (
+              <span className="mono small">{defaultModel.model_id}</span>
+            ) : (
+              <span className="small">no active model registered yet: rules-only until one is calibrated with --activate</span>
+            )}
+          </div>
           <label className="check">
             <input type="checkbox" checked={pauseAtVisible} onChange={(e) => setPauseAtVisible(e.target.checked)} /> pause at visible start
           </label>

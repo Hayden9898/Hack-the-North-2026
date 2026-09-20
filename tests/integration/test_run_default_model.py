@@ -1,4 +1,4 @@
-"""Runs default to the active model. Rules-only is an explicit opt-out, never a silent fallback when a model exists."""
+"""Every run scores with rules and the newest active model. Rules-only happens only when no model is active."""
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
@@ -57,11 +57,9 @@ def test_create_run_uses_newest_active_model_by_default(db, tmp_path):
         assert runs_mod.active_model_id(conn) == "m_new_active"
         run = runs_mod.create_run(conn, cfg, dataset_id=ds)
         explicit = runs_mod.create_run(conn, cfg, dataset_id=ds, model_id="m_candidate")
-        rules = runs_mod.create_run(conn, cfg, dataset_id=ds, use_active_model=False)
         conn.commit()
     assert (run["model_id"], run["model_health"]) == ("m_new_active", "pending_load")
     assert (explicit["model_id"], explicit["model_health"]) == ("m_candidate", "pending_load")
-    assert (rules["model_id"], rules["model_health"]) == (None, "rules_only")
 
 
 def test_create_run_falls_back_to_rules_only_when_no_active_model(db, tmp_path):
@@ -102,16 +100,14 @@ def test_api_defaults_to_active_model_and_lists_models(client, db, tmp_path):
     assert r.status_code == 201, r.text
     assert (r.json()["model_id"], r.json()["model_health"]) == ("m_active", "pending_load")
 
+    # There is no opt-out: an unknown field is ignored and the active model is still attached.
     r = client.post("/api/v1/runs", json={"dataset_id": ds, "speed": 0, "rules_only": True})
     assert r.status_code == 201, r.text
-    assert (r.json()["model_id"], r.json()["model_health"]) == (None, "rules_only")
-
-    r = client.post("/api/v1/runs", json={"dataset_id": ds, "speed": 0, "model_id": "m_active", "rules_only": True})
-    assert r.status_code == 422
+    assert (r.json()["model_id"], r.json()["model_health"]) == ("m_active", "pending_load")
 
     health = client.get("/health/ready").json()
     assert "no_active_model_rules_only" not in health["degraded_modes"]
-    assert q(db, "select count(*) n from runs where model_id='m_active'")[0]["n"] == 1
+    assert q(db, "select count(*) n from runs where model_id='m_active'")[0]["n"] == 2
 
 
 def test_health_flags_missing_active_model(client, db):
