@@ -403,7 +403,7 @@ function Pair({ k, v, mono }: { k: string; v: string; mono?: boolean }) {
   return (
     <div className="min-w-0">
       <dt className="text-caption text-fg-muted uppercase">{k}</dt>
-      <dd className={cn('truncate text-body text-fg', mono && 'font-mono text-mono')} title={v}>
+      <dd className={mono ? 'truncate font-mono text-mono text-fg' : 'truncate text-body text-fg'} title={v}>
         {v}
       </dd>
     </div>

@@ -335,7 +335,7 @@ function Stat({ label, value, mono }: { label: string; value: string; mono?: boo
   return (
     <div>
       <dt className="text-caption text-fg-muted uppercase">{label}</dt>
-      <dd className={cn('text-heading text-fg', mono && 'font-mono text-mono')}>{value}</dd>
+      <dd className={mono ? 'font-mono text-mono text-fg' : 'text-heading text-fg'}>{value}</dd>
     </div>
   )
 }
@@ -464,7 +464,7 @@ export function Empty({ children }: { children: React.ReactNode }) {
 }
 
 function Th({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <th className={cn('px-3 py-2 font-sans text-caption font-medium text-fg-muted uppercase', className)}>{children}</th>
+  return <th className={`px-3 py-2 font-sans text-caption font-medium text-fg-muted uppercase ${className ?? ''}`}>{children}</th>
 }
 
 function Td({ children, className, title }: { children: React.ReactNode; className?: string; title?: string }) {

@@ -69,7 +69,10 @@ function FindingCard({ incident: i, runId }: { incident: IncidentRow; runId: str
         </span>
       </div>
 
-      <h3 className={cn('mt-2.5 text-balance text-fg', high ? 'max-w-[54ch] text-heading' : 'max-w-[64ch] text-body')}>
+      {/* Not routed through cn(): tailwind-merge groups the custom `text-<size>` tokens with
+          `text-<colour>` and drops one, which silently stripped `text-fg` here and left the
+          heading inheriting the legacy anchor colour at 2.0:1. Filed as R4 to Agent A. */}
+      <h3 className={high ? 'mt-2.5 max-w-[54ch] text-balance text-heading text-fg' : 'mt-2.5 max-w-[64ch] text-balance text-body text-fg'}>
         {i.summary?.headline ?? i.primary_rule_id}
       </h3>
 

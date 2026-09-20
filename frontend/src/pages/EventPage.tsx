@@ -3,7 +3,6 @@ import { Link, useParams } from 'react-router-dom'
 import { api, describeError, type EventDetail } from '../api'
 import { fmtBytes, fmtNum, fmtPercentile, fmtTime, shortId } from '../format'
 import { useFetch } from '../useFetch'
-import { cn } from '@/lib/cn'
 import { CodeBlock } from '@/components/ui/code-block'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -196,7 +195,7 @@ function Pair({ k, v, mono, hint }: { k: string; v: string; mono?: boolean; hint
       <dt className="text-caption text-fg-muted uppercase" title={hint}>
         {k}
       </dt>
-      <dd className={cn('break-words text-body text-fg', mono && 'font-mono text-mono')}>{v}</dd>
+      <dd className={mono ? 'break-words font-mono text-mono text-fg' : 'break-words text-body text-fg'}>{v}</dd>
       {hint ? <p className="mt-0.5 text-caption text-fg-subtle normal-case tracking-normal">{hint}</p> : null}
     </div>
   )
