@@ -204,7 +204,7 @@ function Provenance({ fact }: { fact: Fact }) {
       <dt className="text-caption text-fg-muted uppercase">Counted under</dt>
       <dd className="font-mono text-mono text-fg">
         run_seq &le; {fmtNum(fact.cutoff_seq)}
-        <span className="text-fg-subtle"> — nothing after this point was considered</span>
+        <span className="text-fg-muted"> — nothing after this point was considered</span>
       </dd>
 
       {q ? (

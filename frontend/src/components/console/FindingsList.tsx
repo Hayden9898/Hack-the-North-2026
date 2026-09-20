@@ -99,7 +99,7 @@ function FindingCard({ incident: i, runId }: { incident: IncidentRow; runId: str
         {i.explanation_state === 'rejected' ? (
           <span className="font-medium text-blocked">AI proposal rejected by the validator</span>
         ) : null}
-        <span className="ms-auto font-mono text-fg-subtle">{shortId(i.incident_id, 12)}</span>
+        <span className="ms-auto font-mono text-fg-muted">{shortId(i.incident_id, 12)}</span>
       </div>
     </Link>
   )

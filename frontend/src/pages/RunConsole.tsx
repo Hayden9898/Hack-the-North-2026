@@ -154,8 +154,8 @@ export function RunConsole() {
         <Link to="/app" className="text-caption text-fg-muted normal-case tracking-normal hover:text-fg">
           Runs
         </Link>
-        <ChevronRight className="size-3 text-fg-subtle" aria-hidden />
-        <span className="font-mono text-caption text-fg-subtle normal-case tracking-normal">{shortId(merged.run_id, 16)}</span>
+        <ChevronRight className="size-3 text-fg-muted" aria-hidden />
+        <span className="font-mono text-caption text-fg-muted normal-case tracking-normal">{shortId(merged.run_id, 16)}</span>
       </nav>
 
       <RunHeaderBand

@@ -216,7 +216,7 @@ function ObservedEvents({ facts, onShowEvidence }: { facts: Fact[]; onShowEviden
                 onClick={() => onShowEvidence(f)}
                 className="flex w-full items-baseline gap-3 border-b border-border/50 px-4 py-1.5 text-left font-mono text-mono last:border-0 hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
               >
-                <span className="w-16 shrink-0 text-right tabular-nums text-fg-subtle">{String(v.line_number ?? v.run_seq ?? '')}</span>
+                <span className="w-16 shrink-0 text-right tabular-nums text-fg-muted">{String(v.line_number ?? v.run_seq ?? '')}</span>
                 <span className="w-44 shrink-0 truncate text-fg-muted">{String(v.account ?? '')}@{String(v.ip ?? '')}</span>
                 <span className="min-w-0 flex-1 truncate text-fg">
                   {String(v.method ?? '')} {String(v.path ?? '')}

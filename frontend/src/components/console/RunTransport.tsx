@@ -70,7 +70,7 @@ export function RunTransport({ run, onChanged }: { run: Run; onChanged: (r: Run)
         >
           Apply
         </Button>
-        <span className="text-fg-subtle">now {speedLabel(run.speed)}</span>
+        <span className="text-fg-muted">now {speedLabel(run.speed)}</span>
       </label>
 
       {e ? <span className="text-caption text-high-risk normal-case tracking-normal">{e.text}</span> : null}

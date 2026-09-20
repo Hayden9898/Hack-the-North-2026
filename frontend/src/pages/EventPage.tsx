@@ -53,12 +53,12 @@ export function EventPage() {
         <Link to="/app" className="text-caption text-fg-muted normal-case tracking-normal hover:text-fg">
           Runs
         </Link>
-        <ChevronRight className="size-3 text-fg-subtle" aria-hidden />
+        <ChevronRight className="size-3 text-fg-muted" aria-hidden />
         <Link to={`/app/runs/${encodeURIComponent(runId)}`} className="font-mono text-caption text-fg-muted normal-case tracking-normal hover:text-fg">
           {shortId(runId, 14)}
         </Link>
-        <ChevronRight className="size-3 text-fg-subtle" aria-hidden />
-        <span className="font-mono text-caption text-fg-subtle normal-case tracking-normal">event {e.run_seq}</span>
+        <ChevronRight className="size-3 text-fg-muted" aria-hidden />
+        <span className="font-mono text-caption text-fg-muted normal-case tracking-normal">event {e.run_seq}</span>
       </nav>
 
       <header className="space-y-3">
@@ -139,7 +139,7 @@ export function EventPage() {
                   >
                     {shortId(m.incident_id, 16)}
                     <span className="text-fg-muted">{m.relation_type}</span>
-                    {m.rule_id ? <span className="text-fg-subtle">{m.rule_id}</span> : null}
+                    {m.rule_id ? <span className="text-fg-muted">{m.rule_id}</span> : null}
                   </Link>
                 </li>
               ))}
@@ -193,7 +193,7 @@ function Pair({ k, v, mono, hint }: { k: string; v: string; mono?: boolean; hint
         {k}
       </dt>
       <dd className={mono ? 'break-words font-mono text-mono text-fg' : 'break-words text-body text-fg'}>{v}</dd>
-      {hint ? <p className="mt-0.5 text-caption text-fg-subtle normal-case tracking-normal">{hint}</p> : null}
+      {hint ? <p className="mt-0.5 text-caption text-fg-muted normal-case tracking-normal">{hint}</p> : null}
     </div>
   )
 }

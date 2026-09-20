@@ -122,7 +122,7 @@ function Meta({ label, children }: { label: string; children: React.ReactNode })
 
 function Dot() {
   return (
-    <span aria-hidden className="text-fg-subtle">
+    <span aria-hidden className="text-fg-muted">
       ·
     </span>
   )

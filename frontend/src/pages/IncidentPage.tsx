@@ -103,10 +103,10 @@ export function IncidentPage() {
 
           <Tabs defaultValue="timeline">
             <TabsList>
-              <TabsTrigger value="timeline">Timeline ({d.timeline.length})</TabsTrigger>
-              <TabsTrigger value="related">Related ({d.relations.length})</TabsTrigger>
-              <TabsTrigger value="playbooks">Playbooks ({d.playbooks?.applicable.length ?? 0})</TabsTrigger>
-              <TabsTrigger value="baseline">Baseline</TabsTrigger>
+              <TabsTrigger value="timeline" className={TAB}>Timeline ({d.timeline.length})</TabsTrigger>
+              <TabsTrigger value="related" className={TAB}>Related ({d.relations.length})</TabsTrigger>
+              <TabsTrigger value="playbooks" className={TAB}>Playbooks ({d.playbooks?.applicable.length ?? 0})</TabsTrigger>
+              <TabsTrigger value="baseline" className={TAB}>Baseline</TabsTrigger>
             </TabsList>
             <TabsContent value="timeline">
               <TimelinePanel timeline={d.timeline} runId={runId} triggerSeq={v.trigger_seq} />
@@ -150,6 +150,9 @@ export function IncidentPage() {
   )
 }
 
+/** Lifts the inactive tab from shadcn's text-foreground/60 (4.38:1 light) to a passing token. */
+const TAB = 'text-[color:var(--color-fg-muted)] data-[state=active]:text-[color:var(--color-fg)]'
+
 function SideSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="rounded-lg border border-border bg-surface">
@@ -166,12 +169,12 @@ function Breadcrumb({ runId, incidentId }: { runId: string; incidentId: string }
       <Link to="/app" className={crumb}>
         Runs
       </Link>
-      <ChevronRight className="size-3 text-fg-subtle" aria-hidden />
+      <ChevronRight className="size-3 text-fg-muted" aria-hidden />
       <Link to={`/app/runs/${encodeURIComponent(runId)}`} className={`${crumb} font-mono`}>
         {shortId(runId, 14)}
       </Link>
-      <ChevronRight className="size-3 text-fg-subtle" aria-hidden />
-      <span className="font-mono text-caption text-fg-subtle normal-case tracking-normal">{shortId(incidentId, 14)}</span>
+      <ChevronRight className="size-3 text-fg-muted" aria-hidden />
+      <span className="font-mono text-caption text-fg-muted normal-case tracking-normal">{shortId(incidentId, 14)}</span>
     </nav>
   )
 }

@@ -219,7 +219,7 @@ export function EventFeed({ runId, tick, cutoff }: { runId: string; tick: number
           </div>
 
           <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-2.5">
-            <span className="font-mono text-mono text-fg-subtle">
+            <span className="font-mono text-mono text-fg-muted">
               #{rows[rows.length - 1]?.run_seq} → #{rows[0]?.run_seq}
             </span>
             <Button variant="outline" size="sm" disabled={!hasOlder || loadingOlder} onClick={() => void loadOlder()}>
@@ -265,13 +265,13 @@ function FeedRow({ ev, onOpen }: { ev: EventRow; onOpen: () => void }) {
         <span className="text-fg">
           {ev.method} {ev.path}
         </span>
-        {warmup ? <span className="ms-2 text-[0.6875rem] text-fg-subtle uppercase">warmup</span> : null}
+        {warmup ? <span className="ms-2 text-[0.6875rem] text-fg-muted uppercase">warmup</span> : null}
       </span>
       <span className="text-right tabular-nums text-fg-muted">{ev.status}</span>
       <span className="min-w-0">
         <StatusChip {...status} size="sm" showIcon={flagged} />
       </span>
-      <span className="text-right tabular-nums text-fg-subtle">
+      <span className="text-right tabular-nums text-fg-muted">
         {ev.anomaly_percentile !== null ? fmtPercentile(ev.anomaly_percentile) : '—'}
       </span>
     </div>

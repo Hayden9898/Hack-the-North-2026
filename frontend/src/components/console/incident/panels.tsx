@@ -71,7 +71,7 @@ export function UnknownsPanel({
 
       {notRecorded.length > 0 ? (
         <div className="mt-3">
-          <h4 className="text-caption text-fg-subtle normal-case tracking-normal">Not recorded in these logs</h4>
+          <h4 className="text-caption text-fg-muted normal-case tracking-normal">Not recorded in these logs</h4>
           <ul className="mt-1.5 grid gap-1.5">
             {notRecorded.map((t) => (
               <li key={t} className="text-body text-fg-muted">
@@ -84,7 +84,7 @@ export function UnknownsPanel({
 
       {notAsserted.length > 0 ? (
         <div className="mt-3 border-t border-border pt-3">
-          <h4 className="text-caption text-fg-subtle normal-case tracking-normal">Not asserted by this detector</h4>
+          <h4 className="text-caption text-fg-muted normal-case tracking-normal">Not asserted by this detector</h4>
           <ul className="mt-1.5 grid gap-1.5">
             {notAsserted.map((t) => (
               <li key={t} className="text-body text-fg-muted">
@@ -208,7 +208,7 @@ export function TimelinePanel({
                   {t.rule_id ? <span className="ms-1 text-accent">{t.rule_id}</span> : null}
                 </Td>
                 <Td>
-                  {t.threat_class ? <StatusChip verdict={t.threat_class} size="sm" /> : <span className="text-fg-subtle">—</span>}
+                  {t.threat_class ? <StatusChip verdict={t.threat_class} size="sm" /> : <span className="text-fg-muted">—</span>}
                 </Td>
               </tr>
             )
@@ -236,7 +236,7 @@ export function RelationsPanel({ relations, runId }: { relations: Relation[]; ru
             <span className="text-body text-fg">
               linked by {r.relation_type.replaceAll('_', ' ')} <span className="font-mono text-fg-muted">{r.link_key}</span>
             </span>
-            <span className="ms-auto font-mono text-mono text-fg-subtle">{shortId(r.related_incident_id, 14)}</span>
+            <span className="ms-auto font-mono text-mono text-fg-muted">{shortId(r.related_incident_id, 14)}</span>
           </Link>
         </li>
       ))}
@@ -283,7 +283,7 @@ function PlaybookItem({ playbook, aiSelected }: { playbook: Playbook; aiSelected
           <p className="text-body text-fg-muted">{playbook.uncertainty}</p>
           <div>
             <h4 className="mb-1.5 text-caption text-fg-muted uppercase">Proposed steps, for a human reviewer</h4>
-            <ol className="grid list-decimal gap-1 ps-5 text-body text-fg-muted marker:text-fg-subtle">
+            <ol className="grid list-decimal gap-1 ps-5 text-body text-fg-muted marker:text-fg-muted">
               {steps.map((s, i) => (
                 <li key={i}>{typeof s === 'string' ? s : Object.entries(s).map(([c, t]) => `if ${c}: ${t}`).join('; ')}</li>
               ))}
@@ -358,7 +358,7 @@ export function BaselinePanel({
           {ticks.map((t) => (
             <g key={t}>
               <line x1={PAD.l} x2={W - PAD.r} y1={y(t)} y2={y(t)} stroke="var(--color-border)" strokeWidth={1} />
-              <text x={PAD.l - 6} y={y(t) + 3} textAnchor="end" className="fill-[var(--color-fg-subtle)] text-[9px] tabular-nums">
+              <text x={PAD.l - 6} y={y(t) + 3} textAnchor="end" className="fill-[var(--color-fg-muted)] text-[9px] tabular-nums">
                 {tickCount(t)}
               </text>
             </g>
@@ -382,7 +382,7 @@ export function BaselinePanel({
             )
           })}
           {[0, 6, 12, 18].map((h) => (
-            <text key={h} x={band(h) + band.bandwidth / 2} y={H - 6} textAnchor="middle" className="fill-[var(--color-fg-subtle)] text-[9px] tabular-nums">
+            <text key={h} x={band(h) + band.bandwidth / 2} y={H - 6} textAnchor="middle" className="fill-[var(--color-fg-muted)] text-[9px] tabular-nums">
               {String(h).padStart(2, '0')}
             </text>
           ))}

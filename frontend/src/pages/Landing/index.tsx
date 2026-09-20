@@ -42,7 +42,7 @@ export function Landing() {
           ].map(([n, label]) => (
             <div key={label}>
               <dt className="font-mono text-title tabular-nums">{n}</dt>
-              <dd className="mt-1 text-caption text-fg-subtle uppercase">{label}</dd>
+              <dd className="mt-1 text-caption text-fg-muted uppercase">{label}</dd>
             </div>
           ))}
         </dl>
@@ -56,7 +56,7 @@ export function Landing() {
           <span>is a processing state, never a verdict</span>
         </div>
 
-        <p className="mt-10 border-border border-t pt-6 text-caption text-fg-subtle">
+        <p className="mt-10 border-border border-t pt-6 text-caption text-fg-muted">
           Running in rules_only mode — no model artifacts are present on this machine, so every verdict
           shown comes from the deterministic rules. Reported as-is rather than hidden.
         </p>

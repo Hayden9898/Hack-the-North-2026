@@ -121,7 +121,7 @@ function LeadRunCard({ run }: { run: Run }) {
             <span className="font-sans text-title tabular-nums text-fg">{fmtNum(run.processed_seq)}</span>
             <span className="text-caption text-fg-muted uppercase">events evaluated</span>
           </p>
-          <p className="mt-1 font-mono text-mono text-fg-subtle">
+          <p className="mt-1 font-mono text-mono text-fg-muted">
             cutoff #{fmtNum(run.processed_seq)} of {fmtNum(run.admitted_seq)} admitted
             {run.last_processed_time ? ` · through ${fmtTime(run.last_processed_time)}` : ''}
           </p>
@@ -149,7 +149,7 @@ function LeadRunCard({ run }: { run: Run }) {
         </div>
         {/* A full bar does not mean finished -- a paused run can be caught up on its backlog
             and still have most of the dataset ahead of it. Say which. */}
-        <span className="shrink-0 font-mono text-mono text-fg-subtle">
+        <span className="shrink-0 font-mono text-mono text-fg-muted">
           {run.state === 'completed' ? 'all admitted events evaluated' : `${runStateLabel(run.state)} · caught up to ${fmtNum(run.admitted_seq)} admitted`}
         </span>
       </div>
@@ -173,7 +173,7 @@ function RunRow({ run }: { run: Run }) {
       <span className="font-mono text-mono text-fg-muted">
         {fmtNum(run.processed_seq)} / {fmtNum(run.admitted_seq)}
       </span>
-      <span className="font-mono text-mono text-fg-subtle">{speedLabel(run.speed)}</span>
+      <span className="font-mono text-mono text-fg-muted">{speedLabel(run.speed)}</span>
       {run.model_health !== 'active' ? (
         <span className="state-hatch rounded-sm border border-pending/45 px-1.5 py-0.5 text-[0.6875rem] font-medium text-pending uppercase">
           {modelHealthLabel(run.model_health)}
@@ -218,19 +218,19 @@ function DatasetStrip({ datasets, loading }: { datasets: Dataset[]; loading: boo
       <ul className="grid gap-2">
         {datasets.map((d) => (
           <li key={d.dataset_id} className="flex flex-wrap items-center gap-x-5 gap-y-1 rounded-lg border border-border bg-surface px-4 py-2.5">
-            <Database className="size-3.5 shrink-0 text-fg-subtle" aria-hidden />
+            <Database className="size-3.5 shrink-0 text-fg-muted" aria-hidden />
             <span className="font-mono text-mono text-fg">{d.original_name}</span>
             <span className="font-mono text-mono text-fg-muted">
               {fmtNum(d.valid_count)} valid
-              <span className={d.rejected_count ? 'text-late' : 'text-fg-subtle'}> · {fmtNum(d.rejected_count)} rejected</span>
+              <span className={d.rejected_count ? 'text-late' : 'text-fg-muted'}> · {fmtNum(d.rejected_count)} rejected</span>
             </span>
-            <span className="font-mono text-mono text-fg-subtle">{fmtBytes(d.bytes)}</span>
+            <span className="font-mono text-mono text-fg-muted">{fmtBytes(d.bytes)}</span>
             {d.first_event_time ? (
-              <span className="font-mono text-mono text-fg-subtle">
+              <span className="font-mono text-mono text-fg-muted">
                 {fmtTime(d.first_event_time)} → {fmtTime(d.last_event_time)}
               </span>
             ) : null}
-            <span className="ms-auto font-mono text-mono text-fg-subtle" title={d.content_sha256}>
+            <span className="ms-auto font-mono text-mono text-fg-muted" title={d.content_sha256}>
               sha256 {shortId(d.content_sha256, 12)}
             </span>
           </li>

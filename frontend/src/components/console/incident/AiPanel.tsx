@@ -71,7 +71,7 @@ function FallbackBody({ explanation, job }: { explanation: Explanation | null; j
         output, which does not depend on a model.
       </p>
       {reason ? (
-        <p className="font-mono text-mono text-fg-subtle">{reason}</p>
+        <p className="font-mono text-mono text-fg-muted">{reason}</p>
       ) : null}
       {job && job.state !== 'done' ? (
         <p className="text-caption text-fg-muted normal-case tracking-normal">
@@ -112,7 +112,7 @@ function RejectedBody({ explanation }: { explanation: Explanation }) {
               <p className="text-body text-fg">{g.category}</p>
               <ul className="mt-1.5 grid gap-1">
                 {g.raw.map((r) => (
-                  <li key={r} className="font-mono text-mono break-all text-fg-subtle">
+                  <li key={r} className="font-mono text-mono break-all text-fg-muted">
                     {r}
                   </li>
                 ))}
@@ -203,7 +203,7 @@ function ValidatedBody({
       {v.false_positive_assessment.status !== 'not_assessed' ? (
         <p className="text-body text-fg-muted">
           False-positive assessment: <span className="text-fg">{v.false_positive_assessment.status.replaceAll('_', ' ')}</span>
-          <span className="text-fg-subtle"> — advisory only; it does not suppress or downgrade the detector verdict.</span>
+          <span className="text-fg-muted"> — advisory only; it does not suppress or downgrade the detector verdict.</span>
         </p>
       ) : null}
     </div>
@@ -237,7 +237,7 @@ function FactRefs({
             title={forced.has(id) ? 'Included by the system; the model could not omit this one.' : undefined}
             className={cn(
               'rounded-sm border border-border px-1.5 py-0.5 font-mono text-[0.6875rem]',
-              f ? 'cursor-pointer text-fg-muted hover:border-accent hover:text-accent' : 'text-fg-subtle',
+              f ? 'cursor-pointer text-fg-muted hover:border-accent hover:text-accent' : 'text-fg-muted',
               forced.has(id) && 'border-dashed',
             )}
           >

@@ -122,7 +122,7 @@ export function RunActivityChart({
                   x={xOf(warmupEndMs) + 4}
                   y={PAD.t + 9}
                   textAnchor="start"
-                  className="fill-[var(--color-fg-subtle)] text-[9px]"
+                  className="fill-[var(--color-fg-muted)] text-[9px]"
                 >
                   visible window begins
                 </text>
@@ -135,7 +135,7 @@ export function RunActivityChart({
         {ticks.map((t) => (
           <g key={t}>
             <line x1={PAD.l} x2={W - PAD.r} y1={y(t)} y2={y(t)} stroke="var(--color-border)" strokeWidth={1} />
-            <text x={PAD.l - 7} y={y(t) + 3} textAnchor="end" className="fill-[var(--color-fg-subtle)] text-[9px] tabular-nums">
+            <text x={PAD.l - 7} y={y(t) + 3} textAnchor="end" className="fill-[var(--color-fg-muted)] text-[9px] tabular-nums">
               {tickCount(t)}
             </text>
           </g>
@@ -226,7 +226,7 @@ export function RunActivityChart({
               x={anchor === 'start' ? PAD.l : anchor === 'end' ? W - PAD.r : x}
               y={H - 8}
               textAnchor={anchor}
-              className="fill-[var(--color-fg-subtle)] text-[9px] tabular-nums"
+              className="fill-[var(--color-fg-muted)] text-[9px] tabular-nums"
             >
               {tickTime(t, tStep)}
             </text>
@@ -265,7 +265,7 @@ export function RunActivityChart({
           {tooltipText(hovered, widthMs)}
         </p>
       ) : (
-        <p className="mt-1 font-mono text-mono text-fg-subtle">
+        <p className="mt-1 font-mono text-mono text-fg-muted">
           {fmtNum(flagged.length)} of {fmtNum(bins.length)} buckets contain a flagged verdict
           {dense ? ' (shown as a counted strip below the baseline, not per-bucket marks)' : ''}
           {warmupBins > 0
@@ -295,8 +295,8 @@ export function RunActivityChart({
                   <td className="px-3 py-1 text-right tabular-nums text-fg">{fmtNum(b.events)}</td>
                   <td className="px-3 py-1 text-right tabular-nums text-fg-muted">{fmtNum(b.c401)}</td>
                   <td className="px-3 py-1 text-right tabular-nums text-fg-muted">{fmtNum(b.c403)}</td>
-                  <td className={cn('px-3 py-1 text-right tabular-nums', b.suspicious ? 'text-suspicious' : 'text-fg-subtle')}>{fmtNum(b.suspicious)}</td>
-                  <td className={cn('px-3 py-1 text-right tabular-nums', b.high_risk ? 'text-high-risk' : 'text-fg-subtle')}>{fmtNum(b.high_risk)}</td>
+                  <td className={cn('px-3 py-1 text-right tabular-nums', b.suspicious ? 'text-suspicious' : 'text-fg-muted')}>{fmtNum(b.suspicious)}</td>
+                  <td className={cn('px-3 py-1 text-right tabular-nums', b.high_risk ? 'text-high-risk' : 'text-fg-muted')}>{fmtNum(b.high_risk)}</td>
                 </tr>
               ))}
             </tbody>
