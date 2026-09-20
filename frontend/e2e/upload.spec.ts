@@ -13,7 +13,12 @@ const health = {
 
 test('uploads an access-log file as multipart data and shows its queued import state', async ({ page }) => {
   let uploaded = false
+  const consoleErrors: string[] = []
+  page.on('console', (message) => {
+    if (message.type() === 'error') consoleErrors.push(message.text())
+  })
   await page.route('**/health/ready', (route) => route.fulfill({ json: health }))
+  await page.route('**/api/v1/models', (route) => route.fulfill({ json: [] }))
   await page.route('**/api/v1/runs', (route) => route.fulfill({ json: [] }))
   await page.route('**/api/v1/datasets', async (route) => {
     if (route.request().method() === 'POST') {
@@ -57,4 +62,5 @@ test('uploads an access-log file as multipart data and shows its queued import s
   await page.getByRole('button', { name: 'Upload and import' }).click()
   await expect(page.getByRole('status')).toContainText('Upload queued for import.')
   expect(uploaded).toBe(true)
+  expect(consoleErrors).toEqual([])
 })

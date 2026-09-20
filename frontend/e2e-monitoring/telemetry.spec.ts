@@ -13,11 +13,16 @@ const health = {
 
 test('queues only a synthetic browser Sentry diagnostic', async ({ page }) => {
   const envelopes: string[] = []
+  const consoleErrors: string[] = []
+  page.on('console', (message) => {
+    if (message.type() === 'error') consoleErrors.push(message.text())
+  })
   await page.route('http://127.0.0.1:9999/**', async (route) => {
     envelopes.push(route.request().postData() ?? '')
     await route.fulfill({ status: 200, body: '' })
   })
   await page.route('**/health/ready', (route) => route.fulfill({ json: health }))
+  await page.route('**/api/v1/models', (route) => route.fulfill({ json: [] }))
   await page.route('**/api/v1/runs', (route) => route.fulfill({ json: [] }))
   await page.route('**/api/v1/datasets', (route) => route.fulfill({ json: [] }))
   await page.route('**/api/v1/observability/check', (route) =>
@@ -29,4 +34,5 @@ test('queues only a synthetic browser Sentry diagnostic', async ({ page }) => {
   await expect(page.getByRole('status')).toContainText('queued is not delivery verified')
   await expect.poll(() => envelopes.join('\n')).toContain('logorder.observability_check')
   expect(envelopes.join('\n')).not.toContain('raw_log')
+  expect(consoleErrors).toEqual([])
 })
