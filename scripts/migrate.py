@@ -16,10 +16,16 @@ def main() -> int:
         return 1
     migrate.upgrade(s.database_url)
     print("migrated", migrate.current_and_head(s.database_url))
-    ok, _ = ping(s.test_database_url)
+    # An unset TEST_DATABASE_URL means "no test database here" (the normal case for a deployment). It must not
+    # fall through to the default connection parameters, which would migrate the main database a second time.
+    test_url = s.test_database_url.strip()
+    if not test_url:
+        print("no TEST_DATABASE_URL configured; skipped")
+        return 0
+    ok, _ = ping(test_url)
     if ok:
-        migrate.upgrade(s.test_database_url)
-        print("migrated test db", migrate.current_and_head(s.test_database_url))
+        migrate.upgrade(test_url)
+        print("migrated test db", migrate.current_and_head(test_url))
     return 0
 
 

@@ -16,6 +16,7 @@ Reports: `reports/investigation.md`, `reports/evaluation.md`, `reports/performan
 | Isolation Forest (`ml/artifacts/if_v1_2026-09-19`) | real, trained/calibrated/evaluated causally; active at the 99.9th percentile |
 | TimescaleDB (local Docker, PG 17.11 / TimescaleDB 2.30.1) incl. continuous aggregate | real, benchmarked |
 | Tiger Cloud | **unverified** — no connection string was available; the code uses only standard TimescaleDB features |
+| Railway deployment (`Dockerfile`, `railway*.json`, `docs/DEPLOY.md`) | image + config real, verified end-to-end in containers against the local TimescaleDB; **no cloud project deployed yet** |
 | Slack | **preview mode** (messages rendered + stored, nothing sent). Live adapter + retry semantics unit-tested with stubs; real webhook **unverified** |
 | Sentry Tracing + Logs | wired (spans, structured events, trace context on jobs) and reported as disabled when `SENTRY_DSN` is empty; real project **unverified** |
 | AI review (Anthropic `claude-opus-5` via the official SDK 1.7.0) | adapter + validator + pipeline tested with a scripted provider; **deterministic-only mode** without `LLM_API_KEY`; real calls **unverified** |
@@ -82,6 +83,21 @@ See `.env.example`. Detection thresholds, route categories, partitions and playb
 hashed into every run (`config_hash`). Secrets stay server-side; the UI never receives them. The API binds to
 loopback by default; for a shared deployment set `APP_AUTH_SECRET` (operator bearer token), `INGEST_TOKEN`
 (live source), fixed CORS origins and TLS in front — the API refuses non-loopback binds without them.
+
+## Deployment (Railway)
+
+`docs/DEPLOY.md` is the runbook. One `Dockerfile` builds the UI and the Python services into a single image that
+runs in three roles: `scripts.serve_api` (FastAPI **and** the built console, same-origin), `scripts.serve_worker`
+(detector + side-effect loops), and the existing one-off CLIs. `railway.json` (API) and `railway.worker.json`
+(worker) carry the build, start command and healthcheck; the only external dependency is one TimescaleDB —
+Tiger Cloud, or a `timescale/timescaledb-ha:pg17` service. No Redis or queue broker: the queues are Postgres
+tables with `SKIP LOCKED` leases.
+
+In a container the API binds `0.0.0.0`, so `APP_AUTH_SECRET` and `INGEST_TOKEN` become mandatory; the console
+asks for the operator token in its header and sends it only as an `Authorization` header. Reads stay open, as
+they are locally. The dataset is imported over the network with `scripts.import_dataset`, and `ml/artifacts/` is
+gitignored, so a fresh deploy runs rules-only (`degraded_modes: no_model_artifacts_rules_only`) until a trained
+artifact is force-added to the deploy commit.
 
 ## Live ingestion
 
