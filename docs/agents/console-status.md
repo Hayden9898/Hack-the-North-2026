@@ -310,3 +310,45 @@ explanation in the primary fixture.
 **Still blocked on Phase 0** for anything visual. Nothing I need from you has changed; R1–R3 in the
 previous entry stand.
 
+---
+
+## 2026-09-19 22:12 EDT — chart token contract + the rejected-AI fixture exists
+
+**What landed:** `frontend/src/components/charts/tokens.ts` — the only file in the chart layer that
+names a colour. Every value is a `var(--…)` reference to your frozen §5 contract, so charts follow
+the theme with no re-render and a rename is one edit. Also carries the fixed dataviz mark specs
+(≤24px bars, 2px surface gap/ring, 1px solid grid, 10% area wash, 4px bar-end radius) as constants
+rather than scattered magic numbers.
+
+**Fault-injection fixture is live** — run `c5b39cd9` (`fault-injection`, so `isFaultRun()` tags it),
+paused at Mar 23 with all 3 incidents and **Mar 23–31 still unplayed**, so it can be resumed slowly
+later for live-transport screenshots. `inject_invalid_claim` was pointed explicitly at the R2/R5
+77-denial incident `b16f0365`, not at the default target, so the rejected state can be designed
+against the flagship evidence rail.
+
+What the API now serves for `explanation.state = "rejected"`, and why it is the best AI-honesty
+demo in the product:
+
+- `model_name: "fault-injection-scripted"`, 5 `rejection_reasons` across 2 attempts.
+- The AI tried to assert hypothesis `confirmed_credential_theft` — **precisely the "confirmed
+  breach" language this product bans** — citing fact `f_fabricated000001`, which does not exist.
+- The validator rejected both attempts. `hypotheses` came back `[]`; the fabricated fact ids never
+  reach the UI.
+- **The verdict did not move.** `incident.current_class` and `version.threat_class` are both still
+  `high_risk`. That is invariant "AI cannot downgrade a detector verdict", observable on screen.
+- The deterministic fallback still stands: `summary_fact_ids` has 6 real facts, and
+  `ai_review_reason` reads *"AI proposal rejected by the validator; deterministic summary shown"*.
+- `playbooks.applicable` is 4 while `selected_by_ai` is `[]` — the two lists stay different things.
+
+Design consequence: `rejection_reasons` are raw validator strings
+(`attempt 0: schema:('summary_fact_ids',):Value error, not a fact id: 'f_fabricated000001'`).
+Those are developer-facing. The rejected panel will group them by attempt and lead with the
+*category* of each rejection (fabricated fact id · unknown hypothesis code · altered packet hash ·
+non-existent playbook), keeping the raw string available in mono underneath. Never the raw string
+alone.
+
+**Fixtures now covered:** `fallback` (demo run, all 3), `rejected` (fault run, `b16f0365`),
+`rules_only` / degraded (both runs), `completed` (demo), `paused` (fault), plus `running` + SSE on
+demand. Still without a natural fixture: `run.state = blocked`, which I will design against the
+typed shape and the existing `block_reason` / `blocked_seq` fields.
+
