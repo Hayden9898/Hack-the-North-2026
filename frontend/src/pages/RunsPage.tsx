@@ -1,136 +1,493 @@
-import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { api, describeError, type Dataset, type Model, type Run, type RunCreateBody } from '../api'
-import { fmtBytes, fmtNum, fmtTime, isFaultRun, runStateLabel, shortId, speedLabel } from '../format'
+import { ArrowRight, CircleSlash, Database, FlaskConical, Plus, Upload } from 'lucide-react'
+import { type FormEvent, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { api, describeError, type Dataset, type DatasetDetail, type Model, type Run, type RunCreateBody } from '../api'
+import { fmtBytes, fmtNum, fmtTime, isFaultRun, modelHealthLabel, runStateLabel, shortId, speedLabel } from '../format'
 import { useFetch, useInterval } from '../useFetch'
-import { Empty, ErrorState, Loading, ModelHealthBadge, PhaseBadge, Section, StateBadge, Tag } from '../ui'
+import { cn } from '@/lib/cn'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { ErrorState } from '@/components/ui/error-state'
+import { Skeleton } from '@/components/ui/skeleton'
 
+/**
+ * Run list — the console entry point.
+ *
+ * Answers one question: which run do I open. The create form used to sit beside the list at
+ * equal weight, so the first thing a judge saw was a form; it is now behind a dialog. Dataset
+ * import internals answer a different question ("did ingestion work?") and collapse to a
+ * provenance strip.
+ */
 export function RunsPage() {
   const runs = useFetch<Run[]>(() => api.listRuns(), [])
   const datasets = useFetch<Dataset[]>(() => api.listDatasets(), [])
   const models = useFetch<Model[]>(() => api.listModels(), [])
+  // Imports are asynchronous, so the dataset list and the model registry have to be polled too:
+  // without this a freshly uploaded dataset stays at "importing" and stays out of the run dialog
+  // until the operator reloads the page.
   useInterval(() => {
     void runs.reload()
     void datasets.reload()
     void models.reload()
   }, 5_000)
-  const readyDatasets = (datasets.data ?? []).filter((dataset) => dataset.import_state === 'ready')
-  const hasDatasets = (datasets.data?.length ?? 0) > 0
+
+  const items = runs.data ?? []
+  const [lead, ...rest] = pickLead(items)
 
   return (
-    <div className="stack">
-      <div className="page-head">
-        <h1>Runs</h1>
-        <span className="muted small">
-          Each run is an isolated detection pass over a dataset (historical replay) or a live source. Replays never contaminate each other and never
-          send real notifications unless Slack is explicitly live.
+    <div className="mx-auto w-full max-w-[84rem] space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-title text-fg">Runs</h1>
+          <p className="mt-1.5 max-w-[68ch] text-body text-fg-muted">
+            A run is one isolated detection pass over a dataset. Each replays log lines in causal order and evaluates
+            them under its own cutoff, so runs never contaminate each other.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <UploadDatasetDialog
+            onUploaded={() => {
+              void datasets.reload()
+              void models.reload()
+            }}
+          />
+          <NewRunDialog datasets={datasets.data ?? []} models={models.data ?? []} onCreated={() => void runs.reload()} />
+        </div>
+      </header>
+
+      {runs.loading && !runs.data ? (
+        <div className="space-y-3">
+          <Skeleton className="h-40 w-full rounded-xl" />
+          <Skeleton className="h-20 w-full rounded-lg" />
+        </div>
+      ) : runs.error && !runs.data ? (
+        <ErrorState
+          title={describeError(runs.error).status === 503 ? 'Database unavailable' : 'Could not load runs'}
+          detail={describeError(runs.error).text}
+          onRetry={() => void runs.reload()}
+        />
+      ) : items.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center">
+          <p className="text-body text-fg-muted">No runs yet. Create one to replay the dataset through the detector.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {lead ? <LeadRunCard run={lead} /> : null}
+          {rest.length > 0 ? (
+            <ul className="grid gap-2">
+              {rest.map((r) => (
+                <li key={r.run_id}>
+                  <RunRow run={r} />
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      )}
+
+      <DatasetStrip datasets={datasets.data ?? []} loading={datasets.loading} />
+    </div>
+  )
+}
+
+/**
+ * Most-recently-updated run leads, except that fault-injection runs never do.
+ *
+ * A fault run exists to demonstrate the validator rejecting a bad AI proposal; it is a
+ * diagnostic artifact, and letting it take the lead card just because it was touched last
+ * points a first-time viewer at the wrong run.
+ */
+function pickLead(runs: Run[]): Run[] {
+  return [...runs].sort((a, b) => {
+    const fa = isFaultRun(a.name) ? 1 : 0
+    const fb = isFaultRun(b.name) ? 1 : 0
+    if (fa !== fb) return fa - fb
+    return Date.parse(b.updated_at) - Date.parse(a.updated_at)
+  })
+}
+
+function LeadRunCard({ run }: { run: Run }) {
+  const pct = run.admitted_seq > 0 ? Math.round((run.processed_seq / run.admitted_seq) * 100) : 0
+  return (
+    <article className="rounded-xl border border-border bg-surface px-6 py-5">
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="text-heading normal-case tracking-normal text-fg">{run.name || shortId(run.run_id, 14)}</h2>
+        <StatePill run={run} />
+        <span className="rounded-sm border border-border px-1.5 py-0.5 text-[0.6875rem] text-fg-muted uppercase">
+          {run.mode === 'replay' ? 'historical replay' : 'live'}
+        </span>
+        {isFaultRun(run.name) ? (
+          <span
+            className="inline-flex items-center gap-1 rounded-sm border border-late/50 px-1.5 py-0.5 text-[0.6875rem] font-medium text-late uppercase"
+            title="This run deliberately submits an invalid AI proposal to demonstrate the validator rejecting it. A run configuration, not a threat level."
+          >
+            <FlaskConical className="size-3" aria-hidden />
+            fault injection
+          </span>
+        ) : null}
+        {run.model_health !== 'active' ? (
+          <span className="inline-flex items-center gap-1 rounded-sm border border-pending/45 px-1.5 py-0.5 text-[0.6875rem] font-medium text-pending uppercase">
+            <CircleSlash className="size-3" aria-hidden />
+            {modelHealthLabel(run.model_health)}
+          </span>
+        ) : null}
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+        <div>
+          <p className="flex items-baseline gap-2">
+            <span className="font-sans text-title tabular-nums text-fg">{fmtNum(run.processed_seq)}</span>
+            <span className="text-caption text-fg-muted uppercase">events evaluated</span>
+          </p>
+          <p className="mt-1 font-mono text-mono text-fg-muted">
+            cutoff #{fmtNum(run.processed_seq)} of {fmtNum(run.admitted_seq)} admitted
+            {run.last_processed_time ? ` · through ${fmtTime(run.last_processed_time)}` : ''}
+          </p>
+        </div>
+        <Button asChild>
+          <Link to={`/app/runs/${encodeURIComponent(run.run_id)}`}>
+            Open console <ArrowRight />
+          </Link>
+        </Button>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <div
+          className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-raised"
+          role="progressbar"
+          aria-valuenow={pct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Events evaluated as a share of events admitted"
+        >
+          <div
+            className={cn('h-full rounded-full', run.state === 'running' || run.state === 'warming' ? 'bg-accent' : 'bg-fg-subtle')}
+            style={{ width: `${Math.min(100, pct)}%` }}
+          />
+        </div>
+        {/* A full bar does not mean finished -- a paused run can be caught up on its backlog
+            and still have most of the dataset ahead of it. Say which. */}
+        <span className="min-w-0 font-mono text-mono break-words text-fg-muted sm:shrink-0 sm:whitespace-nowrap">
+          {run.state === 'completed' ? 'all admitted events evaluated' : `${runStateLabel(run.state)} · caught up to ${fmtNum(run.admitted_seq)} admitted`}
+        </span>
+      </div>
+    </article>
+  )
+}
+
+function RunRow({ run }: { run: Run }) {
+  return (
+    <Link
+      to={`/app/runs/${encodeURIComponent(run.run_id)}`}
+      className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border border-border bg-surface px-4 py-3 hover:border-border-strong hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+    >
+      <span className="text-body text-fg">{run.name || shortId(run.run_id, 14)}</span>
+      <StatePill run={run} />
+      {isFaultRun(run.name) ? (
+        <span className="inline-flex items-center gap-1 rounded-sm border border-late/50 px-1.5 py-0.5 text-[0.6875rem] font-medium text-late uppercase">
+          <FlaskConical className="size-3" aria-hidden />
+          fault injection
+        </span>
+      ) : null}
+      <span className="font-mono text-mono text-fg-muted">
+        {fmtNum(run.processed_seq)} / {fmtNum(run.admitted_seq)}
+      </span>
+      <span className="font-mono text-mono text-fg-muted">{speedLabel(run.speed)}</span>
+      {run.model_health !== 'active' ? (
+        <span className="inline-flex items-center gap-1 rounded-sm border border-pending/45 px-1.5 py-0.5 text-[0.6875rem] font-medium text-pending uppercase">
+          <CircleSlash className="size-3" aria-hidden />
+          {modelHealthLabel(run.model_health)}
+        </span>
+      ) : null}
+      <span className="ms-auto flex items-center gap-1.5 text-caption text-fg-muted normal-case tracking-normal">
+        open <ArrowRight className="size-3.5" aria-hidden />
+      </span>
+    </Link>
+  )
+}
+
+function StatePill({ run }: { run: Run }) {
+  const live = run.state === 'running' || run.state === 'warming'
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-sm border px-1.5 py-0.5 text-[0.6875rem] font-medium uppercase',
+        run.state === 'blocked' && 'state-hatch border-blocked/50 text-blocked',
+        // warming/paused are transient: not finished, and not to be read as finished.
+        (run.state === 'warming' || run.state === 'paused') && 'state-hatch border-pending/50 text-pending',
+        run.state === 'completed' && 'border-border text-fg-muted',
+        run.state === 'running' && 'border-accent/45 text-accent',
+        run.state === 'created' && 'border-border text-fg-muted',
+      )}
+    >
+      {live ? <span aria-hidden className="inline-block size-1.5 animate-pulse rounded-full bg-accent motion-reduce:animate-none" /> : null}
+      {runStateLabel(run.state)}
+    </span>
+  )
+}
+
+/**
+ * Dataset provenance, compressed to one line per dataset.
+ *
+ * These numbers are the product's claim to have read real data, so they stay visible — but
+ * they answer "did ingestion work?", not "which run do I open", so they sit at the bottom.
+ */
+function DatasetStrip({ datasets, loading }: { datasets: Dataset[]; loading: boolean }) {
+  if (loading) return <Skeleton className="h-12 w-full rounded-lg" />
+  if (datasets.length === 0) {
+    return (
+      <section aria-labelledby="datasets" className="border-t border-border pt-5">
+        <h2 id="datasets" className="mb-3 text-caption text-fg-muted uppercase">
+          Source data
+        </h2>
+        <p className="text-body text-fg-muted">
+          No datasets yet. Import an Apache access-log file above; imports run asynchronously and become selectable
+          once validation completes.
+        </p>
+      </section>
+    )
+  }
+  return (
+    <section aria-labelledby="datasets" className="border-t border-border pt-5">
+      <h2 id="datasets" className="mb-3 text-caption text-fg-muted uppercase">
+        Source data
+      </h2>
+      <ul className="grid gap-2">
+        {datasets.map((d) => (
+          <DatasetRow key={d.dataset_id} d={d} />
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+/**
+ * One dataset.
+ *
+ * Compressed to a line, but not to the point of lying: an import that is still running and an
+ * import that FAILED both report zero valid and zero rejected, so a strip that shows only the
+ * counts renders a broken import identically to a healthy empty one. State, progress and the
+ * error come first; the rejected lines stay one click away, because the upload dialog promises
+ * they appear here.
+ */
+function DatasetRow({ d }: { d: Dataset }) {
+  const [showRejects, setShowRejects] = useState(false)
+  const detail = useFetch<DatasetDetail>(() => api.getDataset(d.dataset_id), [d.dataset_id, showRejects], showRejects)
+
+  const ready = d.import_state === 'ready'
+  const failed = d.import_state === 'failed' || !!d.error
+  const pct =
+    d.total_lines && d.progress_line !== null ? Math.min(100, Math.round((d.progress_line / d.total_lines) * 100)) : null
+
+  return (
+    <li className="rounded-lg border border-border bg-surface px-4 py-2.5">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+        <Database className="size-3.5 shrink-0 text-fg-muted" aria-hidden />
+        <span className="font-mono text-mono text-fg">{d.original_name}</span>
+
+        {ready ? null : (
+          <span
+            className={cn(
+              'rounded-sm border px-1.5 py-0.5 font-mono text-[0.6875rem] uppercase',
+              failed ? 'border-high-risk/35 bg-high-risk-wash text-high-risk' : 'border-pending/35 text-pending',
+            )}
+          >
+            {d.import_state}
+            {!failed && pct !== null ? ` ${pct}%` : ''}
+          </span>
+        )}
+
+        <span className="font-mono text-mono text-fg-muted">
+          {fmtNum(d.valid_count)} valid
+          <span className={d.rejected_count ? 'text-late' : 'text-fg-muted'}> · {fmtNum(d.rejected_count)} rejected</span>
+        </span>
+        <span className="font-mono text-mono text-fg-muted">{fmtBytes(d.bytes)}</span>
+        {d.first_event_time ? (
+          <span className="font-mono text-mono text-fg-muted">
+            {fmtTime(d.first_event_time)} → {fmtTime(d.last_event_time)}
+          </span>
+        ) : null}
+        <span className="ms-auto font-mono text-mono text-fg-muted" title={d.content_sha256}>
+          sha256 {shortId(d.content_sha256, 12)}
         </span>
       </div>
 
-      <div className="grid-2">
-        <Section title="Runs" aside={runs.refreshing ? <span className="muted">refreshing…</span> : <span className="muted">auto-refresh 5 s</span>}>
-          {runs.loading ? (
-            <Loading what="runs" />
-          ) : runs.error ? (
-            <ErrorState error={runs.error} onRetry={() => void runs.reload()} what="runs" />
-          ) : !runs.data || runs.data.length === 0 ? (
-            <Empty>No runs yet. Create one from a ready dataset.</Empty>
-          ) : (
-            <div className="table-wrap">
-              <table className="tbl">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Mode</th>
-                    <th>Phase</th>
-                    <th>State</th>
-                    <th>Model</th>
-                    <th className="right">Cursor</th>
-                    <th>Speed</th>
-                    <th>Dataset</th>
-                    <th>Created</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {runs.data.map((r) => (
-                    <tr key={r.run_id}>
-                      <td>
-                        <Link className="link" to={`/app/runs/${encodeURIComponent(r.run_id)}`}>
-                          {r.name || shortId(r.run_id, 12)}
-                        </Link>
-                        {isFaultRun(r.name) ? (
-                          <>
-                            {' '}
-                            <Tag tone="danger">fault injection</Tag>
-                          </>
-                        ) : null}
-                        <div className="muted small mono">{shortId(r.run_id, 18)}</div>
-                      </td>
-                      <td>
-                        <Tag tone={r.mode === 'replay' ? 'muted' : 'info'}>{r.mode === 'replay' ? 'historical replay' : 'live'}</Tag>
-                      </td>
-                      <td>
-                        <PhaseBadge phase={r.phase} />
-                      </td>
-                      <td>
-                        <StateBadge state={r.state} label={runStateLabel(r.state)} />
-                        {r.block_reason ? <div className="small muted">{r.block_reason}</div> : null}
-                      </td>
-                      <td>
-                        <ModelHealthBadge health={r.model_health} />
-                      </td>
-                      <td className="right mono nowrap">
-                        {fmtNum(r.processed_seq)} / {fmtNum(r.admitted_seq)}
-                        {r.backlog > 0 ? <div className="small muted">backlog {fmtNum(r.backlog)}</div> : null}
-                      </td>
-                      <td className="nowrap">{speedLabel(r.speed)}</td>
-                      <td className="mono small">{shortId(r.dataset_id ?? r.source_id, 16)}</td>
-                      <td className="nowrap small">{fmtTime(r.created_at)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Section>
+      {!ready && !failed && pct !== null ? (
+        <p className="mt-1.5 font-mono text-mono text-fg-muted">
+          validated {fmtNum(d.progress_line)} of {fmtNum(d.total_lines)} lines
+        </p>
+      ) : null}
 
-        <div className="stack">
-          <DatasetUploadForm onUploaded={() => void datasets.reload()} />
-          {datasets.loading ? <Loading what="datasets" /> : null}
-          {datasets.error ? <ErrorState error={datasets.error} onRetry={() => void datasets.reload()} what="datasets" /> : null}
-          {!datasets.loading && !datasets.error && !hasDatasets ? <ReplaySetupHint /> : null}
-          {hasDatasets ? (
-            <>
-              <NewRunForm datasets={datasets.data ?? []} models={models.data ?? []} onCreated={() => void runs.reload()} />
-              <Section title="Datasets" aside={<span className="muted">{readyDatasets.length} ready</span>}>
-                <ul className="plain stack">
-                  {datasets.data?.map((d) => (
-                    <DatasetCard key={d.dataset_id} d={d} />
-                  ))}
-                </ul>
-              </Section>
-            </>
+      {d.error ? <p className="mt-1.5 max-w-[80ch] text-body text-high-risk">{d.error}</p> : null}
+
+      {d.rejected_count ? (
+        <>
+          <button
+            type="button"
+            className="mt-1.5 font-mono text-mono text-fg-muted underline underline-offset-2 hover:text-fg"
+            aria-expanded={showRejects}
+            onClick={() => setShowRejects((v) => !v)}
+          >
+            {showRejects ? 'Hide' : 'Show'} rejected lines
+          </button>
+          {showRejects ? (
+            detail.loading && !detail.data ? (
+              <Skeleton className="mt-2 h-16 w-full rounded-md" />
+            ) : detail.error ? (
+              <p className="mt-2 font-mono text-mono text-late">
+                Could not load rejected lines: {describeError(detail.error).text}
+              </p>
+            ) : (
+              <ul className="mt-2 grid gap-1.5">
+                {(detail.data?.rejects_sample ?? []).map((r) => (
+                  <li key={r.line_number} className="rounded-md border border-border bg-surface-raised px-3 py-1.5">
+                    <p className="font-mono text-mono text-fg-muted">
+                      line {fmtNum(r.line_number)} · {r.reason}
+                    </p>
+                    <p className="mt-0.5 font-mono text-mono break-all text-fg">{r.raw_input}</p>
+                  </li>
+                ))}
+                {(detail.data?.rejects_sample ?? []).length === 0 ? (
+                  <li className="font-mono text-mono text-fg-muted">
+                    The API kept no sample of the rejected lines for this dataset.
+                  </li>
+                ) : null}
+              </ul>
+            )
           ) : null}
-        </div>
-      </div>
-    </div>
+        </>
+      ) : null}
+    </li>
   )
 }
 
-function ReplaySetupHint() {
+function NewRunDialog({ datasets, models, onCreated }: { datasets: Dataset[]; models: Model[]; onCreated: () => void }) {
+  const [open, setOpen] = useState(false)
+  const ready = datasets.filter((d) => d.import_state === 'ready')
+  const defaultModel = models.find((m) => m.is_default) ?? null
+  const [form, setForm] = useState({ dataset_id: '', name: '', visible_start: '', speed: '', pause: true })
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<unknown>(null)
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    setBusy(true)
+    setErr(null)
+    try {
+      const body: RunCreateBody = {
+        dataset_id: form.dataset_id || ready[0]?.dataset_id || '',
+        mode: 'replay',
+        name: form.name.trim() || 'replay',
+        pause_at_visible_start: form.pause,
+        ...(form.visible_start ? { visible_start: form.visible_start } : {}),
+        ...(form.speed ? { speed: Number(form.speed) } : {}),
+      }
+      await api.createRun(body)
+      setOpen(false)
+      onCreated()
+    } catch (e2) {
+      setErr(e2)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const field =
+    'w-full rounded-md border border-border-strong bg-surface-raised px-2.5 py-1.5 text-body text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none'
+
   return (
-    <div className="setup-hint">
-      <strong>Start here</strong>
-      <span>Upload an access-log file. Once validation finishes, replay controls and dataset details appear here automatically.</span>
-    </div>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline">
+          <Plus /> New replay run
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>New replay run</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={submit} className="grid gap-3">
+          <label className="grid gap-1 text-caption text-fg-muted uppercase">
+            dataset
+            <select className={field} value={form.dataset_id} onChange={(e) => setForm((f) => ({ ...f, dataset_id: e.target.value }))}>
+              {ready.map((d) => (
+                <option key={d.dataset_id} value={d.dataset_id}>
+                  {d.original_name} ({fmtNum(d.valid_count)} lines)
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1 text-caption text-fg-muted uppercase">
+            name
+            <input className={field} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="march-sequence" />
+          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="grid gap-1 text-caption text-fg-muted uppercase">
+              visible start (ISO 8601)
+              <input
+                className={cn(field, 'font-mono text-mono')}
+                value={form.visible_start}
+                onChange={(e) => setForm((f) => ({ ...f, visible_start: e.target.value }))}
+                placeholder="2026-03-01T04:00:00Z"
+              />
+            </label>
+            <label className="grid gap-1 text-caption text-fg-muted uppercase">
+              speed (0 = fast-forward)
+              <input
+                className={cn(field, 'font-mono text-mono')}
+                value={form.speed}
+                onChange={(e) => setForm((f) => ({ ...f, speed: e.target.value }))}
+                placeholder="config default"
+              />
+            </label>
+          </div>
+          <div className="grid gap-1 text-caption text-fg-muted uppercase">
+            model (rules + ML on every run)
+            {defaultModel ? (
+              <span className="font-mono text-mono text-fg normal-case tracking-normal">{defaultModel.model_id}</span>
+            ) : (
+              <span className="text-body text-fg-muted normal-case tracking-normal">
+                No active model registered — this run scores rules-only until one is calibrated with{' '}
+                <code className="font-mono text-mono">--activate</code>.
+              </span>
+            )}
+          </div>
+          <label className="flex items-center gap-2 text-body text-fg-muted">
+            <input
+              type="checkbox"
+              checked={form.pause}
+              onChange={(e) => setForm((f) => ({ ...f, pause: e.target.checked }))}
+              className="accent-[var(--color-accent)]"
+            />
+            pause when the visible window begins
+          </label>
+          {err ? <p className="text-caption text-high-risk normal-case tracking-normal">{describeError(err).text}</p> : null}
+          <div className="flex justify-end gap-2 pt-1">
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={busy || ready.length === 0}>
+              {busy ? 'Creating…' : 'Create run'}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
 
-function DatasetUploadForm({ onUploaded }: { onUploaded: () => void }) {
+/**
+ * Dataset import, from main's console-upload work.
+ *
+ * Kept behind a dialog for the same reason the create form is: "import a file" is an
+ * occasional operator action, not the question this page answers.
+ */
+function UploadDatasetDialog({ onUploaded }: { onUploaded: () => void }) {
+  const [open, setOpen] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
-  const [result, setResult] = useState<Dataset & { job: 'queued' | 'existing' }>()
-  const [err, setErr] = useState<unknown | null>(null)
+  const [result, setResult] = useState<(Dataset & { job: 'queued' | 'existing' }) | null>(null)
+  const [err, setErr] = useState<unknown>(null)
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -138,8 +495,7 @@ function DatasetUploadForm({ onUploaded }: { onUploaded: () => void }) {
     setBusy(true)
     setErr(null)
     try {
-      const uploaded = await api.uploadDataset(file)
-      setResult(uploaded)
+      setResult(await api.uploadDataset(file))
       onUploaded()
     } catch (ex) {
       setErr(ex)
@@ -149,226 +505,64 @@ function DatasetUploadForm({ onUploaded }: { onUploaded: () => void }) {
   }
 
   return (
-    <Section title="Import access logs">
-      <form onSubmit={(e) => void submit(e)} className="stack">
-        <label className="field">
-          Apache access-log file
-          <input
-            type="file"
-            accept=".log,.txt,text/plain"
-            onChange={(e) => {
-              setFile(e.target.files?.[0] ?? null)
-              setResult(undefined)
-              setErr(null)
-            }}
-          />
-        </label>
-        {file ? (
-          <div className="notice">
-            <strong>{file.name}</strong> <span className="muted">· {fmtBytes(file.size)}</span>
-          </div>
-        ) : null}
-        <div className="row">
-          <button type="submit" className="btn btn-primary" disabled={!file || busy}>
-            {busy ? 'Uploading…' : 'Upload and import'}
-          </button>
-          <span className="muted small">Streams to the server; the configured limit is 200 MiB. Raw evidence is never sent to an AI provider.</span>
-        </div>
-        {result ? (
-          <div className="notice notice-info" role="status">
-            {result.job === 'existing' ? 'This exact file was already imported.' : 'Upload queued for import.'} Dataset{' '}
-            <span className="mono">{shortId(result.dataset_id, 18)}</span>; its validation progress and rejected-line samples appear below.
-          </div>
-        ) : null}
-        {err ? (
-          <div className="notice notice-danger" role="alert">
-            {(() => {
-              const d = describeError(err)
-              return `Upload failed (HTTP ${d.status ?? '—'}): ${d.text}`
-            })()}
-          </div>
-        ) : null}
-      </form>
-    </Section>
-  )
-}
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost">
+          <Upload /> Import logs
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Import access logs</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={(e) => void submit(e)} className="grid gap-3">
+          <label className="grid gap-1 text-caption text-fg-muted uppercase">
+            Apache access-log file
+            <input
+              type="file"
+              accept=".log,.txt,text/plain"
+              onChange={(e) => {
+                setFile(e.target.files?.[0] ?? null)
+                setResult(null)
+                setErr(null)
+              }}
+              className="w-full rounded-md border border-border-strong bg-surface-raised px-2.5 py-1.5 text-body text-fg normal-case tracking-normal file:mr-3 file:rounded file:border-0 file:bg-chip file:px-2 file:py-1 file:font-mono file:text-caption file:text-fg file:uppercase focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+            />
+          </label>
 
-function DatasetCard({ d }: { d: Dataset }) {
-  const [showRejects, setShowRejects] = useState(false)
-  const detail = useFetch(() => api.getDataset(d.dataset_id), [d.dataset_id, showRejects], showRejects)
-  const pct = d.total_lines && d.progress_line ? Math.min(100, Math.round((d.progress_line / d.total_lines) * 100)) : null
-  const stats = d.stats as { users?: number; status_counts?: Record<string, number> }
-  return (
-    <li className="notice" style={{ padding: 10 }}>
-      <div className="row row-between">
-        <strong>{d.original_name}</strong>
-        <StateBadge state={d.import_state} />
-      </div>
-      <div className="mono small muted">{d.dataset_id}</div>
-      <dl className="kvs" style={{ marginTop: 6 }}>
-        <div className="kv">
-          <dt>size</dt>
-          <dd>{fmtBytes(d.bytes)}</dd>
-        </div>
-        <div className="kv">
-          <dt>lines</dt>
-          <dd>
-            {fmtNum(d.progress_line)} / {fmtNum(d.total_lines)}
-            {pct !== null && d.import_state !== 'ready' ? ` (${pct}%)` : ''}
-          </dd>
-        </div>
-        <div className="kv">
-          <dt>valid / rejected</dt>
-          <dd>
-            {fmtNum(d.valid_count)} / <span className={d.rejected_count ? 'check-bad' : ''}>{fmtNum(d.rejected_count)}</span>
-          </dd>
-        </div>
-        <div className="kv">
-          <dt>range</dt>
-          <dd className="small">
-            {fmtTime(d.first_event_time)} → {fmtTime(d.last_event_time)}
-          </dd>
-        </div>
-        <div className="kv">
-          <dt>sha256</dt>
-          <dd className="mono small">{shortId(d.content_sha256, 20)}</dd>
-        </div>
-        {stats.users !== undefined ? (
-          <div className="kv">
-            <dt>accounts</dt>
-            <dd>{stats.users}</dd>
-          </div>
-        ) : null}
-      </dl>
-      {stats.status_counts ? (
-        <div className="small muted" style={{ marginTop: 4 }}>
-          status counts:{' '}
-          {Object.entries(stats.status_counts)
-            .map(([k, v]) => `${k}=${fmtNum(v)}`)
-            .join(' ')}
-        </div>
-      ) : null}
-      {d.error ? <div className="notice notice-danger" style={{ marginTop: 6 }}>import error: {d.error}</div> : null}
-      {d.rejected_count ? (
-        <div style={{ marginTop: 6 }}>
-          <button type="button" className="btn btn-sm" onClick={() => setShowRejects((s) => !s)}>
-            {showRejects ? 'Hide' : 'Show'} rejected lines
-          </button>
-          {showRejects ? (
-            detail.loading ? (
-              <Loading what="rejects" />
-            ) : detail.error ? (
-              <ErrorState error={detail.error} onRetry={() => void detail.reload()} what="rejects" />
-            ) : detail.data && detail.data.rejects_sample.length > 0 ? (
-              <ul className="plain" style={{ marginTop: 6 }}>
-                {detail.data.rejects_sample.map((r) => (
-                  <li key={r.line_number} className="evidence-line">
-                    <div className="meta">
-                      line {r.line_number} · {r.reason}
-                    </div>
-                    <pre className="code-block">
-                      <code>{r.raw_input}</code>
-                    </pre>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <Empty>No reject samples returned.</Empty>
-            )
+          {file ? (
+            <p className="font-mono text-mono text-fg-muted">
+              <span className="text-fg">{file.name}</span> · {fmtBytes(file.size)}
+            </p>
           ) : null}
-        </div>
-      ) : null}
-    </li>
-  )
-}
 
-function NewRunForm({ datasets, models, onCreated }: { datasets: Dataset[]; models: Model[]; onCreated: () => void }) {
-  const nav = useNavigate()
-  const ready = datasets.filter((d) => d.import_state === 'ready')
-  const defaultModel = models.find((m) => m.is_default) ?? null
-  const [datasetId, setDatasetId] = useState('')
-  const [name, setName] = useState('')
-  const [visibleStart, setVisibleStart] = useState('')
-  const [speed, setSpeed] = useState('')
-  const [pauseAtVisible, setPauseAtVisible] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState<unknown | null>(null)
+          <p className="text-caption text-fg-subtle normal-case tracking-normal">
+            Streams to the server; the configured limit is 200 MiB. Raw evidence is never sent to an AI provider.
+          </p>
 
-  const chosen = datasetId || ready[0]?.dataset_id || ''
+          {result ? (
+            <p className="rounded-md border border-border bg-chip px-3 py-2 text-body text-fg-muted" role="status">
+              {result.job === 'existing' ? 'This exact file was already imported.' : 'Upload queued for import.'} Dataset{' '}
+              <span className="font-mono text-mono text-fg">{shortId(result.dataset_id, 18)}</span>. Validation progress and
+              rejected-line samples appear in the source-data strip.
+            </p>
+          ) : null}
+          {err ? (
+            <p className="text-caption text-high-risk normal-case tracking-normal" role="alert">
+              Upload failed (HTTP {describeError(err).status ?? '—'}): {describeError(err).text}
+            </p>
+          ) : null}
 
-  async function submit(e: FormEvent) {
-    e.preventDefault()
-    if (!chosen) return
-    setBusy(true)
-    setErr(null)
-    const body: RunCreateBody = { dataset_id: chosen, mode: 'replay', name: name.trim(), pause_at_visible_start: pauseAtVisible }
-    if (visibleStart.trim()) body.visible_start = visibleStart.trim()
-    if (speed.trim() !== '') body.speed = Number(speed)
-    try {
-      const run = await api.createRun(body)
-      onCreated()
-      nav(`/app/runs/${encodeURIComponent(run.run_id)}`)
-    } catch (ex) {
-      setErr(ex)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <Section title="New replay run">
-      <form onSubmit={(e) => void submit(e)} className="stack">
-        <div className="form-grid">
-          <label className="field">
-            dataset (ready only)
-            <select value={chosen} onChange={(e) => setDatasetId(e.target.value)} required>
-              {ready.length === 0 ? <option value="">no ready dataset</option> : null}
-              {ready.map((d) => (
-                <option key={d.dataset_id} value={d.dataset_id}>
-                  {d.original_name} ({fmtNum(d.valid_count)} lines)
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            name
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. march-sequence (use 'fault' for fault injection)" />
-          </label>
-          <label className="field">
-            visible start (ISO 8601, optional)
-            <input value={visibleStart} onChange={(e) => setVisibleStart(e.target.value)} placeholder="2026-03-01T04:00:00Z" />
-          </label>
-          <label className="field">
-            speed (0 = fast-forward, unbounded)
-            <input value={speed} onChange={(e) => setSpeed(e.target.value)} type="number" min={0} step="any" placeholder="config default" />
-          </label>
-          <div className="field">
-            model (rules + ML on every run)
-            {defaultModel ? (
-              <span className="mono small">{defaultModel.model_id}</span>
-            ) : (
-              <span className="small">no active model registered yet: rules-only until one is calibrated with --activate</span>
-            )}
+          <div className="flex justify-end gap-2 pt-1">
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+              Close
+            </Button>
+            <Button type="submit" disabled={!file || busy}>
+              {busy ? 'Uploading…' : 'Upload and import'}
+            </Button>
           </div>
-          <label className="check">
-            <input type="checkbox" checked={pauseAtVisible} onChange={(e) => setPauseAtVisible(e.target.checked)} /> pause at visible start
-          </label>
-        </div>
-        <div className="row">
-          <button type="submit" className="btn btn-primary" disabled={busy || !chosen}>
-            {busy ? 'Creating…' : 'Create run'}
-          </button>
-          <span className="muted small">Mode: historical replay. Start it from the run console.</span>
-        </div>
-        {err ? (
-          <div className="notice notice-danger">
-            {(() => {
-              const d = describeError(err)
-              return `Create failed (HTTP ${d.status ?? '—'}): ${d.text}`
-            })()}
-          </div>
-        ) : null}
-      </form>
-    </Section>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }

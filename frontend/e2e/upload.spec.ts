@@ -52,9 +52,13 @@ test('uploads an access-log file as multipart data and shows its queued import s
     await route.fulfill({ json: uploaded ? [] : [] })
   })
 
+  // The console moved to /app when the landing page took over `/`.
   await page.goto('/app')
-  await expect(page.getByText('Start here')).toBeVisible()
+  // Empty state first: no datasets means guidance, and no create-run form opened behind it.
+  await expect(page.getByText('No datasets yet. Import an Apache access-log file')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'New replay run' })).not.toBeVisible()
+  await page.getByRole('button', { name: 'Import logs' }).click()
+  await expect(page.getByRole('heading', { name: 'Import access logs' })).toBeVisible()
   await page.getByLabel('Apache access-log file').setInputFiles({
     name: 'candidate.log',
     mimeType: 'text/plain',

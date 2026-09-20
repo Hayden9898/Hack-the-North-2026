@@ -35,10 +35,7 @@ export default function App() {
 
   const healthErr = health.error ? describeError(health.error) : null
   const notReady = !!health.data && health.data.status !== 'ready'
-  // /health/ready answers 503 for every not-ready reason; api.health() still returns the health object for those, so
-  // the database banner is driven by the database field itself. A 503 without a health body (proxy, crashed API) or a
-  // 503 from any other endpoint still counts as the database being unavailable.
-  const showDbBanner = health.data ? health.data.database.ok === false : dbDown || healthErr?.status === 503
+  const showDbBanner = dbDown || healthErr?.status === 503 || (health.data ? !health.data.database.ok : false)
 
   return (
     <div className="app min-h-dvh bg-bg">

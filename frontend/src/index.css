@@ -315,6 +315,11 @@ button.link {
   border-bottom: 1px solid var(--line);
   font-size: 13px;
 }
+/*
+ * Banner text and borders were hardcoded light creams/pinks that only read on a dark fill.
+ * Once the backgrounds started following the theme, the degraded banner measured 1.23:1 on a
+ * light page. Themed tokens on both sides instead.
+ */
 .banner-danger {
   background: var(--danger-bg);
   color: var(--danger);

@@ -1,6 +1,6 @@
 {
-  "model_id": "if_v1_2026-09-19",
-  "source_run_id": "0ca0d531-714e-433a-aab0-17e89b561662",
+  "model_id": "if_v2_twochannel",
+  "source_run_id": "5ffdaacd-f111-49a7-807d-149ae5b63441",
   "partition": {
     "name": "evaluation",
     "start": "2026-03-01T04:00:00+00:00",
@@ -16,7 +16,7 @@
     "incident_versions": 8,
     "incidents": [
       {
-        "incident_id": "d24e1056-2162-42e2-b765-85aa1d0568ba",
+        "incident_id": "5f675ad1-d09e-42f9-b17f-686e914a05b4",
         "primary_rule_id": "R1",
         "current_class": "high_risk",
         "key_value": "sarah_j|10.0.8.45",
@@ -25,7 +25,7 @@
         "current_version": 5
       },
       {
-        "incident_id": "2dae978e-39bd-4c11-a912-009d7f9694d7",
+        "incident_id": "ad074f1e-b6ee-4a59-af4b-077406f8e641",
         "primary_rule_id": "R3",
         "current_class": "suspicious",
         "key_value": "sarah_j|/api/admin/role_update",
@@ -34,7 +34,7 @@
         "current_version": 1
       },
       {
-        "incident_id": "76b0461b-db88-408a-8152-6cd0f6054c70",
+        "incident_id": "09c1b229-04dc-46da-bd5b-39514a05db62",
         "primary_rule_id": "R2",
         "current_class": "high_risk",
         "key_value": "david_m|/finance/reports/q1_draft_CONFIDENTIAL.zip",
@@ -51,66 +51,310 @@
   },
   "model_only": {
     "99.0": {
-      "threshold": 0.5936609246318867,
-      "event_alerts": 310,
-      "alerts_per_day": 10.0,
-      "grouped_account_day": 160,
+      "threshold": 0.5806032358461111,
+      "event_alerts": 297,
+      "alerts_per_day": 9.58,
+      "grouped_account_day": 164,
       "overlap_with_rule_events": 6,
       "rule_events_missed_by_model": 1,
       "high_risk_events_flagged_by_model": 2
     },
     "99.5": {
-      "threshold": 0.6062249332086029,
-      "event_alerts": 140,
-      "alerts_per_day": 4.52,
-      "grouped_account_day": 99,
+      "threshold": 0.6021265019559103,
+      "event_alerts": 159,
+      "alerts_per_day": 5.13,
+      "grouped_account_day": 107,
       "overlap_with_rule_events": 6,
       "rule_events_missed_by_model": 1,
       "high_risk_events_flagged_by_model": 2
     },
     "99.9": {
-      "threshold": 0.6338351659503074,
-      "event_alerts": 36,
-      "alerts_per_day": 1.16,
-      "grouped_account_day": 25,
-      "overlap_with_rule_events": 5,
-      "rule_events_missed_by_model": 2,
-      "high_risk_events_flagged_by_model": 1
+      "threshold": 0.6484804135449718,
+      "event_alerts": 40,
+      "alerts_per_day": 1.29,
+      "grouped_account_day": 26,
+      "overlap_with_rule_events": 6,
+      "rule_events_missed_by_model": 1,
+      "high_risk_events_flagged_by_model": 2
     }
   },
   "hybrid": {
     "99.0": {
-      "event_alerts": 311,
-      "alerts_per_day": 10.03,
-      "added_by_model": 304
+      "event_alerts": 298,
+      "alerts_per_day": 9.61,
+      "added_by_model": 291
     },
     "99.5": {
-      "event_alerts": 141,
-      "alerts_per_day": 4.55,
-      "added_by_model": 134
+      "event_alerts": 160,
+      "alerts_per_day": 5.16,
+      "added_by_model": 153
     },
     "99.9": {
-      "event_alerts": 38,
-      "alerts_per_day": 1.23,
-      "added_by_model": 31
+      "event_alerts": 41,
+      "alerts_per_day": 1.32,
+      "added_by_model": 34
     }
   },
   "baseline_rarity": {
     "99.0": {
       "event_alerts": 230,
       "overlap_with_rule_events": 6,
-      "overlap_with_model": 52
+      "overlap_with_model": 77
     },
     "99.5": {
       "event_alerts": 115,
       "overlap_with_rule_events": 6,
-      "overlap_with_model": 42
+      "overlap_with_model": 62
     },
     "99.9": {
       "event_alerts": 23,
       "overlap_with_rule_events": 6,
-      "overlap_with_model": 15
+      "overlap_with_model": 18
     }
+  },
+  "ground_truth": {
+    "source": "tests/fixtures/known_sequence.json",
+    "positives_defined": 20,
+    "positives_matched_in_partition": 20,
+    "negatives": 22962,
+    "derived_by": "the implementing team, by forensic reading of the March sequence, before the rules were written",
+    "organizer_labels_exist": false,
+    "negatives_are": "presumed benign, not independently verified",
+    "blind_holdout": false,
+    "why_not_blind": "The evaluation partition informed rule design; results are chronological, not a blind holdout. No organizer labels exist.",
+    "warning": "The same team authored these labels and the detector. Treat every figure below as a self-graded exam and read the paired comparisons, not the marginal values."
+  },
+  "detection_quality": {
+    "density_isolation_forest": {
+      "rank_auc": {
+        "point": 0.9974,
+        "ci_lo": 0.9945,
+        "ci_hi": 0.9993,
+        "resamples": 2000
+      },
+      "average_precision": {
+        "point": 0.671,
+        "ci_lo": 0.4546,
+        "ci_hi": 0.8451,
+        "resamples": 2000
+      },
+      "precision_at_k": {
+        "10": 1.0,
+        "20": 0.6,
+        "50": 0.28,
+        "100": 0.16
+      },
+      "recall_at_k": {
+        "10": 0.5,
+        "20": 0.6,
+        "50": 0.7,
+        "100": 0.8
+      }
+    },
+    "support_novelty": {
+      "rank_auc": {
+        "point": 0.925,
+        "ci_lo": 0.8333,
+        "ci_hi": 1.0,
+        "resamples": 2000
+      },
+      "average_precision": {
+        "point": 0.808,
+        "ci_lo": 0.6165,
+        "ci_hi": 0.9566,
+        "resamples": 2000
+      },
+      "precision_at_k": {
+        "10": 0.9,
+        "20": 0.85,
+        "50": 0.34,
+        "100": 0.17
+      },
+      "recall_at_k": {
+        "10": 0.45,
+        "20": 0.85,
+        "50": 0.85,
+        "100": 0.85
+      }
+    },
+    "two_channel_sum": {
+      "rank_auc": {
+        "point": 0.9985,
+        "ci_lo": 0.9959,
+        "ci_hi": 1.0,
+        "resamples": 2000
+      },
+      "average_precision": {
+        "point": 0.8561,
+        "ci_lo": 0.6878,
+        "ci_hi": 0.9853,
+        "resamples": 2000
+      },
+      "precision_at_k": {
+        "10": 1.0,
+        "20": 0.85,
+        "50": 0.34,
+        "100": 0.18
+      },
+      "recall_at_k": {
+        "10": 0.5,
+        "20": 0.85,
+        "50": 0.85,
+        "100": 0.9
+      }
+    },
+    "naive_rarity_baseline": {
+      "rank_auc": {
+        "point": 0.8708,
+        "ci_lo": 0.7475,
+        "ci_hi": 0.972,
+        "resamples": 2000
+      },
+      "average_precision": {
+        "point": 0.6375,
+        "ci_lo": 0.4089,
+        "ci_hi": 0.8344,
+        "resamples": 2000
+      },
+      "precision_at_k": {
+        "10": 1.0,
+        "20": 0.65,
+        "50": 0.26,
+        "100": 0.13
+      },
+      "recall_at_k": {
+        "10": 0.5,
+        "20": 0.65,
+        "50": 0.65,
+        "100": 0.65
+      }
+    }
+  },
+  "paired_comparisons": {
+    "two_channel_minus_density__average_precision": {
+      "point": 0.1851,
+      "ci_lo": 0.048,
+      "ci_hi": 0.3565,
+      "significant": true,
+      "resamples": 2000
+    },
+    "density_minus_baseline__average_precision": {
+      "point": 0.0335,
+      "ci_lo": -0.0882,
+      "ci_hi": 0.1299,
+      "significant": false,
+      "resamples": 2000
+    },
+    "density_minus_baseline__rank_auc": {
+      "point": 0.1266,
+      "ci_lo": 0.0262,
+      "ci_hi": 0.2489,
+      "significant": true,
+      "resamples": 2000
+    }
+  },
+  "operating_point": {
+    "density_threshold": 0.6484804135449718,
+    "density_threshold_percentile": 99.9,
+    "novelty_rule": "any bounded feature takes a value absent from the train partition",
+    "channels": {
+      "density_only": {
+        "alerts": 40,
+        "tp": 13,
+        "fp": 27,
+        "fn": 7,
+        "tn": 22935,
+        "precision": 0.325,
+        "recall": 0.65
+      },
+      "novelty_only": {
+        "alerts": 19,
+        "tp": 17,
+        "fp": 2,
+        "fn": 3,
+        "tn": 22960,
+        "precision": 0.8947,
+        "recall": 0.85
+      },
+      "either_channel": {
+        "alerts": 44,
+        "tp": 17,
+        "fp": 27,
+        "fn": 3,
+        "tn": 22935,
+        "precision": 0.3864,
+        "recall": 0.85
+      }
+    },
+    "novelty_calibration_alerts": 0,
+    "novelty_calibration_alerts_per_day": 0.0
+  },
+  "label_sensitivity": {
+    "scorer": "two_channel_sum",
+    "primary": {
+      "positives": 20,
+      "rank_auc": {
+        "point": 0.9985,
+        "ci_lo": 0.9959,
+        "ci_hi": 1.0,
+        "resamples": 2000
+      },
+      "average_precision": {
+        "point": 0.8561,
+        "ci_lo": 0.6878,
+        "ci_hi": 0.9853,
+        "resamples": 2000
+      },
+      "precision_at_k": {
+        "10": 1.0,
+        "20": 0.85,
+        "50": 0.34,
+        "100": 0.18
+      },
+      "recall_at_k": {
+        "10": 0.5,
+        "20": 0.85,
+        "50": 0.85,
+        "100": 0.9
+      }
+    },
+    "alternatives": {
+      "rule_bearing_lines_only": {
+        "positives": 7,
+        "rank_auc": {
+          "point": 0.9998,
+          "ci_lo": 0.9996,
+          "ci_hi": 1.0,
+          "resamples": 1998
+        },
+        "average_precision": {
+          "point": 0.4872,
+          "ci_lo": 0.25,
+          "ci_hi": 0.8889,
+          "resamples": 1998
+        },
+        "precision_at_k": {
+          "10": 0.5,
+          "20": 0.35,
+          "50": 0.14,
+          "100": 0.07
+        },
+        "recall_at_k": {
+          "10": 0.7143,
+          "20": 1.0,
+          "50": 1.0,
+          "100": 1.0
+        }
+      }
+    }
+  },
+  "novelty_non_inventory_alerts": {
+    "count": 2,
+    "line_numbers": [
+      168344,
+      168346
+    ],
+    "note": "Counted as false positives in every figure above. They are reported here so the reader can check them rather than take the inventory as complete; the inventory is frozen and was NOT widened after seeing these, because selecting labels from detector output is how a self-graded exam becomes a fabricated one."
   },
   "known_sequence": {
     "provisional": true,
@@ -123,7 +367,7 @@
         "event_time": "2026-03-14T03:10:19+00:00",
         "rule_ids": [],
         "rules_class": "normal",
-        "model_score": 0.6993682233817244,
+        "model_score": 0.7294025893011844,
         "model_flagged_at_chosen": true,
         "model_flagged_at": [
           "99.0",
@@ -140,7 +384,7 @@
         "event_time": "2026-03-14T03:10:25+00:00",
         "rule_ids": [],
         "rules_class": "normal",
-        "model_score": 0.6987874677142863,
+        "model_score": 0.7596104691396672,
         "model_flagged_at_chosen": true,
         "model_flagged_at": [
           "99.0",
@@ -157,7 +401,7 @@
         "event_time": "2026-03-14T03:10:28+00:00",
         "rule_ids": [],
         "rules_class": "normal",
-        "model_score": 0.7045046293761505,
+        "model_score": 0.7646748780652546,
         "model_flagged_at_chosen": true,
         "model_flagged_at": [
           "99.0",
@@ -176,7 +420,7 @@
           "R1"
         ],
         "rules_class": "suspicious",
-        "model_score": 0.7119560801808729,
+        "model_score": 0.7735391375642905,
         "model_flagged_at_chosen": true,
         "model_flagged_at": [
           "99.0",
@@ -193,7 +437,7 @@
         "event_time": "2026-03-15T02:11:26+00:00",
         "rule_ids": [],
         "rules_class": "normal",
-        "model_score": 0.7104311395374606,
+        "model_score": 0.7521380692323462,
         "model_flagged_at_chosen": true,
         "model_flagged_at": [
           "99.0",
@@ -210,7 +454,7 @@
         "event_time": "2026-03-15T02:11:30+00:00",
         "rule_ids": [],
         "rules_class": "normal",
-        "model_score": 0.7071219395180807,
+        "model_score": 0.7710821243985868,
         "model_flagged_at_chosen": true,
         "model_flagged_at": [
           "99.0",
@@ -227,7 +471,7 @@
         "event_time": "2026-03-15T02:11:32+00:00",
         "rule_ids": [],
         "rules_class": "normal",
-        "model_score": 0.7154167930012229,
+        "model_score": 0.7743668064384687,
         "model_flagged_at_chosen": true,
         "model_flagged_at": [
           "99.0",
@@ -246,7 +490,7 @@
           "R1"
         ],
         "rules_class": "suspicious",
-        "model_score": 0.7212836247018513,
+        "model_score": 0.7839602938396458,
         "model_flagged_at_chosen": true,
         "model_flagged_at": [
           "99.0",
@@ -265,7 +509,7 @@
           "R1"
         ],
         "rules_class": "suspicious",
-        "model_score": 0.7212836247018513,
+        "model_score": 0.7897827370791891,
         "model_flagged_at_chosen": true,
         "model_flagged_at": [
           "99.0",
@@ -284,7 +528,7 @@
           "R1"
         ],
         "rules_class": "suspicious",
-        "model_score": 0.711074250268821,
+        "model_score": 0.794772057376973,
         "model_flagged_at_chosen": true,
         "model_flagged_at": [
           "99.0",
@@ -301,9 +545,12 @@
         "event_time": "2026-03-15T13:20:20+00:00",
         "rule_ids": [],
         "rules_class": "normal",
-        "model_score": 0.5638154290095726,
+        "model_score": 0.6446302047186228,
         "model_flagged_at_chosen": false,
-        "model_flagged_at": [],
+        "model_flagged_at": [
+          "99.0",
+          "99.5"
+        ],
         "rule_matches_expectation": true
       },
       {
@@ -314,9 +561,12 @@
         "event_time": "2026-03-15T13:42:35+00:00",
         "rule_ids": [],
         "rules_class": "normal",
-        "model_score": 0.5492353422499978,
+        "model_score": 0.6279176634760377,
         "model_flagged_at_chosen": false,
-        "model_flagged_at": [],
+        "model_flagged_at": [
+          "99.0",
+          "99.5"
+        ],
         "rule_matches_expectation": true
       },
       {
@@ -327,9 +577,12 @@
         "event_time": "2026-03-15T14:18:52+00:00",
         "rule_ids": [],
         "rules_class": "normal",
-        "model_score": 0.5341033738985339,
+        "model_score": 0.6086546922154387,
         "model_flagged_at_chosen": false,
-        "model_flagged_at": [],
+        "model_flagged_at": [
+          "99.0",
+          "99.5"
+        ],
         "rule_matches_expectation": true
       },
       {
@@ -340,7 +593,7 @@
         "event_time": "2026-03-15T14:18:55+00:00",
         "rule_ids": [],
         "rules_class": "normal",
-        "model_score": 0.48680444113535604,
+        "model_score": 0.5640932747261712,
         "model_flagged_at_chosen": false,
         "model_flagged_at": [],
         "rule_matches_expectation": true
@@ -353,9 +606,12 @@
         "event_time": "2026-03-15T15:07:56+00:00",
         "rule_ids": [],
         "rules_class": "normal",
-        "model_score": 0.5229242408092253,
+        "model_score": 0.6119431716773643,
         "model_flagged_at_chosen": false,
-        "model_flagged_at": [],
+        "model_flagged_at": [
+          "99.0",
+          "99.5"
+        ],
         "rule_matches_expectation": true
       },
       {
@@ -368,7 +624,7 @@
           "R3"
         ],
         "rules_class": "suspicious",
-        "model_score": 0.5184247735031358,
+        "model_score": 0.5784450801064397,
         "model_flagged_at_chosen": false,
         "model_flagged_at": [],
         "rule_matches_expectation": true
@@ -384,11 +640,12 @@
           "R5"
         ],
         "rules_class": "high_risk",
-        "model_score": 0.6182836561665314,
-        "model_flagged_at_chosen": false,
+        "model_score": 0.6658439663135818,
+        "model_flagged_at_chosen": true,
         "model_flagged_at": [
           "99.0",
-          "99.5"
+          "99.5",
+          "99.9"
         ],
         "rule_matches_expectation": true
       },
@@ -400,9 +657,12 @@
         "event_time": "2026-03-15T15:48:01+00:00",
         "rule_ids": [],
         "rules_class": "normal",
-        "model_score": 0.5411409384571563,
+        "model_score": 0.6268237636165412,
         "model_flagged_at_chosen": false,
-        "model_flagged_at": [],
+        "model_flagged_at": [
+          "99.0",
+          "99.5"
+        ],
         "rule_matches_expectation": true
       },
       {
@@ -413,7 +673,7 @@
         "event_time": "2026-03-16T02:29:43+00:00",
         "rule_ids": [],
         "rules_class": "normal",
-        "model_score": 0.6673444935839206,
+        "model_score": 0.7185533199538758,
         "model_flagged_at_chosen": true,
         "model_flagged_at": [
           "99.0",
@@ -432,7 +692,7 @@
           "R4"
         ],
         "rules_class": "high_risk",
-        "model_score": 0.7006122264996809,
+        "model_score": 0.7489425141692246,
         "model_flagged_at_chosen": true,
         "model_flagged_at": [
           "99.0",
@@ -462,7 +722,7 @@
       "account": "sarah_j",
       "ip": "10.0.8.45",
       "request": "POST /api/auth/login -> 401 (88)",
-      "score": 0.7154167930012229,
+      "score": 0.7743668064384687,
       "top_measured_deviations": [
         [
           "acct_hour_rarity",
@@ -483,38 +743,12 @@
       ]
     },
     {
-      "line_number": 168321,
-      "event_time": "2026-03-15T02:11:26+00:00",
-      "account": "sarah_j",
-      "ip": "10.0.8.45",
-      "request": "POST /api/auth/login -> 401 (88)",
-      "score": 0.7104311395374606,
-      "top_measured_deviations": [
-        [
-          "acct_hour_rarity",
-          8.627123250788433
-        ],
-        [
-          "pair_rarity",
-          8.115042584275903
-        ],
-        [
-          "acct_family_rarity",
-          3.0095754076461887
-        ],
-        [
-          "pair_unfamiliar",
-          1.0
-        ]
-      ]
-    },
-    {
       "line_number": 168322,
       "event_time": "2026-03-15T02:11:30+00:00",
       "account": "sarah_j",
       "ip": "10.0.8.45",
       "request": "POST /api/auth/login -> 401 (88)",
-      "score": 0.7071219395180807,
+      "score": 0.7710821243985868,
       "top_measured_deviations": [
         [
           "acct_hour_rarity",
@@ -540,7 +774,7 @@
       "account": "sarah_j",
       "ip": "10.0.8.45",
       "request": "POST /api/auth/login -> 401 (88)",
-      "score": 0.7045046293761505,
+      "score": 0.7646748780652546,
       "top_measured_deviations": [
         [
           "pair_rarity",
@@ -561,38 +795,12 @@
       ]
     },
     {
-      "line_number": 168311,
-      "event_time": "2026-03-14T03:10:19+00:00",
-      "account": "sarah_j",
-      "ip": "10.0.8.45",
-      "request": "POST /api/auth/login -> 401 (88)",
-      "score": 0.6993682233817244,
-      "top_measured_deviations": [
-        [
-          "pair_rarity",
-          9.72418144470263
-        ],
-        [
-          "acct_hour_rarity",
-          8.116058692668519
-        ],
-        [
-          "acct_family_rarity",
-          3.0141965644890427
-        ],
-        [
-          "pair_unfamiliar",
-          1.0
-        ]
-      ]
-    },
-    {
       "line_number": 168312,
       "event_time": "2026-03-14T03:10:25+00:00",
       "account": "sarah_j",
       "ip": "10.0.8.45",
       "request": "POST /api/auth/login -> 401 (88)",
-      "score": 0.6987874677142863,
+      "score": 0.7596104691396672,
       "top_measured_deviations": [
         [
           "pair_rarity",
@@ -613,12 +821,64 @@
       ]
     },
     {
+      "line_number": 168321,
+      "event_time": "2026-03-15T02:11:26+00:00",
+      "account": "sarah_j",
+      "ip": "10.0.8.45",
+      "request": "POST /api/auth/login -> 401 (88)",
+      "score": 0.7521380692323462,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          8.627123250788433
+        ],
+        [
+          "pair_rarity",
+          8.115042584275903
+        ],
+        [
+          "acct_family_rarity",
+          3.0095754076461887
+        ],
+        [
+          "pair_unfamiliar",
+          1.0
+        ]
+      ]
+    },
+    {
+      "line_number": 168311,
+      "event_time": "2026-03-14T03:10:19+00:00",
+      "account": "sarah_j",
+      "ip": "10.0.8.45",
+      "request": "POST /api/auth/login -> 401 (88)",
+      "score": 0.7294025893011844,
+      "top_measured_deviations": [
+        [
+          "pair_rarity",
+          9.72418144470263
+        ],
+        [
+          "acct_hour_rarity",
+          8.116058692668519
+        ],
+        [
+          "acct_family_rarity",
+          3.0141965644890427
+        ],
+        [
+          "pair_unfamiliar",
+          1.0
+        ]
+      ]
+    },
+    {
       "line_number": 168346,
       "event_time": "2026-03-16T02:33:40+00:00",
       "account": "sarah_j",
       "ip": "10.0.8.45",
       "request": "GET /logout -> 302 (0)",
-      "score": 0.6768843216152889,
+      "score": 0.7217439572357499,
       "top_measured_deviations": [
         [
           "acct_hour_rarity",
@@ -639,64 +899,12 @@
       ]
     },
     {
-      "line_number": 163097,
-      "event_time": "2026-03-07T00:27:30+00:00",
-      "account": "david_m",
-      "ip": "10.0.8.45",
-      "request": "GET /finance/reports/q1_draft_CONFIDENTIAL.zip -> 403 (245)",
-      "score": 0.6743007465081953,
-      "top_measured_deviations": [
-        [
-          "acct_hour_rarity",
-          8.089727843028406
-        ],
-        [
-          "acct_family_rarity",
-          1.607046813535759
-        ],
-        [
-          "pair_rarity",
-          6.141940240852226e-05
-        ],
-        [
-          "bytes_delta_vs_bootstrap",
-          0.0
-        ]
-      ]
-    },
-    {
-      "line_number": 162048,
-      "event_time": "2026-03-06T04:19:33+00:00",
-      "account": "sarah_j",
-      "ip": "10.0.5.12",
-      "request": "GET /finance/reports/q1_draft_CONFIDENTIAL.zip -> 200 (8459200)",
-      "score": 0.6708854768097791,
-      "top_measured_deviations": [
-        [
-          "acct_hour_rarity",
-          7.610171865549231
-        ],
-        [
-          "bytes_delta_vs_bootstrap",
-          3.497828652973734
-        ],
-        [
-          "acct_family_rarity",
-          1.613225442962328
-        ],
-        [
-          "pair_rarity",
-          6.200973554840006e-05
-        ]
-      ]
-    },
-    {
       "line_number": 168343,
       "event_time": "2026-03-16T02:29:43+00:00",
       "account": "sarah_j",
       "ip": "10.0.8.45",
       "request": "POST /api/auth/login -> 200 (128)",
-      "score": 0.6673444935839206,
+      "score": 0.7185533199538758,
       "top_measured_deviations": [
         [
           "acct_hour_rarity",
@@ -717,24 +925,50 @@
       ]
     },
     {
-      "line_number": 167277,
-      "event_time": "2026-03-13T07:12:08+00:00",
-      "account": "ashley_k",
-      "ip": "10.0.7.11",
-      "request": "GET /finance/templates/expense.docx -> 403 (245)",
-      "score": 0.6500408571171018,
+      "line_number": 163108,
+      "event_time": "2026-03-09T01:03:12+00:00",
+      "account": "amanda_l",
+      "ip": "10.0.8.22",
+      "request": "GET /it/network_map.pdf -> 200 (1024000)",
+      "score": 0.6911712867288471,
       "top_measured_deviations": [
         [
           "acct_hour_rarity",
-          8.632781227229499
+          9.00859131751613
         ],
         [
           "acct_family_rarity",
-          1.5979146648196638
+          1.6041254094808204
+        ],
+        [
+          "bytes_delta_vs_bootstrap",
+          1.3862914314395436
         ],
         [
           "pair_rarity",
-          5.946894236236575e-05
+          6.126137166124365e-05
+        ]
+      ]
+    },
+    {
+      "line_number": 163097,
+      "event_time": "2026-03-07T00:27:30+00:00",
+      "account": "david_m",
+      "ip": "10.0.8.45",
+      "request": "GET /finance/reports/q1_draft_CONFIDENTIAL.zip -> 403 (245)",
+      "score": 0.6897644901012717,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          8.089727843028406
+        ],
+        [
+          "acct_family_rarity",
+          1.607046813535759
+        ],
+        [
+          "pair_rarity",
+          6.141940240852226e-05
         ],
         [
           "bytes_delta_vs_bootstrap",
@@ -748,7 +982,7 @@
       "account": "david_m",
       "ip": "10.0.8.45",
       "request": "GET /finance/reports/q1_draft_CONFIDENTIAL.zip -> 403 (245)",
-      "score": 0.6472179381151892,
+      "score": 0.6888336929341932,
       "top_measured_deviations": [
         [
           "acct_hour_rarity",
@@ -769,104 +1003,136 @@
       ]
     },
     {
-      "line_number": 175632,
-      "event_time": "2026-03-25T10:27:18+00:00",
-      "account": "matthew_r",
-      "ip": "10.0.7.15",
-      "request": "POST /intranet/forum/new -> 302 (112)",
-      "score": 0.644937503647085,
-      "top_measured_deviations": [
-        [
-          "acct_hour_rarity",
-          8.157657015196474
-        ],
-        [
-          "acct_family_rarity",
-          2.993269288661958
-        ],
-        [
-          "pair_rarity",
-          5.738057669056725e-05
-        ],
-        [
-          "bytes_delta_vs_bootstrap",
-          0.0
-        ]
-      ]
-    },
-    {
-      "line_number": 167279,
-      "event_time": "2026-03-13T10:48:42+00:00",
+      "line_number": 173540,
+      "event_time": "2026-03-21T14:23:55+00:00",
       "account": "sarah_j",
       "ip": "10.0.5.12",
-      "request": "GET /finance/reports/budget_v2_CONFIDENTIAL.xlsx -> 200 (45120)",
-      "score": 0.6448166242459571,
+      "request": "GET /finance/reports/q1_draft_CONFIDENTIAL.zip -> 200 (8459200)",
+      "score": 0.6875868732958758,
       "top_measured_deviations": [
         [
-          "acct_hour_rarity",
-          9.718843300372528
+          "bytes_delta_vs_bootstrap",
+          3.497828652973734
         ],
         [
-          "bytes_delta_vs_bootstrap",
-          -1.7358335806571592
+          "acct_hour_rarity",
+          2.3719004931082086
         ],
         [
           "acct_family_rarity",
-          1.6124517784887988
+          1.6167043301064223
         ],
         [
           "pair_rarity",
-          6.022101112893217e-05
+          0.0009276438513081746
         ]
       ]
     },
     {
-      "line_number": 175636,
-      "event_time": "2026-03-25T12:05:23+00:00",
-      "account": "nicole_h",
-      "ip": "10.0.9.05",
-      "request": "GET /it/scripts/backup.sh -> 403 (245)",
-      "score": 0.6442810922044273,
+      "line_number": 167277,
+      "event_time": "2026-03-13T07:12:08+00:00",
+      "account": "ashley_k",
+      "ip": "10.0.7.11",
+      "request": "GET /finance/templates/expense.docx -> 403 (245)",
+      "score": 0.6873157447342254,
       "top_measured_deviations": [
         [
           "acct_hour_rarity",
-          2.5693239916005832
+          8.632781227229499
         ],
         [
           "acct_family_rarity",
-          1.6050226443080498
+          1.5979146648196638
         ],
         [
           "pair_rarity",
-          5.67617426007739e-05
+          5.946894236236575e-05
         ],
         [
           "bytes_delta_vs_bootstrap",
           0.0
+        ]
+      ]
+    },
+    {
+      "line_number": 178791,
+      "event_time": "2026-03-28T04:52:35+00:00",
+      "account": "jessica_w",
+      "ip": "10.0.6.21",
+      "request": "POST /api/auth/login -> 200 (128)",
+      "score": 0.6847775437904611,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          8.187855443695623
+        ],
+        [
+          "acct_family_rarity",
+          3.0419661707020884
+        ],
+        [
+          "pair_rarity",
+          5.567153794061512e-05
+        ],
+        [
+          "bytes_delta_vs_bootstrap",
+          0.0
+        ]
+      ]
+    },
+    {
+      "line_number": 168320,
+      "event_time": "2026-03-15T01:57:05+00:00",
+      "account": "joshua_c",
+      "ip": "10.0.8.50",
+      "request": "GET /intranet/forum/view/1067 -> 200 (2114)",
+      "score": 0.677432164706007,
+      "top_measured_deviations": [
+        [
+          "acct_hour_rarity",
+          8.638466425534112
+        ],
+        [
+          "acct_family_rarity",
+          2.2763959668275215
+        ],
+        [
+          "bytes_delta_vs_bootstrap",
+          -0.34554945477232923
+        ],
+        [
+          "pair_rarity",
+          5.91313603341719e-05
         ]
       ]
     }
   ],
   "model_flags_by_local_hour_chosen": {
-    "0": 2,
-    "1": 1,
+    "0": 3,
+    "1": 2,
     "3": 1,
     "6": 2,
-    "8": 10,
     "9": 1,
-    "10": 1,
-    "20": 3,
-    "21": 2,
-    "22": 9,
+    "10": 2,
+    "11": 1,
+    "13": 1,
+    "14": 2,
+    "15": 1,
+    "16": 1,
+    "17": 2,
+    "18": 2,
+    "20": 2,
+    "21": 3,
+    "22": 10,
     "23": 4
   },
   "score_distribution": {
-    "min": 0.3949330377084919,
-    "p50": 0.460435471003672,
-    "p99": 0.5989781198494741,
-    "p99_5": 0.6093793427656675,
-    "p99_9": 0.6405355051636742,
-    "max": 0.7212836247018513,
-    "chosen_threshold": 0.6338351659503074
+    "min": 0.39726372718410374,
+    "p50": 0.454611218477297,
+    "p99": 0.589164462917382,
+    "p99_5": 0.617324186159636,
+    "p99_9": 0.673935196598829,
+    "max": 0.794772057376973,
+    "chosen_threshold": 0.6484804135449718
   }
 }
