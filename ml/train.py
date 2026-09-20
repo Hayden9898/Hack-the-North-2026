@@ -18,6 +18,7 @@ from sklearn.ensemble import IsolationForest
 
 from app.config import get_config
 from app.db.engine import connect_direct, jsonb
+from app.detection.preprocess import PREPROCESSING_VERSION, build_pipeline, domain_of
 from app.features.vector import FEATURE_NAMES, FEATURE_VERSION
 from app.settings import get_settings
 from ml.common import anomaly_scores, load_matrix, pick_source_run, sha256_file
@@ -29,6 +30,7 @@ def main() -> int:
     ap.add_argument("--model-id", default=None)
     ap.add_argument("--percentile", type=float, default=None, help="calibration percentile for the threshold (default: policy)")
     ap.add_argument("--database-url", default=None)
+    ap.add_argument("--no-preprocess", action="store_true", help="fit a plain forest on the raw vector (no training-domain stage)")
     args = ap.parse_args()
     settings = get_settings()
     cfg = get_config()
@@ -46,14 +48,19 @@ def main() -> int:
     print(f"source run {run['run_id']} train={train.X.shape} calibration={cal.X.shape}")
 
     t0 = time.perf_counter()
-    est = IsolationForest(
+    forest = IsolationForest(
         n_estimators=int(mcfg["n_estimators"]),
         max_samples=mcfg["max_samples"],
         contamination=mcfg["contamination"],
         random_state=int(mcfg["random_state"]),
         n_jobs=int(mcfg.get("n_jobs", 1)),
     )
+    est = forest if args.no_preprocess else build_pipeline(forest, FEATURE_NAMES)
     est.fit(train.X)
+    dom = domain_of(est)
+    if dom is not None:
+        print(f"preprocessing {PREPROCESSING_VERSION}: forest sees {len(dom.kept_names)}/{len(FEATURE_NAMES)} features; "
+              f"blind spots {list(dom.blind_names)}; calibration rows departing a blind spot: {int((dom.violations(cal.X) > 0).sum())}")
     fit_s = time.perf_counter() - t0
     cal_scores = anomaly_scores(est, cal.X)
     train_scores = anomaly_scores(est, train.X)
@@ -70,7 +77,9 @@ def main() -> int:
     manifest = {
         "generator": "logorder.ml.train",
         "model_id": model_id,
-        "algorithm": "IsolationForest",
+        "algorithm": "IsolationForest" if dom is None else f"TrainingDomain({PREPROCESSING_VERSION})+IsolationForest",
+        "preprocessing": dom.describe() if dom is not None else None,
+        "calibration_blind_spot_departures": int((dom.violations(cal.X) > 0).sum()) if dom is not None else None,
         "params": {k: mcfg[k] for k in ("n_estimators", "max_samples", "contamination", "random_state")},
         "feature_version": FEATURE_VERSION,
         "feature_names": list(FEATURE_NAMES),
@@ -107,7 +116,7 @@ def main() -> int:
         )
     conn.commit()
     conn.close()
-    print(json.dumps({k: manifest[k] for k in ("model_id", "train_rows", "calibration_rows", "threshold", "threshold_percentile", "threshold_ties", "candidate_thresholds", "calibration_alert_burden", "fit_seconds", "artifact_sha256")}, indent=2))
+    print(json.dumps({k: manifest[k] for k in ("model_id", "algorithm", "calibration_blind_spot_departures", "train_rows", "calibration_rows", "threshold", "threshold_percentile", "threshold_ties", "candidate_thresholds", "calibration_alert_burden", "fit_seconds", "artifact_sha256")}, indent=2))
     return 0
 
 

@@ -15,6 +15,7 @@ import numpy as np
 
 from app.config import get_config
 from app.db.engine import connect_direct
+from app.detection.preprocess import domain_of
 from app.features.vector import FEATURE_NAMES
 from app.settings import REPO_ROOT, get_settings
 from ml.common import anomaly_scores, load_manifest, load_matrix, rarity_baseline
@@ -174,6 +175,18 @@ def main() -> int:
         if len(examples) >= args.top:
             break
     out["ml_only_examples"] = examples
+    dom = domain_of(est)
+    if dom is not None:
+        per_row = dom.violations(m.X)
+        departed = np.abs(m.X[:, dom.blind_idx_] - dom.blind_values_) > dom.atol
+        out["preprocessing"] = {
+            "version": manifest.get("preprocessing", {}).get("version"),
+            "forest_features": len(dom.kept_names),
+            "blind_spots": list(dom.blind_names),
+            "rows_departing_a_blind_spot": int((per_row > 0).sum()),
+            "departures_by_feature": {n: int(c) for n, c in zip(dom.blind_names, departed.sum(axis=0).tolist(), strict=True)},
+            "departing_rows_overlapping_rule_events": len({int(m.run_seqs[i]) for i in np.where(per_row > 0)[0]} & rule_seqs),
+        }
     hours = Counter()
     for i in np.where(scores > chosen_t)[0]:
         d = det.get(int(m.run_seqs[i]))
@@ -187,6 +200,8 @@ def main() -> int:
     summary["rules_only"] = {k: v for k, v in summary["rules_only"].items() if k != "incidents"}
     summary["known_sequence_expectations_met"] = out["known_sequence"]["expectations_met"]
     summary["known_sequence_delays"] = out["known_sequence"]["event_time_delay_seconds"]
+    if "preprocessing" in out:
+        summary["preprocessing"] = out["preprocessing"]
     print(json.dumps(summary, indent=2, default=str))
     return 0
 

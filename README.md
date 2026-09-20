@@ -42,7 +42,8 @@ Then open http://127.0.0.1:5173, create a run (or use `python tasks.py replay-de
 
 ```bash
 python -m scripts.run_replay --name rules-only-full          # causal feature snapshots for Aug–Mar (~14 min)
-python tasks.py train                                        # fits Sep–Dec, calibrates Jan–Feb, writes ml/artifacts/<id>/
+python tasks.py train                                        # training-domain stage + forest on Sep–Dec, calibrates Jan–Feb, writes ml/artifacts/<id>/
+                                                             # (--no-preprocess fits a plain forest; see reports/preprocessing.md)
 python -m ml.calibrate --model-id <id> --percentile 99.9 --activate   # review burden + samples, freeze threshold
 python -m ml.evaluate --model-id <id>                        # March: rules vs model vs hybrid vs baseline
 ```
