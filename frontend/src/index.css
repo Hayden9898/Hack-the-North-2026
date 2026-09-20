@@ -238,6 +238,19 @@ button.link {
   flex-direction: column;
   gap: 12px;
 }
+.setup-hint {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border-left: 2px solid var(--accent-2);
+  color: var(--fg-2);
+  background: color-mix(in srgb, var(--bg-2) 84%, var(--accent-2));
+  border-radius: 0 var(--radius) var(--radius) 0;
+  font-size: 12px;
+}
+.setup-hint strong {
+  color: var(--fg);
+}
 .row {
   display: flex;
   gap: 8px;
@@ -804,6 +817,11 @@ ul.bul {
   width: 100%;
   height: auto;
   display: block;
+  overflow: visible;
+  border: 1px solid color-mix(in srgb, var(--line) 80%, var(--accent-2));
+  border-radius: calc(var(--radius) + 2px);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-3) 70%, transparent), var(--bg-2));
+  box-shadow: var(--lo-shadow-md);
 }
 .conn {
   display: inline-flex;

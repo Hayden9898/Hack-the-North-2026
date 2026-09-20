@@ -320,6 +320,26 @@ function ActivityChart({ bins }: { bins: Bin[] }) {
   const labelEvery = Math.max(1, Math.ceil(n / 8))
   return (
     <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Events per time bin with 401, 403, suspicious and high-risk markers">
+      <defs>
+        <linearGradient id="activity-bars" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="var(--accent)" />
+          <stop offset="100%" stopColor="var(--accent-2)" />
+        </linearGradient>
+        <filter id="activity-bar-shadow" x="-20%" y="-20%" width="140%" height="160%">
+          <feDropShadow dx="0" dy="3" stdDeviation="2" floodColor="var(--lo-chart-shadow)" floodOpacity="var(--lo-chart-shadow-opacity)" />
+        </filter>
+      </defs>
+      {[0.25, 0.5, 0.75].map((ratio) => (
+        <line
+          key={ratio}
+          x1={padL}
+          y1={padT + innerH * ratio}
+          x2={W - padR}
+          y2={padT + innerH * ratio}
+          stroke="var(--line)"
+          strokeDasharray="3 4"
+        />
+      ))}
       <line x1={padL} y1={padT + innerH} x2={W - padR} y2={padT + innerH} stroke="var(--line-strong)" />
       <line x1={padL} y1={padT} x2={padL} y2={padT + innerH} stroke="var(--line-strong)" />
       <text x={padL - 6} y={padT + 4} fill="var(--fg-3)" fontSize="10" textAnchor="end">
@@ -334,7 +354,7 @@ function ActivityChart({ bins }: { bins: Bin[] }) {
         const top = y(b.events)
         return (
           <g key={b.start}>
-            <rect x={x} y={top} width={w} height={padT + innerH - top} fill="var(--accent-2)" opacity={0.85}>
+            <rect x={x} y={top} width={w} height={padT + innerH - top} fill="url(#activity-bars)" filter="url(#activity-bar-shadow)" opacity={0.9}>
               <title>{`${iso(b.start)} — events ${fmtNum(b.events)}, 401 ${fmtNum(b.c401)}, 403 ${fmtNum(b.c403)}, suspicious ${fmtNum(b.suspicious)}, high risk ${fmtNum(b.high_risk)}`}</title>
             </rect>
             {b.c401 > 0 ? <rect x={x} y={y(b.c401) - 1} width={w} height={2} fill="var(--warn)" /> : null}

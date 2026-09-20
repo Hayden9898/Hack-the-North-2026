@@ -25,6 +25,9 @@
   --lo-shadow-md: 0 1px 2px rgb(36 38 53 / 0.04), 0 4px 12px rgb(36 38 53 / 0.07);
   --lo-shadow-lg: 0 2px 4px rgb(36 38 53 / 0.05), 0 12px 32px rgb(36 38 53 / 0.1);
   --lo-glow-accent: 0 0 0 1px rgb(255 84 0 / 0.3), 0 6px 20px rgb(255 84 0 / 0.16);
+  /* SVG charts can't take a box-shadow; feDropShadow needs colour and opacity apart. */
+  --lo-chart-shadow: #242635;
+  --lo-chart-shadow-opacity: 0.18;
 
   /* Surfaces & ink — embeddable's warm paper ramp */
   --lo-bg: #fafaf7;          /* --bg */
@@ -141,6 +144,8 @@
   --lo-shadow-md: 0 2px 4px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.45);
   --lo-shadow-lg: 0 4px 8px rgb(0 0 0 / 0.45), 0 20px 56px rgb(0 0 0 / 0.55);
   --lo-glow-accent: 0 0 0 1px rgb(255 122 61 / 0.35), 0 8px 32px rgb(255 122 61 / 0.2);
+  --lo-chart-shadow: #07111f;
+  --lo-chart-shadow-opacity: 0.75;
 
   --lo-bg: #0b0d11;          /* --bg dark */
   --lo-surface: #14181f;     /* --card dark */
