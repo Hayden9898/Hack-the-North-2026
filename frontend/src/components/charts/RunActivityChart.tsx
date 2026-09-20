@@ -17,19 +17,24 @@ import type { Bin } from './timeseries'
  */
 const W = 900
 const H = 200
-const PAD = { t: 12, r: 14, b: 26, l: 48 }
+const PAD = { t: 12, r: 14, b: 34, l: 48 }
+/** height of the dense-case flagged strip, drawn just under the baseline */
+const STRIP_H = 6
 
 export function RunActivityChart({
   bins,
   widthMs,
   unitLabel,
   cutoffLabel,
+  visibleStart,
   className,
 }: {
   bins: Bin[]
   widthMs: number
   unitLabel: string
   cutoffLabel?: string
+  /** ISO instant the visible window begins; everything before it is warmup. */
+  visibleStart?: string | null
   className?: string
 }) {
   const uid = useId()
@@ -60,10 +65,20 @@ export function RunActivityChart({
   }
 
   const { max, ticks, band, barW, y, t0, t1 } = model
+  const warmupEndMs = visibleStart ? Date.parse(visibleStart) : Number.NaN
+  const hasWarmup = Number.isFinite(warmupEndMs) && warmupEndMs > t0
+  // Only draw the boundary when it actually falls inside the plotted range; past the right
+  // edge there is no visible window on screen and the label would overflow the viewBox.
+  const boundaryInRange = hasWarmup && warmupEndMs < t1
   const tTicks = timeTicks(t0, t1, 7)
   const tStep = tTicks.length > 1 ? tTicks[1] - tTicks[0] : widthMs
   const xOf = (ms: number) => PAD.l + ((ms - t0) / Math.max(1, t1 - t0)) * plotW
+  const warmupBins = hasWarmup ? bins.filter((b) => b.start < warmupEndMs).length : 0
   const flagged = bins.filter((b) => b.high_risk > 0 || b.suspicious > 0)
+  // Marks are for rare things. Past this share of buckets they collide into a field of colour
+  // that overstates the finding, so the flagged layer becomes a counted strip instead.
+  const dense = flagged.length > Math.max(12, bins.length * 0.15)
+  const maxFlagged = Math.max(1, ...bins.map((b) => b.high_risk + b.suspicious))
   const hovered = hover !== null ? bins[hover] : null
 
   return (
@@ -72,7 +87,7 @@ export function RunActivityChart({
         <span className="text-caption text-fg-muted normal-case tracking-normal">
           Events per {unitLabel} bucket{cutoffLabel ? ` · ${cutoffLabel}` : ''}
         </span>
-        <Legend onToggleTable={() => setShowTable((v) => !v)} showTable={showTable} />
+        <Legend onToggleTable={() => setShowTable((v) => !v)} showTable={showTable} hasWarmup={hasWarmup} />
       </figcaption>
 
       <svg
@@ -82,6 +97,40 @@ export function RunActivityChart({
         aria-label={`Events over time. ${fmtNum(bins.length)} buckets, peak ${fmtNum(max)} events. ${fmtNum(flagged.length)} buckets contain a flagged verdict.`}
         onMouseLeave={() => setHover(null)}
       >
+        {/* Warmup region: dimmed and explicitly labelled. */}
+        {hasWarmup ? (
+          <g>
+            <rect
+              x={PAD.l}
+              y={PAD.t}
+              width={Math.max(0, Math.min(W - PAD.r, xOf(warmupEndMs)) - PAD.l)}
+              height={plotH}
+              fill="var(--color-fg-subtle)"
+              opacity={0.06}
+            />
+            {boundaryInRange ? (
+              <>
+                <line
+                  x1={xOf(warmupEndMs)}
+                  x2={xOf(warmupEndMs)}
+                  y1={PAD.t}
+                  y2={PAD.t + plotH}
+                  stroke="var(--color-border-strong)"
+                  strokeWidth={1}
+                />
+                <text
+                  x={xOf(warmupEndMs) + 4}
+                  y={PAD.t + 9}
+                  textAnchor="start"
+                  className="fill-[var(--color-fg-subtle)] text-[9px]"
+                >
+                  visible window begins
+                </text>
+              </>
+            ) : null}
+          </g>
+        ) : null}
+
         {/* hairline grid, solid, one step off the surface — never dashed */}
         {ticks.map((t) => (
           <g key={t}>
@@ -109,8 +158,9 @@ export function RunActivityChart({
           )
         })}
 
-        {/* the rare verdicts, as marks. 2px surface ring so they stay legible where they overlap. */}
-        {flagged.map((b, fi) => {
+        {/* Rare verdicts render as marks; see `dense` below for when they stop being rare. */}
+        {!dense &&
+          flagged.map((b, fi) => {
           const i = bins.indexOf(b)
           const cx = band(i) + band.bandwidth / 2
           const isHigh = b.high_risk > 0
@@ -141,6 +191,28 @@ export function RunActivityChart({
             </g>
           )
         })}
+
+        {/* Dense case: a counted strip along the baseline. Height encodes how many flagged
+            events fell in the bucket, colour the worst class present. Still recessive against
+            the volume, but it no longer claims every bucket is an incident. */}
+        {dense
+          ? bins.map((b, i) => {
+              const n = b.high_risk + b.suspicious
+              if (n === 0) return null
+              const h = Math.max(2, Math.min(STRIP_H, (n / maxFlagged) * STRIP_H))
+              return (
+                <rect
+                  key={`s-${b.start}`}
+                  x={band(i) + (band.bandwidth - barW) / 2}
+                  y={PAD.t + plotH + 3}
+                  width={barW}
+                  height={h}
+                  fill={b.high_risk > 0 ? 'var(--color-high-risk)' : 'var(--color-suspicious)'}
+                  opacity={0.85}
+                />
+              )
+            })
+          : null}
 
         {/* time axis */}
         {tTicks.map((t) => {
@@ -195,6 +267,10 @@ export function RunActivityChart({
       ) : (
         <p className="mt-1 font-mono text-mono text-fg-subtle">
           {fmtNum(flagged.length)} of {fmtNum(bins.length)} buckets contain a flagged verdict
+          {dense ? ' (shown as a counted strip below the baseline, not per-bucket marks)' : ''}
+          {warmupBins > 0
+            ? ` · ${fmtNum(warmupBins)} bucket${warmupBins === 1 ? '' : 's'} are historical warmup, replayed to build state rather than decided live`
+            : ''}
         </p>
       )}
 
@@ -231,9 +307,10 @@ export function RunActivityChart({
   )
 }
 
-function Legend({ showTable, onToggleTable }: { showTable: boolean; onToggleTable: () => void }) {
+function Legend({ showTable, onToggleTable, hasWarmup }: { showTable: boolean; onToggleTable: () => void; hasWarmup: boolean }) {
   return (
     <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption normal-case tracking-normal">
+      {hasWarmup ? <Key color="var(--color-fg-subtle)" label="historical warmup" muted /> : null}
       <Key color="var(--color-fg-subtle)" label="all events" muted />
       <Key color="var(--color-suspicious)" label="suspicious" />
       <Key color="var(--color-high-risk)" label="high risk" />

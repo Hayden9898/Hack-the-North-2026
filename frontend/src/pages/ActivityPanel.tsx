@@ -95,6 +95,7 @@ export function ActivityPanel({ runId, processedSeq, run }: { runId: string; pro
               widthMs={model.widthMs}
               unitLabel={binUnitLabel(model.unit, model.serverMinutes)}
               cutoffLabel={account ? `account ${account}` : undefined}
+              visibleStart={run.visible_start}
             />
           </div>
         ) : null}
