@@ -28,8 +28,8 @@ Either way, `GET /health/ready` reports the detected extension version in `datab
 
 ## 2. Create the two application services
 
-Both services deploy **the same repo and the same `Dockerfile`**. The root `railway.json` selects the API by
-default; set `SERVICE_ROLE=worker` on the worker service so the same config starts the worker role.
+Both services deploy **the same repo and the same `Dockerfile`**. The root `railway.json` calls a role launcher;
+it selects the API by default, while `SERVICE_ROLE=worker` starts the worker role on the same image.
 
 1. *New Project -> Deploy from GitHub repo* -> this repository. Name the service `api`.
    Settings -> *Config-as-code path*: `railway.json` (already holds the build, the start command and the
