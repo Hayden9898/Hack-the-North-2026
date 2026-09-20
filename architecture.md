@@ -1,4 +1,4 @@
-# Log & Order — architecture and implementation contracts
+# WatchTower — architecture and implementation contracts
 
 **Version 1.0.** Read `overview.md` for rationale and evidence, then `plan.md` for execution. MUST denotes a release requirement. Defaults below are initial engineering choices, not experimentally validated performance or accuracy claims. Changes require a short decision note and regression evidence.
 

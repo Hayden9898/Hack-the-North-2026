@@ -27,7 +27,7 @@ export function RunTransport({ run, onChanged }: { run: Run; onChanged: (r: Run)
   }
 
   if (run.mode !== 'replay') {
-    return <p className="text-caption text-fg-muted normal-case tracking-normal">Live ingestion — replay controls do not apply.</p>
+    return <p className="text-caption text-fg-muted">Live ingestion — replay controls do not apply.</p>
   }
 
   const s = run.state
@@ -50,7 +50,7 @@ export function RunTransport({ run, onChanged }: { run: Run; onChanged: (r: Run)
         </Button>
       )}
 
-      <label className="flex items-center gap-1.5 text-caption text-fg-muted normal-case tracking-normal">
+      <label className="flex items-center gap-1.5 text-caption text-fg-muted">
         <Rewind className="size-3.5" aria-hidden />
         <span className="sr-only">replay speed multiplier, 0 for fast-forward</span>
         <input
@@ -73,7 +73,7 @@ export function RunTransport({ run, onChanged }: { run: Run; onChanged: (r: Run)
         <span className="text-fg-muted">now {speedLabel(run.speed)}</span>
       </label>
 
-      {e ? <span className="text-caption text-high-risk normal-case tracking-normal">{e.text}</span> : null}
+      {e ? <span className="text-caption text-high-risk">{e.text}</span> : null}
     </div>
   )
 }
@@ -85,16 +85,16 @@ export function RunProgress({ run }: { run: Run }) {
     <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
       <span className="flex items-baseline gap-2">
         <span className="font-sans text-heading tabular-nums text-fg">{fmtNum(run.processed_seq)}</span>
-        <span className="text-caption text-fg-muted uppercase">events evaluated</span>
+        <span className="text-caption text-fg-muted">events evaluated</span>
       </span>
       {backlog > 0 ? (
-        <span className="flex items-baseline gap-1.5 text-caption normal-case tracking-normal">
+        <span className="flex items-baseline gap-1.5 text-caption">
           <span className="font-mono tabular-nums text-late">{fmtNum(backlog)}</span>
           <span className="text-fg-muted">admitted, not yet evaluated</span>
         </span>
       ) : null}
       {run.late_count > 0 ? (
-        <span className="flex items-baseline gap-1.5 text-caption normal-case tracking-normal">
+        <span className="flex items-baseline gap-1.5 text-caption">
           <span className="font-mono tabular-nums text-late">{fmtNum(run.late_count)}</span>
           <span className="text-fg-muted">late — persisted, excluded from live inference</span>
         </span>
@@ -143,7 +143,7 @@ export function ConnectionDot({
 
   return (
     <span
-      className={cn('flex items-center gap-1.5 text-caption normal-case tracking-normal', tone)}
+      className={cn('flex items-center gap-1.5 text-caption', tone)}
       title={`SSE /updates · last seq ${lastId ?? '—'} · resyncs ${resyncs}`}
     >
       <span

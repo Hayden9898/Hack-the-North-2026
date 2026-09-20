@@ -9,7 +9,7 @@ Final edits close September 20 at 8:00 AM EDT. Confirm what the team actually se
 
 | Category | Fit for this project | Evidence still required |
 | --- | --- | --- |
-| CSE: Log & Order | Core project: causal investigation, attributable facts, incoming-event detection | Original dataset/model available locally, canonical replay acceptance, clear who/what/when/how with uncertainty retained |
+| CSE: WatchTower | Core project: causal investigation, attributable facts, incoming-event detection | Original dataset/model available locally, canonical replay acceptance, clear who/what/when/how with uncertainty retained |
 | Sentry | Errors **plus Logs and Tracing**, with MCP as additional developer tooling | Chosen project/DSNs, actual received worker/API/browser telemetry, and a genuine diagnosis → change → measured result |
 | Tiger Data | TimescaleDB, continuous aggregates, measured raw/aggregate parity | Rerun real dataset benchmarks; distinguish local TimescaleDB from unverified Tiger Cloud; confirm local use qualifies with sponsor |
 | Warp | Operational developer tool and inspectable verification workflow; no Warp API requirement | Demonstrate a real developer investigation/debugging benefit, not just the existence of tests |

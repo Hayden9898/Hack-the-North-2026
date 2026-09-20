@@ -4,16 +4,11 @@
  * Layer cascade (later wins):
  *   theme     Tailwind's generated token layer
  *   base      Tailwind preflight
- *   legacy    the original hand-rolled console CSS (src/index.css)
  *   app-base  our document-level base styles
  *   components / utilities  Tailwind + our component classes
- *
- * Why `legacy` sits above `base`: preflight would otherwise strip the console's element
- * styling and break six screens we do not own. Why it sits below `utilities`: new
- * components must be able to override it with ordinary Tailwind classes.
  */
 
-@layer theme, base, legacy, app-base, components, utilities;
+@layer theme, base, app-base, components, utilities;
 
 @import 'tailwindcss';
 @import 'tw-animate-css';
@@ -38,8 +33,6 @@
 }
 @import '@fontsource/ibm-plex-mono/latin-400.css';
 @import '@fontsource/ibm-plex-mono/latin-500.css';
-
-@import '../index.css' layer(legacy);
 
 @import './theme.css';
 @import './base.css';

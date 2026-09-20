@@ -31,11 +31,22 @@ export function MonitoringCheck() {
   }
 
   return (
-    <span className="monitoring-check">
-      <button type="button" className="link small" onClick={() => void send()} disabled={busy}>
+    <section className="space-y-2">
+      <h3 className="text-body font-medium text-fg">Monitoring</h3>
+      <p className="text-caption text-fg-muted">Sends one synthetic event to Sentry from the browser and the API. No run data is included.</p>
+      <button
+        type="button"
+        className="rounded-md border border-border bg-surface px-2.5 py-1 text-caption font-medium text-fg-muted transition-colors duration-150 hover:border-border-strong hover:text-fg disabled:opacity-60"
+        onClick={() => void send()}
+        disabled={busy}
+      >
         {busy ? 'Sending diagnostic…' : 'Send Sentry diagnostic'}
       </button>
-      {message ? <span className="small muted" role="status">{message}</span> : null}
-    </span>
+      {message ? (
+        <p className="break-words font-mono text-[0.6875rem] leading-4 text-fg-muted" role="status">
+          {message}
+        </p>
+      ) : null}
+    </section>
   )
 }

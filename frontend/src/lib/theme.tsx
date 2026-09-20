@@ -1,14 +1,9 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
-import { type ResolvedTheme, ThemeContext, THEME_STORAGE_KEY, type ThemePreference } from './theme-context'
+import { type ResolvedTheme, ThemeContext, type ThemePreference } from './theme-context'
 
 function readStored(): ThemePreference {
-  try {
-    const v = localStorage.getItem(THEME_STORAGE_KEY)
-    if (v === 'light' || v === 'dark' || v === 'system') return v
-  } catch {
-    /* private mode / storage disabled — fall through to the default */
-  }
-  return 'light'
+  // The site is dark everywhere; the toggle was removed.
+  return 'dark'
 }
 
 function systemTheme(): ResolvedTheme {
@@ -45,11 +40,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const setTheme = useCallback((t: ThemePreference) => {
     setThemeState(t)
-    try {
-      localStorage.setItem(THEME_STORAGE_KEY, t)
-    } catch {
-      /* non-fatal: the theme still applies for this session */
-    }
   }, [])
 
   const value = useMemo(() => ({ theme, resolved, setTheme }), [theme, resolved, setTheme])

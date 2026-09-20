@@ -1,5 +1,5 @@
 /**
- * Typed client for the Log & Order API. Shapes mirror the dict keys returned by
+ * Typed client for the WatchTower API. Shapes mirror the dict keys returned by
  * backend/app/api/{runs,incidents,updates,datasets,health}.py exactly.
  * Same-origin only: `/api/v1/...` and `/health/...`; no query-string secrets.
  *

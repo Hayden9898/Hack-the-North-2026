@@ -54,7 +54,7 @@ export function ActivityPanel({ runId, processedSeq, run }: { runId: string; pro
     <section aria-labelledby="activity" className="rounded-lg border border-border bg-surface">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="flex flex-wrap items-center gap-3">
-          <h2 id="activity" className="text-heading normal-case tracking-normal text-fg">
+          <h2 id="activity" className="text-heading text-fg">
             Shape of the run
           </h2>
           {model ? <FreshnessChip freshness={model.freshness} /> : null}
@@ -80,7 +80,7 @@ export function ActivityPanel({ runId, processedSeq, run }: { runId: string; pro
               Filter
             </Button>
           </form>
-          <label className="flex items-center gap-1.5 text-caption text-fg-muted normal-case tracking-normal">
+          <label className="flex items-center gap-1.5 text-caption text-fg-muted">
             <input type="checkbox" checked={asOf} onChange={(e) => setAsOf(e.target.checked)} className="accent-[var(--color-accent)]" />
             as of cutoff #{fmtNum(processedSeq)}
           </label>
@@ -106,7 +106,7 @@ export function ActivityPanel({ runId, processedSeq, run }: { runId: string; pro
 
         {model ? (
           <details className="mt-4 border-t border-border pt-3" open={showOps} onToggle={(e) => setShowOps((e.target as HTMLDetailsElement).open)}>
-            <summary className="group/sum flex cursor-pointer list-none items-center gap-1.5 text-caption text-fg-muted normal-case tracking-normal hover:text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none">
+            <summary className="group/sum flex cursor-pointer list-none items-center gap-1.5 text-caption text-fg-muted hover:text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none">
               <ChevronRight className="size-3.5 shrink-0 transition-transform group-open/sum:rotate-90 motion-reduce:transition-none" aria-hidden />
               Where these numbers came from
             </summary>
@@ -175,12 +175,12 @@ function OperatorTools({ runId, disabled, onRefreshed }: { runId: string; disabl
             : `not refreshed: ${refresh.result.reason ?? 'unknown reason'}`}
         </p>
       ) : null}
-      {refresh.error ? <p className="text-caption text-high-risk normal-case tracking-normal">{describeError(refresh.error).text}</p> : null}
+      {refresh.error ? <p className="text-caption text-high-risk">{describeError(refresh.error).text}</p> : null}
 
       {bench.result && 'error' in bench.result ? (
         // The API reports an unrunnable benchmark as a result, not a transport error — most often
         // because the aggregate has never been materialized. Say so, and name the fix.
-        <p className="text-caption text-fg-muted normal-case tracking-normal">
+        <p className="text-caption text-fg-muted">
           Benchmark not available: {bench.result.error}.
           {/aggregate not refreshed/i.test(bench.result.error) ? ' Re-materialize the aggregate above, then measure again.' : ''}
         </p>
@@ -193,7 +193,7 @@ function OperatorTools({ runId, disabled, onRefreshed }: { runId: string; disabl
           </span>
         </p>
       ) : null}
-      {bench.error ? <p className="text-caption text-high-risk normal-case tracking-normal">{describeError(bench.error).text}</p> : null}
+      {bench.error ? <p className="text-caption text-high-risk">{describeError(bench.error).text}</p> : null}
     </div>
   )
 }

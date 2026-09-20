@@ -1,4 +1,4 @@
-# Deploying Log & Order on Railway
+# Deploying WatchTower on Railway
 
 Three processes, one image, one database — the same topology as the local demo (`architecture.md` §2):
 

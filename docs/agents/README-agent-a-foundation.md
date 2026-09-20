@@ -1,6 +1,6 @@
 # Agent A — Design Foundation & Landing Page
 
-You are one of **two** agents rebuilding the Log & Order frontend. Read this entire file before
+You are one of **two** agents rebuilding the WatchTower frontend. Read this entire file before
 touching code. Your counterpart is **Agent B (Console)**; their brief is
 `docs/agents/README-agent-b-console.md`. Read it too — you are building the system they consume.
 
@@ -10,7 +10,7 @@ the Tailwind + shadcn foundation that Agent B builds the console on.
 
 ---
 
-## 1. What Log & Order is
+## 1. What WatchTower is
 
 A **behavioral security investigation console** for HTTP access logs, built for Hack the North 2026
 (CSE challenge). It ingests 180,800 real access-log lines spanning Aug 2025 – Mar 2026, replays them
@@ -428,7 +428,7 @@ Then report back and wait. Do not start new work after the PR is open unless ask
 
 - [ ] Tailwind v4 + shadcn/ui + Motion.dev installed and working; Phase 0 pushed early
 - [ ] Every token and component in §5 shipped under the contract names
-- [ ] Landing page at `/` that explains Log & Order to a judge in 30 seconds and links into `/app`
+- [ ] Landing page at `/` that explains WatchTower to a judge in 30 seconds and links into `/app`
 - [ ] Route migration done; old `/runs/*` links redirect
 - [ ] Light and dark themes, both WCAG AA
 - [ ] Responsive at 390px and 1440px

@@ -1,4 +1,4 @@
-# Log & Order — coding-agent execution plan
+# WatchTower — coding-agent execution plan
 
 **Version 1.0.** Read `overview.md` -> `architecture.md` -> this file before editing application code. This package replaces the two previous proposals. The requested deliverable is a working, tested implementation, not another plan. Implement milestone gates in order and keep a concise progress record. Do not treat example configuration or estimated time as measured results.
 

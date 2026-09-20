@@ -457,12 +457,12 @@ class Verification:
                 '<p><a href="monitoring/index.html">Open Sentry SDK privacy/transport evidence →</a></p>'
             )
         page = f"""<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Log &amp; Order verification</title><link rel="icon" href="data:,"><style>
+<title>WatchTower verification</title><link rel="icon" href="data:,"><style>
 body{{font:15px/1.6 system-ui;margin:0;background:#f7f8fa;color:#202b3c}}main{{max-width:1000px;margin:48px auto;padding:0 24px}}
 h1{{font-size:28px}}h2{{font-size:16px;margin:0}}section{{border:1px solid #d7dde6;background:white;padding:20px;margin:14px 0;border-radius:6px}}
 span{{margin-right:12px;font-size:12px}}.passed{{color:#176240}}.failed{{color:#ad3030}}.blocked{{color:#86550d}}.not_checked{{color:#59697d}}
 pre{{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.6 monospace}}a{{color:#2255a7}}summary{{cursor:pointer}}p{{color:#526176}}code{{overflow-wrap:anywhere}}
-</style><main><p>LOG &amp; ORDER / VERIFICATION</p><h1>{html.escape(self.profile.title())} gate: {status.upper()}</h1>
+</style><main><p>WATCHTOWER / VERIFICATION</p><h1>{html.escape(self.profile.title())} gate: {status.upper()}</h1>
 <p>{html.escape(self.started)} · {html.escape(platform.platform())}<br>Commit <code>{html.escape(str(revision["commit"]))}</code> · Uncommitted changes: {revision.get("dirty", "unknown")}</p>
 <p>Frontend = synthetic API fixtures against the production build. Backend = protected, disposable test database. Live = explicit real replay, read-only.</p>
 {browser}{cards}<section><h2>Human sign-off is separate</h2><p>Review screenshots, keyboard/focus behavior and the real replay before release. Do not publish traces containing real HTTP logs or personal data.</p>

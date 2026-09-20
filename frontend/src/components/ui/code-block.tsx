@@ -111,7 +111,7 @@ export function CodeBlock({
       )}
     >
       {label ? (
-        <figcaption className="flex items-center justify-between gap-3 border-b border-border bg-chip px-3 py-1.5 font-mono text-caption text-fg-subtle uppercase">
+        <figcaption className="flex items-center justify-between gap-3 border-b border-border bg-chip px-3 py-1.5 font-mono text-caption text-fg-subtle">
           <span className="min-w-0 truncate">{label}</span>
           {copyButton}
         </figcaption>

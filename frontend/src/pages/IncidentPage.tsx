@@ -163,14 +163,14 @@ const TAB = 'text-[color:var(--color-fg-muted)] data-[state=active]:text-[color:
 function SideSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="rounded-lg border border-border bg-surface">
-      <h3 className="border-b border-border px-4 py-2.5 text-caption text-fg-muted uppercase">{title}</h3>
+      <h3 className="border-b border-border px-4 py-2.5 text-caption text-fg-muted">{title}</h3>
       <div className="px-4 py-3.5">{children}</div>
     </section>
   )
 }
 
 function Breadcrumb({ runId, incidentId }: { runId: string; incidentId: string }) {
-  const crumb = 'flex items-center gap-1.5 text-caption text-fg-muted normal-case tracking-normal hover:text-fg'
+  const crumb = 'flex items-center gap-1.5 text-caption text-fg-muted hover:text-fg'
   return (
     <nav aria-label="Breadcrumb" className="mb-4 flex flex-wrap items-center gap-1.5">
       <Link to="/app" className={crumb}>
@@ -181,7 +181,7 @@ function Breadcrumb({ runId, incidentId }: { runId: string; incidentId: string }
         {shortId(runId, 14)}
       </Link>
       <ChevronRight className="size-3 text-fg-muted" aria-hidden />
-      <span className="font-mono text-caption text-fg-muted normal-case tracking-normal">{shortId(incidentId, 14)}</span>
+      <span className="font-mono text-caption text-fg-muted">{shortId(incidentId, 14)}</span>
     </nav>
   )
 }

@@ -1,4 +1,4 @@
-# Log & Order
+# WatchTower
 
 **From "what happened" to "what I did about it" — a behavioral security investigation console for HTTP access logs.**
 

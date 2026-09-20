@@ -74,7 +74,7 @@ export function EvidenceDrawer({
         <SheetHeader className="border-b border-border px-6 pt-6 pb-5">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <SheetDescription className="text-caption text-fg-muted uppercase">
+              <SheetDescription className="text-caption text-fg-muted">
                 Evidence for a recorded fact
               </SheetDescription>
               <SheetTitle className="mt-1 text-heading">{view?.label ?? 'Fact'}</SheetTitle>
@@ -184,7 +184,7 @@ export function EvidenceDrawer({
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <h3 className="mb-3 text-caption text-fg-muted uppercase">{children}</h3>
+  return <h3 className="mb-3 text-caption text-fg-muted">{children}</h3>
 }
 
 /**
@@ -200,8 +200,8 @@ function ProofSeal({ recomputed, recorded }: { recomputed?: number; recorded?: u
     <div className="flex items-center gap-2.5 rounded-lg border border-border-strong bg-surface-raised px-3 py-2">
       <Check className="size-4 shrink-0 text-fg" aria-hidden />
       <div className="text-caption leading-snug">
-        <div className="font-semibold text-fg normal-case tracking-normal">Recounted now, same answer</div>
-        <div className="font-mono text-fg-muted normal-case tracking-normal">
+        <div className="font-semibold text-fg">Recounted now, same answer</div>
+        <div className="font-mono text-fg-muted">
           recomputed {fmtNum(recomputed)} = recorded {String(recorded)}
         </div>
       </div>
@@ -214,8 +214,8 @@ function ProofMismatch({ recomputed, recorded }: { recomputed?: number; recorded
     <div className="flex items-center gap-2.5 rounded-lg border border-high-risk/40 bg-high-risk-wash px-3 py-2">
       <X className="size-4 shrink-0 text-high-risk" aria-hidden />
       <div className="text-caption leading-snug">
-        <div className="font-medium text-high-risk normal-case tracking-normal">Recount disagrees with the record</div>
-        <div className="font-mono text-fg-muted normal-case tracking-normal">
+        <div className="font-medium text-high-risk">Recount disagrees with the record</div>
+        <div className="font-mono text-fg-muted">
           recomputed {fmtNum(recomputed)} vs recorded {String(recorded)}
         </div>
       </div>
@@ -229,7 +229,7 @@ function Provenance({ fact }: { fact: Fact }) {
   const args = Object.entries(fact.args ?? {})
   return (
     <dl className="grid gap-x-6 gap-y-3 border-b border-border bg-surface px-6 py-4 sm:grid-cols-[auto_1fr]">
-      <dt className="text-caption text-fg-muted uppercase">Counted under</dt>
+      <dt className="text-caption text-fg-muted">Counted under</dt>
       <dd className="font-mono text-mono text-fg">
         run_seq &le; {fmtNum(fact.cutoff_seq)}
         <span className="text-fg-muted"> — nothing after this point was considered</span>
@@ -237,7 +237,7 @@ function Provenance({ fact }: { fact: Fact }) {
 
       {q ? (
         <>
-          <dt className="text-caption text-fg-muted uppercase">Query</dt>
+          <dt className="text-caption text-fg-muted">Query</dt>
           <dd className="font-mono text-mono break-all text-fg">
             {q.id}
             {args.length ? (
@@ -249,7 +249,7 @@ function Provenance({ fact }: { fact: Fact }) {
         </>
       ) : null}
 
-      <dt className="text-caption text-fg-muted uppercase">Provenance</dt>
+      <dt className="text-caption text-fg-muted">Provenance</dt>
       <dd className="font-mono text-mono break-all text-fg-muted">{fact.provenance_hash}</dd>
     </dl>
   )
@@ -358,7 +358,7 @@ function gapLabel(rows: Row[], i: number): string {
 }
 
 function Th({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <th className={`px-3 py-2 font-sans text-caption font-medium text-fg-muted uppercase ${className ?? ''}`}>{children}</th>
+  return <th className={`px-3 py-2 font-sans text-caption font-medium text-fg-muted ${className ?? ''}`}>{children}</th>
 }
 
 function Td({ children, className, title }: { children: React.ReactNode; className?: string; title?: string }) {
@@ -392,7 +392,7 @@ function Pager({
   if (!hasPrev && !hasNext) return null
   return (
     <div className="mt-4 flex items-center justify-between gap-3">
-      <span className="text-caption text-fg-muted normal-case tracking-normal">
+      <span className="text-caption text-fg-muted">
         {total === undefined
           ? 'Every line behind this fact is here — page through them.'
           : `Every one of the ${fmtNum(total)} is here — page through them.`}

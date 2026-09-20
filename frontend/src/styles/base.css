@@ -1,11 +1,6 @@
 /*
- * Document-level base styles.
- *
- * Lives in @layer app-base, which is declared AFTER `legacy` in app.css. That means these
- * rules beat the legacy console stylesheet, so keep this file to document-level concerns
- * only (html/body/focus/selection/scrollbar). Do NOT add element typography resets here —
- * h1/h2/h3/p/a/code/pre belong to the legacy console until Agent B restyles them, and
- * anything added here would silently restyle six screens we do not own.
+ * Document-level base styles: html/body, focus, selection, and the few element defaults the
+ * console relies on. Everything else is Tailwind utilities on the components themselves.
  */
 
 @layer app-base {
@@ -27,7 +22,7 @@
   }
 
   ::selection {
-    background-color: color-mix(in oklch, var(--color-accent) 28%, transparent);
+    background-color: color-mix(in oklch, var(--color-accent) 24%, transparent);
     color: var(--color-fg);
   }
 
@@ -42,6 +37,32 @@
   table,
   [data-numeric] {
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Console defaults: links are the accent, code is mono. Pages override with utilities. */
+  .app a {
+    color: var(--color-accent);
+    text-decoration: none;
+  }
+  .app a:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+  .app a.no-underline:hover {
+    text-decoration: none;
+  }
+  .app code,
+  .app pre {
+    font-family: var(--font-mono);
+  }
+  .app select,
+  .app input:not([type='checkbox']):not([type='radio']):not([type='file']) {
+    font: inherit;
+    color: var(--color-fg);
+    background-color: var(--color-surface);
+  }
+  .app strong {
+    font-weight: 600;
   }
 }
 
@@ -74,5 +95,53 @@
       color-mix(in oklch, currentColor 15%, transparent) 0 1px,
       transparent 1px 5px
     );
+  }
+
+  /* A sheet of faint log lines behind the landing hero: horizontal rules on a 28px pitch. */
+  .log-sheet {
+    background-image: repeating-linear-gradient(
+      to bottom,
+      color-mix(in oklch, var(--color-fg) 7%, transparent) 0 1px,
+      transparent 1px 28px
+    );
+  }
+
+  /* The tower beam: a soft conic wedge that sweeps once across the sheet, then rests. */
+  .tower-beam {
+    background: conic-gradient(
+      from 0deg at 50% 0%,
+      transparent 0deg,
+      transparent 150deg,
+      color-mix(in oklch, var(--color-accent) 22%, transparent) 172deg,
+      color-mix(in oklch, var(--color-accent) 34%, transparent) 180deg,
+      color-mix(in oklch, var(--color-accent) 22%, transparent) 188deg,
+      transparent 210deg,
+      transparent 360deg
+    );
+    transform-origin: 50% 0%;
+    animation: tower-sweep 9s var(--ease-in-out-quint) 0.4s both;
+  }
+  @keyframes tower-sweep {
+    0% {
+      transform: rotate(-58deg);
+      opacity: 0;
+    }
+    12% {
+      opacity: 1;
+    }
+    88% {
+      opacity: 1;
+    }
+    100% {
+      transform: rotate(52deg);
+      opacity: 0.55;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tower-beam {
+      animation: none;
+      transform: rotate(0deg);
+      opacity: 0.7;
+    }
   }
 }
