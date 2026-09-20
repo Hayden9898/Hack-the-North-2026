@@ -14,6 +14,8 @@ export function RunsPage() {
     void datasets.reload()
     void models.reload()
   }, 5_000)
+  const readyDatasets = (datasets.data ?? []).filter((dataset) => dataset.import_state === 'ready')
+  const hasDatasets = (datasets.data?.length ?? 0) > 0
 
   return (
     <div className="stack">
@@ -94,24 +96,32 @@ export function RunsPage() {
 
         <div className="stack">
           <DatasetUploadForm onUploaded={() => void datasets.reload()} />
-          <NewRunForm datasets={datasets.data ?? []} models={models.data ?? []} onCreated={() => void runs.reload()} />
-          <Section title="Datasets">
-            {datasets.loading ? (
-              <Loading what="datasets" />
-            ) : datasets.error ? (
-              <ErrorState error={datasets.error} onRetry={() => void datasets.reload()} what="datasets" />
-            ) : !datasets.data || datasets.data.length === 0 ? (
-            <Empty>No datasets yet. Upload an Apache access-log file above; imports run asynchronously and become selectable when ready.</Empty>
-            ) : (
-              <ul className="plain stack">
-                {datasets.data.map((d) => (
-                  <DatasetCard key={d.dataset_id} d={d} />
-                ))}
-              </ul>
-            )}
-          </Section>
+          {datasets.loading ? <Loading what="datasets" /> : null}
+          {datasets.error ? <ErrorState error={datasets.error} onRetry={() => void datasets.reload()} what="datasets" /> : null}
+          {!datasets.loading && !datasets.error && !hasDatasets ? <ReplaySetupHint /> : null}
+          {hasDatasets ? (
+            <>
+              <NewRunForm datasets={datasets.data ?? []} models={models.data ?? []} onCreated={() => void runs.reload()} />
+              <Section title="Datasets" aside={<span className="muted">{readyDatasets.length} ready</span>}>
+                <ul className="plain stack">
+                  {datasets.data?.map((d) => (
+                    <DatasetCard key={d.dataset_id} d={d} />
+                  ))}
+                </ul>
+              </Section>
+            </>
+          ) : null}
         </div>
       </div>
+    </div>
+  )
+}
+
+function ReplaySetupHint() {
+  return (
+    <div className="setup-hint">
+      <strong>Start here</strong>
+      <span>Upload an access-log file. Once validation finishes, replay controls and dataset details appear here automatically.</span>
     </div>
   )
 }
