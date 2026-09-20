@@ -157,7 +157,12 @@ export function claimView(f: Fact): ClaimView {
       }
     default:
       return {
-        figure: typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean' ? String(v) : null,
+        figure:
+          typeof v === 'number'
+            ? v.toLocaleString('en-US')
+            : typeof v === 'string' || typeof v === 'boolean'
+              ? String(v)
+              : null,
         label: f.kind.replaceAll('_', ' '),
         detail: '',
         recomputable,

@@ -189,8 +189,12 @@ function compact(figure: string | null, fact: Fact): string {
   if (v && typeof v === 'object') {
     const entries = Object.entries(v as Record<string, unknown>).filter(([, x]) => typeof x === 'number')
     if (entries.length) {
-      const head = entries.slice(0, 2).map(([k, x]) => `${k.replaceAll('_', ' ')} ${fmtNum(x as number)}`).join(' · ')
-      return entries.length > 2 ? `${head} +${entries.length - 2}` : head
+      // Count first, then what it counts: "77 prior get 403" not "prior get 403 77".
+      const head = entries
+        .slice(0, 2)
+        .map(([k, x]) => `${fmtNum(x as number)} ${k.replaceAll('_', ' ')}`)
+        .join(' · ')
+      return entries.length > 2 ? `${head} +${entries.length - 2} more` : head
     }
     return `${Object.keys(v as object).length} fields`
   }

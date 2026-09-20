@@ -74,9 +74,20 @@ export function RunsPage() {
   )
 }
 
-/** Most-recently-updated run leads; it is almost always the one a judge wants. */
+/**
+ * Most-recently-updated run leads, except that fault-injection runs never do.
+ *
+ * A fault run exists to demonstrate the validator rejecting a bad AI proposal; it is a
+ * diagnostic artifact, and letting it take the lead card just because it was touched last
+ * points a first-time viewer at the wrong run.
+ */
 function pickLead(runs: Run[]): Run[] {
-  return [...runs].sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at))
+  return [...runs].sort((a, b) => {
+    const fa = isFaultRun(a.name) ? 1 : 0
+    const fb = isFaultRun(b.name) ? 1 : 0
+    if (fa !== fb) return fa - fb
+    return Date.parse(b.updated_at) - Date.parse(a.updated_at)
+  })
 }
 
 function LeadRunCard({ run }: { run: Run }) {
@@ -84,7 +95,7 @@ function LeadRunCard({ run }: { run: Run }) {
   return (
     <article className="rounded-xl border border-border bg-surface px-6 py-5">
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="text-heading text-fg">{run.name || shortId(run.run_id, 14)}</h2>
+        <h2 className="text-heading normal-case tracking-normal text-fg">{run.name || shortId(run.run_id, 14)}</h2>
         <StatePill run={run} />
         <span className="rounded-sm border border-border px-1.5 py-0.5 text-[0.6875rem] text-fg-muted uppercase">
           {run.mode === 'replay' ? 'historical replay' : 'live'}

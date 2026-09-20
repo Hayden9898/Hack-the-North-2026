@@ -50,7 +50,7 @@ export function ActivityPanel({ runId, processedSeq, run }: { runId: string; pro
     <section aria-labelledby="activity" className="rounded-lg border border-border bg-surface">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="flex flex-wrap items-center gap-3">
-          <h2 id="activity" className="text-heading text-fg">
+          <h2 id="activity" className="text-heading normal-case tracking-normal text-fg">
             Shape of the run
           </h2>
           {model ? <FreshnessChip freshness={model.freshness} /> : null}

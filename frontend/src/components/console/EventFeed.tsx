@@ -105,7 +105,7 @@ export function EventFeed({ runId, tick, cutoff }: { runId: string; tick: number
     <section aria-labelledby="feed" className="rounded-lg border border-border bg-surface">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div>
-          <h2 id="feed" className="text-heading text-fg">
+          <h2 id="feed" className="text-heading normal-case tracking-normal text-fg">
             Event feed
           </h2>
           <p className="text-caption text-fg-muted normal-case tracking-normal">

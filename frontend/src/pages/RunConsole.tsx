@@ -287,7 +287,7 @@ function Findings({ runId, tick, cutoff }: { runId: string; tick: number; cutoff
   return (
     <section aria-labelledby="findings">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
-        <h2 id="findings" className="text-heading text-fg">
+        <h2 id="findings" className="text-heading normal-case tracking-normal text-fg">
           Findings
           {inc.data ? (
             <span className="ms-2 text-caption text-fg-muted normal-case tracking-normal">
