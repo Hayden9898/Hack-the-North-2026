@@ -158,3 +158,27 @@ Concise record of milestones, decisions, commands and results. Newest entries at
 - Disposable synthetic test DB removed after verification; no existing application data changed. Apply migration 0004
   to the intended app database before restarting updated services. Canonical-data/model, persistent DB, real Sentry
   credentials/receipt and hosting remain unverified; no detection-accuracy superiority or prize outcome is claimed.
+
+### M9 — hosted deployment (Railway) ✅ image verified, cloud deploy pending credentials
+- One `Dockerfile` (node build → python:3.12-slim runtime, 184 MB) running three roles: `scripts.serve_api`
+  (FastAPI **plus** the built console, mounted last so API routes always win and unknown `/api/*` stays a JSON 404),
+  `scripts.serve_worker` (detector + side-effect loops as two threads, `WORKER_ROLES` to split them, SIGTERM drains),
+  and the existing one-off CLIs. `railway.json` / `railway.worker.json` carry build, start command and healthcheck;
+  `docker compose --profile app` runs the same image locally (opt-in, `db-up` unaffected).
+- D-006 No Redis/object storage: the queues are Postgres tables with `SKIP LOCKED` leases and the model is CPU
+  scikit-learn from the image. Consequence recorded in `docs/DEPLOY.md`: `POST /datasets` (upload → worker import)
+  needs a shared filesystem, so hosted seeding is `scripts.import_dataset` over the network instead.
+- Browser/API auth for shared deployments: `/health/ready` now declares `auth.operator_required`; the console asks
+  for the operator token in its header and sends it only as `Authorization` (sessionStorage, never a URL). Reads stay
+  unauthenticated, as locally.
+- Fix: `scripts.migrate` treated an empty `TEST_DATABASE_URL` as reachable — `ping("")` falls back to the default
+  connection parameters — and then failed the deploy on `create_engine('')`. Empty now means "not configured".
+- Verified in containers against the local TimescaleDB (`docker compose --profile app up --build`): `/health/ready`
+  → `ready`, `timescaledb 2.30.1`, migrations `0004/0004`, `auth.operator_required=true`; SPA served at `/`, deep route
+  `/runs/abc` → 200, `/api/v1/nope` → JSON 404; mutation 401 without/with a wrong bearer, 201 with the right one;
+  3 live events ingested with `X-Ingest-Token` and processed by the *separate* worker container (processed_seq 3).
+  Frontend `tsc`/`oxlint`/`vite build` clean; `ruff`/`mypy` clean on the touched files; `tests/integration/test_health.py`
+  5 passed (the DB-backed case errored on a TRUNCATE deadlock from another pytest process sharing `logorder_test`).
+- Not done: no Railway project created and no Tiger Cloud connection string, so the deployment itself is
+  **unverified**; `ml/artifacts/` is empty in this checkout, so a deploy from git is rules-only until an artifact is
+  force-added; the left-over `deploy-check` live run in the local dev database is a verification artifact.

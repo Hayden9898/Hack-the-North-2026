@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     config_dir: str = str(REPO_ROOT / "config")
     upload_dir: str = str(REPO_ROOT / "data" / "uploads")
     max_upload_bytes: int = 200 * 1024 * 1024
+    # Built frontend served by the API itself (same-origin) when the directory exists; empty disables it.
+    static_dir: str = str(REPO_ROOT / "frontend" / "dist")
     app_base_url: str = "http://127.0.0.1:5173"
     api_host: str = "127.0.0.1"
     api_port: int = 8000
@@ -59,6 +61,15 @@ class Settings(BaseSettings):
     @property
     def loopback_only(self) -> bool:
         return self.api_host in ("127.0.0.1", "localhost", "::1")
+
+    @property
+    def operator_auth_required(self) -> bool:
+        """Mutations need a bearer token whenever a secret is configured or the bind is not loopback."""
+        return bool(self.app_auth_secret) or not self.loopback_only
+
+    @property
+    def ingest_auth_required(self) -> bool:
+        return bool(self.ingest_token) or not self.loopback_only
 
     def integration_status(self) -> dict[str, str]:
         """Visible integration status. Never includes secret values."""

@@ -19,5 +19,36 @@ services:
       timeout: 3s
       retries: 20
 
+  # Deployment parity, opt-in: `docker compose --profile app up --build` runs the exact image Railway runs
+  # (API + built console on :8000, worker beside it) against the local TimescaleDB. Not started by `db-up`.
+  api:
+    profiles: ["app"]
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://logorder:logorder@db:5432/logorder
+      TEST_DATABASE_URL: ""
+      APP_AUTH_SECRET: ${APP_AUTH_SECRET:-local-operator-secret}
+      INGEST_TOKEN: ${INGEST_TOKEN:-local-ingest-token}
+      APP_BASE_URL: http://127.0.0.1:8000
+      SLACK_MODE: preview
+    command: ["sh", "-c", "python -m scripts.migrate && python -m scripts.serve_api"]
+    ports:
+      - "8000:8000"
+
+  worker:
+    profiles: ["app"]
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://logorder:logorder@db:5432/logorder
+      TEST_DATABASE_URL: ""
+      SLACK_MODE: preview
+    command: ["sh", "-c", "python -m scripts.wait_for_db && python -m scripts.serve_worker"]
+
 volumes:
   logorder-pgdata:
