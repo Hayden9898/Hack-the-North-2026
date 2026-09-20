@@ -18,6 +18,7 @@ import {
   TimelinePanel,
   UnknownsPanel,
 } from '../components/console/incident/panels'
+import { ActionsSection } from './ActionsSection'
 import { ProofRail } from '../components/console/incident/ProofRail'
 import { VerdictBand } from '../components/console/incident/VerdictBand'
 import { ErrorState } from '@/components/ui/error-state'
@@ -35,7 +36,7 @@ export function IncidentPage() {
   const { runId = '', incidentId = '' } = useParams()
   const [sp, setSp] = useSearchParams()
   const versionParam = sp.get('version')
-  const version = versionParam ? Number(versionParam) : undefined
+  const version = parseVersion(versionParam)
   const inc = useFetch<IncidentDetail>(() => api.getIncident(runId, incidentId, version), [runId, incidentId, version])
   const [drawerFact, setDrawerFact] = useState<Fact | null>(null)
 
@@ -107,6 +108,7 @@ export function IncidentPage() {
               <TabsTrigger value="related" className={TAB}>Related ({d.relations.length})</TabsTrigger>
               <TabsTrigger value="playbooks" className={TAB}>Playbooks ({d.playbooks?.applicable.length ?? 0})</TabsTrigger>
               <TabsTrigger value="baseline" className={TAB}>Baseline</TabsTrigger>
+              <TabsTrigger value="containment" className={TAB}>Containment</TabsTrigger>
             </TabsList>
             <TabsContent value="timeline">
               <TimelinePanel timeline={d.timeline} runId={runId} triggerSeq={v.trigger_seq} />
@@ -124,6 +126,11 @@ export function IncidentPage() {
                 triggerSeq={v.trigger_seq}
                 triggerHour={triggerHour}
               />
+            </TabsContent>
+            <TabsContent value="containment">
+              {/* From main's M9 containment work. Still on the legacy ../ui styling - restyle onto
+                  the shared tokens with the rest of the console. */}
+              <ActionsSection runId={runId} incidentId={incidentId} version={v.version} onChanged={() => void inc.reload()} />
             </TabsContent>
           </Tabs>
         </main>
@@ -207,4 +214,11 @@ function hourOf(iso: string | null | undefined): number | null {
   if (!iso) return null
   const t = Date.parse(iso)
   return Number.isFinite(t) ? new Date(t).getUTCHours() : null
+}
+
+/** `?version=` must be a positive integer to be sent to the API; otherwise the current version is requested. */
+function parseVersion(raw: string | null): number | undefined {
+  if (!raw) return undefined
+  const n = Number(raw)
+  return Number.isInteger(n) && n >= 1 ? n : undefined
 }

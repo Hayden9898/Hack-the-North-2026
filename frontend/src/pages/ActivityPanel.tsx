@@ -173,10 +173,17 @@ function OperatorTools({ runId, disabled, onRefreshed }: { runId: string; disabl
       ) : null}
       {refresh.error ? <p className="text-caption text-high-risk normal-case tracking-normal">{describeError(refresh.error).text}</p> : null}
 
-      {bench.result ? (
+      {bench.result && 'error' in bench.result ? (
+        // The API reports an unrunnable benchmark as a result, not a transport error — most often
+        // because the aggregate has never been materialized. Say so, and name the fix.
+        <p className="text-caption text-fg-muted normal-case tracking-normal">
+          Benchmark not available: {bench.result.error}.
+          {/aggregate not refreshed/i.test(bench.result.error) ? ' Re-materialize the aggregate above, then measure again.' : ''}
+        </p>
+      ) : bench.result ? (
         <p className="font-mono text-mono text-fg-muted">
-          aggregate {bench.result.aggregate_ms.median} ms vs raw {bench.result.raw_ms.median} ms (median of {bench.result.repeats}) ·{' '}
-          {fmtNum(bench.result.rows)} rows ·{' '}
+          aggregate {bench.result.aggregate_ms?.median?.toFixed(1) ?? '—'} ms vs raw {bench.result.raw_ms?.median?.toFixed(1) ?? '—'} ms (median of{' '}
+          {bench.result.repeats}) · {fmtNum(bench.result.rows)} rows ·{' '}
           <span className={bench.result.identical_results ? 'text-normal' : 'text-high-risk'}>
             {bench.result.identical_results ? 'identical results' : 'RESULTS DIFFER'}
           </span>

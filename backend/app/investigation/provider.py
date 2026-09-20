@@ -25,6 +25,11 @@ class Reply:
     output_tokens: int = 0
     model: str = ""
     raw: Any = field(default=None, repr=False)
+    # The provider's full assistant turn (every block, including thinking blocks) to echo back verbatim on the next
+    # request. Adaptive thinking returns signed thinking blocks that the API requires unchanged in the assistant
+    # message of any follow-up (tool round or repair turn); rebuilding the turn from text/tool_use alone yields a 400.
+    # None means "no provider turn available" (scripted explainers); the caller then rebuilds from `content`.
+    assistant_content: list[Any] | None = field(default=None, repr=False)
 
 
 class Explainer(Protocol):
@@ -66,6 +71,7 @@ class AnthropicExplainer:
             output_tokens=resp.usage.output_tokens,
             model=resp.model,
             raw=[{"type": b.type, **({"text": b.text} if b.type == "text" else {"id": b.id, "name": b.name, "input": b.input})} for b in blocks],
+            assistant_content=list(resp.content),  # SDK block objects are valid message params; thinking blocks stay signed
         )
 
 

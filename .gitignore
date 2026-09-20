@@ -12,6 +12,18 @@ ml/artifacts/*
 data/uploads/
 *.log
 reports/tmp/
+reports/adversarial_evaluation.json
+.playwright-mcp/
+frontend/test-results/
+frontend/playwright-report/
+frontend/e2e/screenshots/
+reports/verification/
+frontend/playwright-live-report/
+frontend/test-results-live/
+frontend/.env.local
+frontend/dist-monitoring/
+frontend/playwright-monitoring-report/
+frontend/test-results-monitoring/
 
 # Supplied dataset stays out of git (17 MB); point DATASET_PATH at it.
 htn_challenge_logs_2026.txt

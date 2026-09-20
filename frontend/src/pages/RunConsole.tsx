@@ -84,6 +84,7 @@ export function RunConsole() {
         case 'explanation':
         case 'delivery':
         case 'feedback':
+        case 'action': // containment taken in another tab: the run's containment counts and the incident list change
           refreshIncidents()
           refreshRun()
           break
@@ -164,7 +165,7 @@ export function RunConsole() {
         attempts={updates.attempts}
         lastId={updates.lastId}
         resyncs={resyncs}
-        onChanged={(u) => run.set(() => u)}
+        onChanged={(u) => run.set((prev) => ({ ...u, counts: u.counts ?? prev?.counts }))}
       />
 
       {merged.state === 'blocked' ? <BlockedBanner run={merged} /> : null}
@@ -387,6 +388,7 @@ function RunProvenance({ run }: { run: Run }) {
         <div className="mt-4 border-t border-border pt-3">
           <h4 className="mb-2 text-caption text-fg-muted uppercase">Counts under cutoff</h4>
           <CountsTable run={run} />
+          <Containment counts={run.counts?.containment} />
         </div>
       </div>
     </details>
@@ -421,6 +423,43 @@ function CountsTable({ run }: { run: Run }) {
         })}
       </tbody>
     </table>
+  )
+}
+
+function fmtDuration(seconds: number): string {
+  if (seconds < 60) return `${Math.round(seconds)}s`
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`
+  return `${Math.floor(seconds / 3600)}h ${Math.round((seconds % 3600) / 60)}m`
+}
+
+/** Actionable incidents vs. those an operator contained, and how long that took in console time. */
+function Containment({ counts }: { counts?: { actionable: number; contained: number; preview: number; applied: number; median_seconds: number | null } }) {
+  if (!counts) return null
+  const open = Math.max(0, counts.actionable - counts.contained)
+  const pct = counts.actionable > 0 ? Math.round((counts.contained / counts.actionable) * 100) : 0
+  return (
+    <div className="mt-4 max-w-lg space-y-1.5 border-t border-border pt-3">
+      <h3 className="text-caption text-fg-muted uppercase">Containment</h3>
+      <p className="text-body text-fg">
+        <span className="font-mono tabular-nums">{fmtNum(counts.contained)}</span> of{' '}
+        <span className="font-mono tabular-nums">{fmtNum(counts.actionable)}</span> actionable incidents contained ({pct}%)
+      </p>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-caption text-fg-muted normal-case tracking-normal">
+        <span>
+          awaiting action <span className="font-mono tabular-nums text-fg">{fmtNum(open)}</span>
+        </span>
+        <span>
+          median time to containment{' '}
+          <span className="font-mono tabular-nums text-fg">{counts.median_seconds === null ? '—' : fmtDuration(counts.median_seconds)}</span>
+        </span>
+        {counts.preview > 0 ? <span className="font-mono tabular-nums">{fmtNum(counts.preview)} preview</span> : null}
+        {counts.applied > 0 ? <span className="font-mono tabular-nums text-suspicious">{fmtNum(counts.applied)} applied</span> : null}
+      </div>
+      <p className="text-caption text-fg-subtle normal-case tracking-normal">
+        Console time from the incident record being created to an operator approving a containment action. A preview containment records the
+        approval without contacting any external system.
+      </p>
+    </div>
   )
 }
 

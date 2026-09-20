@@ -1,7 +1,8 @@
 # Three-minute demo script
 
 Everything shown is a **historical replay** of the supplied file (labelled as such in every Slack preview and in the
-run header). Fault injection is labelled. No sponsor integration is described as live unless its status badge says so.
+run header). Fault injection is labelled. Configuration badges are not delivery evidence: confirm receipt in the actual sponsor
+service before describing an integration as externally verified. See `docs/sentry-observability.md`.
 
 ## Reset / start (before the demo)
 
@@ -33,6 +34,10 @@ Open the R2/R5 incident (high risk): 77 prior denials (counted fact) → click *
 recomputes 77 = 77 ✓ and pages through the original lines; linked context: sarah_j viewed post 1042 (line 168335)
 one second before the only `/api/admin/role_update` in the dataset (168336, R3 incident, related episode); david_m
 viewed 1042 at 168333. Qualifier: does not assert who created the object or whose role changed.
+The overview's **Investigation brief** answers who is recorded, which request triggered this version, when, and why.
+Its measured-condition buttons open that same evidence drawer. Select version 1: R2 is still suspicious, without the
+R5-added evidence and relationship—even though the versions share a processing sequence. Download the local JSON brief
+if the judge wants a version-pinned artifact; it includes unknowns and source/config provenance, not a claim of guilt.
 Then Mar 15 22:29: sarah_j's login 200 from 10.0.8.45 and the ZIP download → **R4** escalates the R1 episode to high
 risk; the Slack preview shows the immediate high-risk escalation (debounce bypassed).
 
@@ -42,15 +47,15 @@ risk; the Slack preview shows the immediate high-risk escalation (debounce bypas
 python -m scripts.inject_invalid_claim --run-id <demo run id>
 ```
 
-Reload the incident: *AI proposal rejected by validator* with the schema-level reasons (fabricated fact ids, an
+Reload the incident and open **Review & response**: *AI proposal rejected by validator* with the schema-level reasons (fabricated fact ids, an
 unknown "confirmed" hypothesis code) on both the first attempt and the single repair; the deterministic summary
 remains and the incident class, deliveries and detections are untouched. With a
-`SENTRY_DSN` configured each reason is a `claim_rejected` structured log on the `explanation` trace; without one the
-same events are in the worker log.
+`SENTRY_DSN` configured the rejection produces a `claim_rejected` structured log on the `explanation` trace; full rejection
+text is deliberately scrubbed from telemetry. Versioned details remain in the incident UI.
 
 ## 2:45 — Tiger aggregate, measured
 
-Run console → *Activity (Tiger continuous aggregate)*: freshness badge (materialized through … + raw tail), then the
-**Benchmark** disclosure: raw GROUP BY vs aggregate on this database, identical results ✓, measured milliseconds.
+Execution Overview → activity chart → **Data and query details**: freshness and raw-tail state, then **Measure query performance**:
+raw GROUP BY vs aggregate on this database, identical results and measured milliseconds.
 Close by opening a normal event's detail: raw line, features, measured deviations — the same decision is reproducible
 from the run's evidence.

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -12,6 +13,7 @@ import numpy as np
 import psycopg
 
 from app.config import DetectionConfig
+from app.detection.preprocess import anomaly_scores as _anomaly_scores
 from app.features.vector import FEATURE_NAMES, FEATURE_VERSION
 
 
@@ -37,8 +39,20 @@ def pick_source_run(conn: psycopg.Connection[Any], run_id: str | None, cfg: Dete
             )
         row = cur.fetchone()
     if row is None:
+        if run_id:
+            raise SystemExit(f"source run {run_id} does not exist")
         raise SystemExit("no completed replay run with the current config; run `python -m scripts.run_replay` first")
     run = dict(row)
+    if run_id:
+        # An explicit --source-run gets the same guards as the default query: a partial run has partial snapshots and
+        # a run under another config produced vectors the current code would not reproduce.
+        if run.get("state") != "completed":
+            raise SystemExit(f"source run {run_id} is {run.get('state')!r}, not 'completed'; only completed runs provide usable snapshots")
+        if run.get("config_hash") != cfg.config_hash:
+            raise SystemExit(f"source run {run_id} was produced under config_hash {run.get('config_hash')} but the current config is "
+                             f"{cfg.config_hash}; re-run `python -m scripts.run_replay` under the current config or restore the old one")
+        if run.get("dataset_id") is None:
+            raise SystemExit(f"source run {run_id} has no dataset")
     with conn.cursor() as cur:
         cur.execute("SELECT max(event_time) m, count(*) n, min(feature_version) fv FROM feature_snapshots WHERE run_id=%s", (run["run_id"],))
         s = cur.fetchone()
@@ -76,11 +90,36 @@ def sha256_file(p: Path) -> str:
 
 
 def anomaly_scores(est: Any, X: np.ndarray) -> np.ndarray:
-    return -est.score_samples(X)
+    """Higher = rarer; forest score plus the preprocessing stage's blind-spot penalty when the artifact carries one."""
+    return _anomaly_scores(est, X)
 
 
 def load_manifest(model_dir: Path, model_id: str) -> dict[str, Any]:
-    return json.loads((model_dir / model_id / "manifest.json").read_text(encoding="utf-8"))
+    path = model_dir / model_id / "manifest.json"
+    if not path.is_file():
+        raise SystemExit(f"no artifact for {model_id} in {model_dir}")
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def write_manifest(model_dir: Path, model_id: str, manifest: dict[str, Any]) -> None:
+    """Atomic replace so the detector never reads a half-written manifest."""
+    target = model_dir / model_id / "manifest.json"
+    tmp = target.with_name("manifest.json.tmp")
+    tmp.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    os.replace(tmp, target)
+
+
+def check_config_drift(manifest: dict[str, Any], cfg: DetectionConfig, allow: bool) -> None:
+    """The artifact's snapshots were produced under manifest['config_hash']; scoring them under a different config
+    silently mixes feature semantics. Exit unless the operator explicitly accepts the drift."""
+    trained = manifest.get("config_hash")
+    if trained is None or trained == cfg.config_hash:
+        return
+    msg = f"model {manifest.get('model_id')} was trained under config_hash {trained} but the current config is {cfg.config_hash}"
+    if allow:
+        print(f"warning: {msg}; proceeding because --allow-config-drift was given")
+        return
+    raise SystemExit(f"{msg}; restore the training config or pass --allow-config-drift")
 
 
 def rarity_baseline(X: np.ndarray) -> np.ndarray:

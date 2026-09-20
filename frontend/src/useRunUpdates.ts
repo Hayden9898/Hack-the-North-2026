@@ -20,6 +20,8 @@ export type UpdateType =
   | 'delivery'
   | 'explanation'
   | 'feedback'
+  /** A containment action was dry-run, executed or rolled back (backend/app/actions/service.py). */
+  | 'action'
   | 'heartbeat'
   | 'resync_required'
 
@@ -30,6 +32,7 @@ export const UPDATE_TYPES: UpdateType[] = [
   'delivery',
   'explanation',
   'feedback',
+  'action',
   'heartbeat',
   'resync_required',
 ]

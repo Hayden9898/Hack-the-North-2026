@@ -1,7 +1,7 @@
-import { ArrowRight, CircleSlash, Database, FlaskConical, Plus } from 'lucide-react'
-import { useState } from 'react'
+import { ArrowRight, CircleSlash, Database, FlaskConical, Plus, Upload } from 'lucide-react'
+import { type FormEvent, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api, describeError, type Dataset, type Run, type RunCreateBody } from '../api'
+import { api, describeError, type Dataset, type Model, type Run, type RunCreateBody } from '../api'
 import { fmtBytes, fmtNum, fmtTime, isFaultRun, modelHealthLabel, runStateLabel, shortId, speedLabel } from '../format'
 import { useFetch, useInterval } from '../useFetch'
 import { cn } from '@/lib/cn'
@@ -21,6 +21,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 export function RunsPage() {
   const runs = useFetch<Run[]>(() => api.listRuns(), [])
   const datasets = useFetch<Dataset[]>(() => api.listDatasets(), [])
+  const models = useFetch<Model[]>(() => api.listModels(), [])
   useInterval(() => void runs.reload(), 5_000)
 
   const items = runs.data ?? []
@@ -36,7 +37,15 @@ export function RunsPage() {
             them under its own cutoff, so runs never contaminate each other.
           </p>
         </div>
-        <NewRunDialog datasets={datasets.data ?? []} onCreated={() => void runs.reload()} />
+        <div className="flex flex-wrap items-center gap-2">
+          <UploadDatasetDialog
+            onUploaded={() => {
+              void datasets.reload()
+              void models.reload()
+            }}
+          />
+          <NewRunDialog datasets={datasets.data ?? []} models={models.data ?? []} onCreated={() => void runs.reload()} />
+        </div>
       </header>
 
       {runs.loading && !runs.data ? (
@@ -218,7 +227,19 @@ function StatePill({ run }: { run: Run }) {
  */
 function DatasetStrip({ datasets, loading }: { datasets: Dataset[]; loading: boolean }) {
   if (loading) return <Skeleton className="h-12 w-full rounded-lg" />
-  if (datasets.length === 0) return null
+  if (datasets.length === 0) {
+    return (
+      <section aria-labelledby="datasets" className="border-t border-border pt-5">
+        <h2 id="datasets" className="mb-3 text-caption text-fg-muted uppercase">
+          Source data
+        </h2>
+        <p className="text-body text-fg-muted">
+          No datasets yet. Import an Apache access-log file above; imports run asynchronously and become selectable
+          once validation completes.
+        </p>
+      </section>
+    )
+  }
   return (
     <section aria-labelledby="datasets" className="border-t border-border pt-5">
       <h2 id="datasets" className="mb-3 text-caption text-fg-muted uppercase">
@@ -249,9 +270,10 @@ function DatasetStrip({ datasets, loading }: { datasets: Dataset[]; loading: boo
   )
 }
 
-function NewRunDialog({ datasets, onCreated }: { datasets: Dataset[]; onCreated: () => void }) {
+function NewRunDialog({ datasets, models, onCreated }: { datasets: Dataset[]; models: Model[]; onCreated: () => void }) {
   const [open, setOpen] = useState(false)
   const ready = datasets.filter((d) => d.import_state === 'ready')
+  const defaultModel = models.find((m) => m.is_default) ?? null
   const [form, setForm] = useState({ dataset_id: '', name: '', visible_start: '', speed: '', pause: true })
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<unknown>(null)
@@ -328,6 +350,17 @@ function NewRunDialog({ datasets, onCreated }: { datasets: Dataset[]; onCreated:
               />
             </label>
           </div>
+          <div className="grid gap-1 text-caption text-fg-muted uppercase">
+            model (rules + ML on every run)
+            {defaultModel ? (
+              <span className="font-mono text-mono text-fg normal-case tracking-normal">{defaultModel.model_id}</span>
+            ) : (
+              <span className="text-body text-fg-muted normal-case tracking-normal">
+                No active model registered — this run scores rules-only until one is calibrated with{' '}
+                <code className="font-mono text-mono">--activate</code>.
+              </span>
+            )}
+          </div>
           <label className="flex items-center gap-2 text-body text-fg-muted">
             <input
               type="checkbox"
@@ -344,6 +377,97 @@ function NewRunDialog({ datasets, onCreated }: { datasets: Dataset[]; onCreated:
             </Button>
             <Button type="submit" disabled={busy || ready.length === 0}>
               {busy ? 'Creating…' : 'Create run'}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/**
+ * Dataset import, from main's console-upload work.
+ *
+ * Kept behind a dialog for the same reason the create form is: "import a file" is an
+ * occasional operator action, not the question this page answers.
+ */
+function UploadDatasetDialog({ onUploaded }: { onUploaded: () => void }) {
+  const [open, setOpen] = useState(false)
+  const [file, setFile] = useState<File | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState<(Dataset & { job: 'queued' | 'existing' }) | null>(null)
+  const [err, setErr] = useState<unknown>(null)
+
+  async function submit(e: FormEvent) {
+    e.preventDefault()
+    if (!file) return
+    setBusy(true)
+    setErr(null)
+    try {
+      setResult(await api.uploadDataset(file))
+      onUploaded()
+    } catch (ex) {
+      setErr(ex)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost">
+          <Upload /> Import logs
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Import access logs</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={(e) => void submit(e)} className="grid gap-3">
+          <label className="grid gap-1 text-caption text-fg-muted uppercase">
+            Apache access-log file
+            <input
+              type="file"
+              accept=".log,.txt,text/plain"
+              onChange={(e) => {
+                setFile(e.target.files?.[0] ?? null)
+                setResult(null)
+                setErr(null)
+              }}
+              className="w-full rounded-md border border-border-strong bg-surface-raised px-2.5 py-1.5 text-body text-fg normal-case tracking-normal file:mr-3 file:rounded file:border-0 file:bg-chip file:px-2 file:py-1 file:font-mono file:text-caption file:text-fg file:uppercase focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+            />
+          </label>
+
+          {file ? (
+            <p className="font-mono text-mono text-fg-muted">
+              <span className="text-fg">{file.name}</span> · {fmtBytes(file.size)}
+            </p>
+          ) : null}
+
+          <p className="text-caption text-fg-subtle normal-case tracking-normal">
+            Streams to the server; the configured limit is 200 MiB. Raw evidence is never sent to an AI provider.
+          </p>
+
+          {result ? (
+            <p className="rounded-md border border-border bg-chip px-3 py-2 text-body text-fg-muted" role="status">
+              {result.job === 'existing' ? 'This exact file was already imported.' : 'Upload queued for import.'} Dataset{' '}
+              <span className="font-mono text-mono text-fg">{shortId(result.dataset_id, 18)}</span>. Validation progress and
+              rejected-line samples appear in the source-data strip.
+            </p>
+          ) : null}
+          {err ? (
+            <p className="text-caption text-high-risk normal-case tracking-normal" role="alert">
+              Upload failed (HTTP {describeError(err).status ?? '—'}): {describeError(err).text}
+            </p>
+          ) : null}
+
+          <div className="flex justify-end gap-2 pt-1">
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+              Close
+            </Button>
+            <Button type="submit" disabled={!file || busy}>
+              {busy ? 'Uploading…' : 'Upload and import'}
             </Button>
           </div>
         </form>

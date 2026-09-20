@@ -82,6 +82,35 @@ def test_r02_four_unfamiliar_failures_in_60s_fires_r1_with_exact_legs(db, tmp_pa
     assert ob == [{"notification_kind": "suspicious_digest", "state": "pending"}]
 
 
+def test_r06_slow_unfamiliar_guessing_is_detected_and_later_escalates(db, tmp_path):
+    cfg = _cfg(tmp_path)
+    w = _world()
+    actor, victim = w.accounts[3], w.accounts[1]
+    source_ip = w.ips[actor]
+    path = w.sensitive_paths[0]
+    t = _eval_day(2) + timedelta(hours=9)
+    # Six failures ten minutes apart never create four failures in R1's 60-second window.
+    times = scenario_auth_burst(w, t, victim=victim, source_ip=source_ip, n=6, spacing=600)
+    login = times[-1] + timedelta(minutes=5)
+    w.emit(login, source_ip, victim, "POST", "/api/auth/login", 200, 128)
+    sensitive = login + timedelta(seconds=45)
+    w.emit(sensitive, source_ip, victim, "GET", path, 200, 8459200)
+    ds = import_world(w, tmp_path, db)
+    run_id = start_run(db, cfg, ds)
+    drive(db, cfg, run_id)
+
+    assert q(db, "select count(*) n from rule_matches where run_id=%s and rule_id='R1'", run_id)[0]["n"] == 0
+    r6 = q(db, "select * from rule_matches where run_id=%s and rule_id='R6'", run_id)
+    assert len(r6) == 1 and r6[0]["event_time"] == times[-1]
+    assert r6[0]["params"]["failures_in_window"] == 6
+    r4 = q(db, "select * from rule_matches where run_id=%s and rule_id='R4'", run_id)
+    assert len(r4) == 1 and r4[0]["event_time"] == sensitive
+    assert r4[0]["params"]["auth_episode_rule"] == "R6"
+    assert [leg["role"] for leg in r4[0]["legs"]] == ["auth_episode_match", "successful_login", "sensitive_success"]
+    incident = q(db, "select current_class, primary_rule_id from incidents where run_id=%s", run_id)
+    assert incident == [{"current_class": "high_risk", "primary_rule_id": "R6"}]
+
+
 def test_r03_first_sensitive_success_after_denials_is_suspicious_not_high_risk(db, tmp_path):
     cfg = _cfg(tmp_path)
     w = _world()
@@ -106,7 +135,7 @@ def test_r03_first_sensitive_success_after_denials_is_suspicious_not_high_risk(d
     assert all(f["provenance_hash"] for f in packet["facts"])
 
 
-def test_r04_r05_linked_sequence_escalates_and_r06_no_mega_merge(db, tmp_path):
+def test_linked_sequence_escalates_without_a_mega_merge(db, tmp_path):
     cfg = _cfg(tmp_path)
     w = _world()
     actor, victim = w.accounts[3], w.accounts[1]  # victim is in the zip's audience; actor is not
@@ -129,9 +158,9 @@ def test_r04_r05_linked_sequence_escalates_and_r06_no_mega_merge(db, tmp_path):
     assert legs["a_viewed_object"]["object_id"] == obj and legs["b_viewed_object"]["account"] == victim
     assert legs["b_admin_request_r3"]["run_seq"] < matches["R5"]["run_seq"]
     assert matches["R5"]["params"]["asserts_role_changed"] is False
-    # R4 legs: r1 episode (earlier), successful login, sensitive success.
+    # R4 legs: an auth episode (earlier), successful login, sensitive success.
     roles = [leg["role"] for leg in matches["R4"]["legs"]]
-    assert roles == ["r1_episode_match", "successful_login", "sensitive_success"]
+    assert roles == ["auth_episode_match", "successful_login", "sensitive_success"]
 
     incidents = q(db, "select * from incidents where run_id=%s order by first_seq", run_id)
     by_rule = {i["primary_rule_id"]: i for i in incidents}
@@ -159,7 +188,7 @@ def test_r04_r05_linked_sequence_escalates_and_r06_no_mega_merge(db, tmp_path):
     assert all(i["account"] in (actor, victim) for i in incidents)
 
 
-def test_r06_shared_assets_and_subnet_do_not_connect_incidents(db, tmp_path):
+def test_shared_assets_and_subnet_do_not_connect_incidents(db, tmp_path):
     cfg = _cfg(tmp_path)
     w = _world()
     # Two independent unfamiliar bursts against two different victims from two different sources in the same /24.

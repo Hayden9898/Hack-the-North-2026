@@ -1,4 +1,4 @@
-"""Independent deterministic rules R1–R5 (architecture.md §7).
+"""Independent deterministic rules R1–R6 (architecture.md §7).
 
 Each rule receives the current event, prior history and a bounded evidence repository, and returns a RuleMatch with
 event ids for every required leg plus the predicate parameters. Rules never look at the ML score. No account names,
@@ -85,6 +85,69 @@ def rule_r1_auth_burst(ctx: RuleContext) -> RuleMatch | None:
         legs=legs,
         params={"window_seconds": cfg["window_seconds"], "min_failures": cfg["min_failures"], "failures_in_window": total,
                 "familiarity": familiarity, "reference_hash": ctx.ref.hash},
+        incomplete=truncated,
+    )
+
+
+def rule_r6_slow_auth_burst(ctx: RuleContext) -> RuleMatch | None:
+    """Detect patient guessing that stays below the one-minute R1 threshold.
+
+    This is intentionally only suspicious alone. A later successful login and sensitive
+    access must satisfy R4 independently before the episode can become high risk.
+    """
+    ev, cfg = ctx.ev, ctx.cfg.policy["rules"]["R6"]
+    routes = ctx.cfg.routes
+    if not (routes.in_category(ev.route_family, "login_families") and ev.status == 401):
+        return None
+    # Fast bursts are R1's responsibility; never duplicate its evidence with R6.
+    if ctx.win.pair_401_60s + 1 >= int(ctx.cfg.policy["rules"]["R1"]["min_failures"]):
+        return None
+    familiarity = ctx.ref.familiarity(ev.username, ev.ip_raw)
+    if cfg.get("requires_unfamiliar_or_unknown", True) and familiarity == "familiar":
+        return None
+    t0 = ev.event_time - timedelta(seconds=int(cfg["window_seconds"]))
+    params = {
+        "run": ctx.run_id,
+        "u": ev.username,
+        "ip": ev.ip_raw,
+        "login": sorted(routes.categories["login_families"]),
+        "t0": t0,
+        "t": ev.event_time,
+        "k": ev.run_seq,
+    }
+    with ctx.conn.cursor() as cur:
+        cur.execute(
+            """SELECT count(*) n FROM processed_events
+               WHERE run_id=%(run)s AND username=%(u)s AND ip_raw=%(ip)s AND route_family = ANY(%(login)s)
+                 AND status=401 AND event_time >= %(t0)s AND event_time <= %(t)s AND run_seq < %(k)s""",
+            params,
+        )
+        prior_count = int(one(cur)["n"])
+    total = prior_count + 1
+    if total < int(cfg["min_failures"]):
+        return None
+    rows, truncated = _fetch(
+        ctx,
+        """SELECT event_id, run_seq, event_time FROM processed_events
+           WHERE run_id=%(run)s AND username=%(u)s AND ip_raw=%(ip)s AND route_family = ANY(%(login)s)
+             AND status=401 AND event_time >= %(t0)s AND event_time <= %(t)s AND run_seq < %(k)s ORDER BY run_seq""",
+        params,
+        limit=int(ctx.cfg.policy["correlation"]["max_packet_events"]),
+    )
+    legs = [_leg(r, "prior_failure") for r in rows] + [{"role": "current_failure", **ev.evidence_ref()}]
+    return RuleMatch(
+        rule_id="R6",
+        outcome=cfg["outcome"],
+        key_type="pair",
+        key_value=ev.pair_key,
+        legs=legs,
+        params={
+            "window_seconds": cfg["window_seconds"],
+            "min_failures": cfg["min_failures"],
+            "failures_in_window": total,
+            "familiarity": familiarity,
+            "reference_hash": ctx.ref.hash,
+        },
         incomplete=truncated,
     )
 
@@ -179,17 +242,17 @@ def rule_r4_account_use_sequence(ctx: RuleContext) -> RuleMatch | None:
         return None
     with ctx.conn.cursor() as cur:
         cur.execute(
-            """SELECT run_seq, event_id, event_time, incident_id FROM rule_matches
-               WHERE run_id=%s AND rule_id='R1' AND key_type='pair' AND key_value=%s
+            """SELECT run_seq, rule_id, event_id, event_time, incident_id FROM rule_matches
+               WHERE run_id=%s AND rule_id = ANY(%s) AND key_type='pair' AND key_value=%s
                  AND event_time >= %s AND event_time <= %s AND run_seq < %s ORDER BY run_seq DESC LIMIT 5""",
-            (ctx.run_id, ev.pair_key, ev.event_time - timedelta(seconds=int(cfg["r1_episode_window_seconds"])), ev.event_time, ev.run_seq),
+            (ctx.run_id, ["R1", "R6"], ev.pair_key, ev.event_time - timedelta(seconds=int(cfg["auth_episode_window_seconds"])), ev.event_time, ev.run_seq),
         )
         r1 = [dict(r) for r in cur.fetchall()]
     if not r1:
         return None
     login = login_rows[0]
     legs = [
-        {**_leg(r1[0], "r1_episode_match"), "incident_id": r1[0]["incident_id"]},
+        {**_leg(r1[0], "auth_episode_match"), "incident_id": r1[0]["incident_id"], "rule_id": r1[0]["rule_id"]},
         _leg(login, "successful_login"),
         {"role": "sensitive_success", **ev.evidence_ref()},
     ]
@@ -199,10 +262,10 @@ def rule_r4_account_use_sequence(ctx: RuleContext) -> RuleMatch | None:
         key_type="pair",
         key_value=ev.pair_key,
         legs=legs,
-        params={"login_window_seconds": cfg["login_window_seconds"], "r1_episode_window_seconds": cfg["r1_episode_window_seconds"],
+        params={"login_window_seconds": cfg["login_window_seconds"], "auth_episode_window_seconds": cfg["auth_episode_window_seconds"],
                 "seconds_since_login": (ev.event_time - login["event_time"]).total_seconds(),
-                "seconds_since_r1": (ev.event_time - r1[0]["event_time"]).total_seconds(), "familiarity": "unfamiliar",
-                "r1_incident_id": r1[0]["incident_id"]},
+                "seconds_since_auth_episode": (ev.event_time - r1[0]["event_time"]).total_seconds(), "familiarity": "unfamiliar",
+                "auth_episode_rule": r1[0]["rule_id"], "auth_episode_incident_id": r1[0]["incident_id"]},
         links=[{"link_type": "pair", "link_key": ev.pair_key, "incident_id": r1[0]["incident_id"]}],
     )
 
@@ -265,7 +328,7 @@ def rule_r5_linked_access_change(ctx: RuleContext) -> RuleMatch | None:
 
 def evaluate_rules(ctx: RuleContext) -> list[RuleMatch]:
     matches: list[RuleMatch] = []
-    for fn in (rule_r1_auth_burst, rule_r2_access_change, rule_r3_admin_transition, rule_r4_account_use_sequence):
+    for fn in (rule_r1_auth_burst, rule_r6_slow_auth_burst, rule_r2_access_change, rule_r3_admin_transition, rule_r4_account_use_sequence):
         m = fn(ctx)
         if m:
             matches.append(m)
