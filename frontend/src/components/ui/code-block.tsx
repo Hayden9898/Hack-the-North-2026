@@ -18,7 +18,8 @@ export function CodeBlock({
   maxHeight,
   className,
   copyable = true,
-  wrap = false,
+  wrap = 'mobile',
+  emphasize,
 }: {
   code: string
   /** Short caption, e.g. "raw log line 168338". */
@@ -30,13 +31,21 @@ export function CodeBlock({
   className?: string
   copyable?: boolean
   /**
-   * Wrap long lines instead of scrolling them. OFF by default: a wrapped log line breaks
-   * mid-token (timestamps split between digits, paths split mid-word), which undermines the
-   * one block whose entire purpose is to be verifiable character by character. Scrolling
-   * keeps the line intact. The container is width-constrained either way, so an overflowing
-   * line can never widen the page again.
+   * 'mobile' (default) keeps the line intact on one row at >=640px and wraps it below that.
+   *
+   * The wrap breaks at spaces via overflow-wrap, NOT break-all, so tokens stay whole — the
+   * longest token here (the 42-char path) still fits a 390px column. Horizontal scrolling
+   * alone was wrong on a phone: the line clipped mid-character at the border, so the status
+   * code and byte count — the entire argument — were unreachable unless you guessed the box
+   * scrolled.
    */
-  wrap?: boolean
+  wrap?: 'never' | 'mobile' | 'always'
+  /**
+   * Substrings to mark inside the code. Matching is literal and the output still goes through
+   * React's text escaping — this exists so evidence can point at the decisive token without
+   * anyone reaching for dangerouslySetInnerHTML.
+   */
+  emphasize?: string[]
 }) {
   const [copied, setCopied] = useState(false)
 
@@ -58,7 +67,7 @@ export function CodeBlock({
   return (
     <figure
       data-slot="code-block"
-      className={cn('group/code relative w-full min-w-0 overflow-hidden rounded-lg border border-border bg-surface', className)}
+      className={cn('group/code relative w-full min-w-0 overflow-hidden rounded-doc border border-border bg-surface', className)}
     >
       {label ? (
         <figcaption className="flex items-center justify-between gap-2 border-b border-border bg-surface-raised px-3 py-1.5 text-caption text-fg-muted uppercase">
@@ -83,18 +92,13 @@ export function CodeBlock({
         </button>
       ) : null}
 
-      {/* Scroll affordance. pointer-events-none so it never blocks selecting the evidence. */}
-      {wrap ? null : (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-y-0 right-0 z-[1] w-10 bg-gradient-to-l from-surface to-transparent"
-        />
-      )}
-
       <pre
         className={cn(
-          'px-3 py-2.5 font-mono text-mono text-fg',
-          wrap ? 'whitespace-pre-wrap break-all' : 'overflow-x-auto whitespace-pre',
+          'px-3 py-2.5 font-mono text-[0.75rem] text-fg sm:text-mono',
+          wrap === 'always' && 'whitespace-pre-wrap [overflow-wrap:break-word]',
+          wrap === 'never' && 'overflow-x-auto whitespace-pre',
+          wrap === 'mobile' &&
+            'whitespace-pre-wrap [overflow-wrap:break-word] sm:overflow-x-auto sm:whitespace-pre',
           maxHeight && 'overflow-y-auto',
         )}
         style={maxHeight ? { maxHeight } : undefined}
@@ -110,11 +114,48 @@ export function CodeBlock({
                   <span className="break-all whitespace-pre-wrap">{line}</span>
                 </span>
               ))
-            : code}
+            : marked(code, emphasize)}
         </code>
       </pre>
     </figure>
   )
+}
+
+/**
+ * Splits text on the given substrings and wraps the matches in <mark>. Returns plain strings
+ * and elements — never HTML — so untrusted log text stays escaped by React.
+ */
+function marked(code: string, emphasize?: string[]) {
+  if (!emphasize || emphasize.length === 0) return code
+  const pattern = emphasize.filter(Boolean).sort((a, b) => b.length - a.length)
+  if (pattern.length === 0) return code
+
+  const out: ReactNode[] = []
+  let rest = code
+  let key = 0
+  while (rest.length > 0) {
+    let at = -1
+    let hit = ''
+    for (const p of pattern) {
+      const i = rest.indexOf(p)
+      if (i !== -1 && (at === -1 || i < at)) {
+        at = i
+        hit = p
+      }
+    }
+    if (at === -1) {
+      out.push(rest)
+      break
+    }
+    if (at > 0) out.push(rest.slice(0, at))
+    out.push(
+      <mark key={key++} className="rounded-[2px] bg-accent/20 px-0.5 text-fg">
+        {hit}
+      </mark>,
+    )
+    rest = rest.slice(at + hit.length)
+  }
+  return out
 }
 
 /** Inline mono for a single ID, hash or short evidence fragment. */

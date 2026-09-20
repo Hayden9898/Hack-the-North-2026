@@ -33,14 +33,14 @@ export function OpeningStatement() {
 
           <ProofCapsule />
 
-          <div className="mt-9 flex flex-wrap items-center gap-3">
-            <Button asChild size="lg">
+          <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+            <Button asChild size="lg" className="w-full sm:w-auto">
               <Link to="/app">
                 Open the console
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
-            <Button asChild variant="outline" size="lg">
+            <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
               <a href="#exhibit">See the 77-denial proof</a>
             </Button>
           </div>
@@ -59,7 +59,7 @@ function ProofCapsule() {
   return (
     <a
       href="#exhibit"
-      className="mt-8 block rounded-lg border border-border bg-surface p-4 transition-colors duration-150 hover:border-border-strong"
+      className="mt-8 block rounded-doc border border-border bg-surface p-4 transition-colors duration-150 hover:border-border-strong"
     >
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="font-mono text-caption text-fg-subtle uppercase">Worked example</span>
@@ -73,22 +73,29 @@ function ProofCapsule() {
         <span className="font-mono text-fg">200</span> — after{' '}
         <span className="font-mono text-fg">{count}</span> counted denials of the same request.
       </p>
-      <p className="mt-2 truncate font-mono text-mono text-fg-subtle">{grant.raw}</p>
+      <p className="mt-2 font-mono text-mono text-fg-subtle">
+        <span className="hidden sm:inline">{grant.raw}</span>
+        <span className="sm:hidden">
+          {grant.raw.slice(0, 28)}… {grant.raw.slice(-34)}
+        </span>
+      </p>
     </a>
   )
 }
 
 function Record() {
   // admitted_seq on the run equals the dataset line count: everything was replayed.
-  const rows: [string, string][] = [
+  // The rows are ordered so the arithmetic closes: warmup + scored = lines replayed.
+  const scored = RUN.visibleNormal + RUN.visibleSuspicious + RUN.visibleHighRisk
+  const rows: [string, string, string?][] = [
     ['lines replayed', DATASET.lines.toLocaleString()],
     ['rejected', `${DATASET.rejects}`],
-    ['accounts', `${DATASET.accounts}`],
-    ['late / backlogged', `${RUN.lateEvents} / ${RUN.backlog}`],
-    ['scored', RUN.modelHealth],
+    ['warmup — history, not scored', RUN.warmupNormal.toLocaleString()],
+    ['scored in the March window', scored.toLocaleString()],
+    ['scoring mode', `${RUN.modelHealth} — no model in this run`],
   ]
   return (
-    <div className="rounded-xl border border-border bg-surface">
+    <div className="rounded-doc border border-border bg-surface">
       <div className="flex items-center justify-between border-border border-b px-5 py-3">
         <span className="font-mono text-caption text-fg-subtle uppercase">Run record</span>
         <span className="font-mono text-caption text-fg-subtle">{RUN.state}</span>
@@ -98,13 +105,15 @@ function Record() {
         {rows.map(([k, v]) => (
           <div key={k} className="flex items-baseline justify-between gap-4 px-5 py-2.5">
             <dt className="text-body text-fg-muted">{k}</dt>
-            <dd className="font-mono text-body text-fg tabular-nums">{v}</dd>
+            <dd className="shrink-0 text-right font-mono text-body text-fg tabular-nums">{v}</dd>
           </div>
         ))}
       </dl>
 
       <div className="border-border border-t px-5 py-4">
-        <p className="font-mono text-caption text-fg-subtle uppercase">Verdicts in the visible window</p>
+        <p className="font-mono text-caption text-fg-subtle uppercase">
+          Verdicts · {scored.toLocaleString()} scored
+        </p>
         <div className="mt-3 flex flex-col gap-2">
           <VerdictRow verdict="high_risk" n={RUN.visibleHighRisk} />
           <VerdictRow verdict="suspicious" n={RUN.visibleSuspicious} />

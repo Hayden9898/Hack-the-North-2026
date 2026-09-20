@@ -2,6 +2,7 @@ import { ArrowUpRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/cn'
 
 /**
  * Section links carry a mono suffix naming their payload. "Exhibit A" alone has no
@@ -58,12 +59,16 @@ export function Masthead() {
         section links there while keeping a three-way theme toggle would be a priority
         inversion, so the links stay and scroll horizontally instead.
       */}
-      <nav className="-mb-px flex w-full min-w-0 gap-5 overflow-x-auto border-border border-t px-6 py-2 md:hidden">
+      <nav className={cn(
+          '-mb-px flex w-full min-w-0 gap-5 overflow-x-auto border-border border-t px-6 py-2 md:hidden',
+          // Fade the right edge so a clipped item reads as scrollable rather than as broken.
+          '[mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)]',
+        )}>
         {SECTIONS.map(([href, label, hint]) => (
           <a
             key={href}
             href={href}
-            className="shrink-0 rounded-sm font-mono text-caption text-fg-muted uppercase"
+            className="shrink-0 rounded-sm font-mono text-[0.6875rem] text-fg-muted uppercase"
           >
             {label} <span className="text-fg-subtle">{hint}</span>
           </a>
