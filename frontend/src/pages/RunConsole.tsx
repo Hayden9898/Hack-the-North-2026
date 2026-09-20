@@ -144,7 +144,7 @@ export function RunConsole() {
   return (
     <div className="stack">
       <div className="crumbs">
-        <Link to="/">Runs</Link> / <span className="mono">{shortId(merged.run_id, 18)}</span>
+        <Link to="/app">Runs</Link> / <span className="mono">{shortId(merged.run_id, 18)}</span>
       </div>
       <RunHeader run={merged} updates={updates} resyncs={resyncs} onRunChanged={(u) => run.set(() => u)} error={run.error} />
       <ModelHealthBanner health={merged.model_health} />
@@ -613,10 +613,10 @@ function EventsFeed({ runId, tick, cutoff }: { runId: string; tick: number; cuto
                     <tr
                       key={ev.run_seq}
                       className={`clickable row-${tone} ${ev.phase === 'warmup' ? 'row-warmup' : ''}`}
-                      onClick={() => nav(`/runs/${encodeURIComponent(runId)}/events/${ev.run_seq}`)}
+                      onClick={() => nav(`/app/runs/${encodeURIComponent(runId)}/events/${ev.run_seq}`)}
                     >
                       <td className="right mono">
-                        <Link className="link" to={`/runs/${encodeURIComponent(runId)}/events/${ev.run_seq}`} onClick={(e) => e.stopPropagation()}>
+                        <Link className="link" to={`/app/runs/${encodeURIComponent(runId)}/events/${ev.run_seq}`} onClick={(e) => e.stopPropagation()}>
                           {ev.run_seq}
                         </Link>
                       </td>

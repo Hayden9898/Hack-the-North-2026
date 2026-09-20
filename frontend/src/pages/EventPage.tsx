@@ -18,7 +18,7 @@ export function EventPage() {
   return (
     <div className="stack">
       <div className="crumbs">
-        <Link to="/">Runs</Link> / <Link to={`/runs/${encodeURIComponent(runId)}`}>{shortId(runId, 18)}</Link> / event #{e.run_seq}
+        <Link to="/app">Runs</Link> / <Link to={`/app/runs/${encodeURIComponent(runId)}`}>{shortId(runId, 18)}</Link> / event #{e.run_seq}
       </div>
       <div className="page-head">
         <h1>

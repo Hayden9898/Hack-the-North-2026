@@ -102,7 +102,7 @@ export function Section({ title, children, aside, id, tone }: { title: ReactNode
 
 export function IncidentLink({ runId, incidentId, children }: { runId: string; incidentId: string; children?: ReactNode }) {
   return (
-    <Link className="link mono" to={`/runs/${encodeURIComponent(runId)}/incidents/${encodeURIComponent(incidentId)}`}>
+    <Link className="link mono" to={`/app/runs/${encodeURIComponent(runId)}/incidents/${encodeURIComponent(incidentId)}`}>
       {children ?? incidentId}
     </Link>
   )
@@ -110,7 +110,7 @@ export function IncidentLink({ runId, incidentId, children }: { runId: string; i
 
 export function EventLink({ runId, seq, children }: { runId: string; seq: number; children?: ReactNode }) {
   return (
-    <Link className="link mono" to={`/runs/${encodeURIComponent(runId)}/events/${seq}`}>
+    <Link className="link mono" to={`/app/runs/${encodeURIComponent(runId)}/events/${seq}`}>
       {children ?? `#${seq}`}
     </Link>
   )

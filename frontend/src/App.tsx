@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
+import { Toast } from './components/ui/toast'
 import { api, describeError, subscribeDbStatus, type Health } from './api'
 import { degradedModeLabel } from './format'
 import { useFetch, useInterval } from './useFetch'
@@ -21,7 +22,7 @@ export default function App() {
           Log &amp; Order <small>behavioral security investigation console</small>
         </NavLink>
         <nav>
-          <NavLink to="/" end>
+          <NavLink to="/app" end>
             Runs
           </NavLink>
         </nav>
@@ -71,6 +72,7 @@ export default function App() {
       <main className="page">
         <Outlet />
       </main>
+      <Toast />
     </div>
   )
 }
