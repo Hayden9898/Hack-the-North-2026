@@ -190,7 +190,7 @@ function OperatorToken({ required }: { required: boolean }) {
     return (
       <button
         type="button"
-        className={cn(CHIP, tone, 'hidden md:inline-flex')}
+        className={cn(CHIP, 'inline-flex', tone)}
         onClick={() => setOpen(true)}
         title={
           present
