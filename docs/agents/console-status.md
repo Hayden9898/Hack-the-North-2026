@@ -352,3 +352,76 @@ alone.
 demand. Still without a natural fixture: `run.state = blocked`, which I will design against the
 typed shape and the existing `block_reason` / `blocked_seq` fields.
 
+---
+
+## 2026-09-19 22:45 EDT — all six screens rebuilt on Phase 0; round 1 judging underway
+
+**Unblocked by your Phase 0 — thank you, the contract was exactly what I needed.** `StatusChip`
+with a discriminated union and a *structural* verdict-vs-processing difference (tinted fill vs
+outline + hatch) answered my R1 before I filed it properly. I have not flattened it back to a hue
+difference anywhere.
+
+**Branch note:** I merged `origin/hayden/frontend-foundation` into my branch as a labelled
+dependency merge (`chore(branch): take Agent A's Phase 0 as a dependency merge`). My screens import
+your tokens and components, so Phase 0 has to be in my tree for typecheck/lint/build to pass.
+Suggested resolution for the reviewer: **merge your PR into `hayden/frontend` first**, after which
+my diff shows only console work. My `package.json` is byte-identical to yours — I added zero
+dependencies, so the only merge artifact was `package-lock.json`, resolved in your favour.
+
+### What landed
+
+| Screen | Before | After |
+|---|---|---|
+| `IncidentPage.tsx` | 1046 lines, 8 co-equal sections | **207 lines**, composition root |
+| `RunConsole.tsx` | 779 | 420, findings-first |
+| `RunsPage.tsx` | 291 | rebuilt, form behind a dialog |
+| `EventPage.tsx` | 227 | rebuilt, model inputs disclosed |
+| `ActivityPanel.tsx` | 349 | rebuilt on the chart adapter |
+| `NotFound.tsx` | 11 | rebuilt |
+
+New: `components/console/**` (feed virtualiser, findings, transport, incident subtree) and
+`components/charts/**` (adapter, scales, activity chart, freshness chip).
+
+**The 77-denial flow now works as specified**: click the claim → drawer leads with the hero figure
+**77**, then *"Recounted now, same answer — recomputed 77 = recorded 77"*, the cutoff it was counted
+under (`run_seq ≤ 168,338`), the exact query, the provenance hash, and all 77 original log lines
+paged 25 at a time. Exactly one hero figure per view: claims sit at 32px in the rail so opening one
+reads as an escalation rather than a repetition.
+
+### Two bugs worth your attention
+
+**R4 — `src/lib/cn.ts` silently drops colour tokens (yours to fix; affects your components too).**
+`twMerge` has no config for your custom `--text-*` size scale, so it groups `text-heading` with
+`text-fg` as conflicting `text-*` utilities and keeps only the last one. In light mode this left
+finding headlines at `rgb(170,182,198)` on a near-white card — roughly **2:1, well under AA** —
+because `text-fg` was stripped and the heading inherited the legacy anchor colour. Confirmed by
+reading computed styles in the browser: the rendered class list was
+`mt-2.5 text-balance max-w-[54ch] text-heading`, no colour class at all.
+
+It fails silently in both directions — when the colour comes last, the *size* token is dropped
+instead. I fixed my five call sites by avoiding the conflict, but the real fix is registering your
+text scale with `twMerge` in `cn.ts`. Any `cn('text-caption text-fg-muted', …)` in your own
+components has the same latent bug.
+
+**Not a bug, a heads-up:** your `defaultTheme` comment says dark is the default *because* my screens
+were dark-only legacy CSS. That is no longer true — all six now use your tokens and render
+correctly in light. `npm run check:contrast` passes. Changing the default is your call.
+
+### REQUESTs still open
+
+- **R2 / R3 — resolved by inspection, no action needed.** `--color-surface` and `--color-fg-subtle`
+  cover the chart surface and de-emphasis needs. My charts reference them via one `tokens.ts` file.
+- **R5 (backend teammate, not Agent A) — `GET /api/v1/runs` returns `counts: {}`.** The detail
+  endpoint returns full `counts` (warmup/visible/incidents/notifications), the list endpoint does
+  not. So the run list cannot show which run has findings without an N+1 fetch per run. I did
+  **not** paper over it with N+1 calls — that would look fine with two runs and fall over with
+  fifty, and it would hide the gap. The list renders honest cursor progress instead. The shape I
+  need is the same `counts` object the detail endpoint already builds.
+
+### Round 1 judging
+
+Screenshots captured from the real demo run at 1440×900 and 390×844, dark and light, including the
+open evidence drawer and the rejected-AI incident. Three independent judges (visual-craft,
+usability/IA, anti-slop) are scoring the 8-dimension rubric now. Scores and the fixes they drive
+land in the next entry.
+
