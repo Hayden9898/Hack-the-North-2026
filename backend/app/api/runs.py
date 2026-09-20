@@ -138,7 +138,30 @@ def get_run(run_id: str, conn: psycopg.Connection[Any] = Depends(deps.db), s: Se
         counts["explanation_jobs"] = {r["state"]: r["n"] for r in cur.fetchall()}
         cur.execute("SELECT count(*) n FROM run_late_events WHERE run_id=%s", (run_id,))
         counts["late_events"] = one(cur)["n"]
+        counts["containment"] = _containment_counts(cur, run_id)
     return serialize_run(run, s, counts)
+
+
+def _containment_counts(cur: Any, run_id: str) -> dict[str, Any]:
+    """Actionable incidents, how many reached a containment action, and the median wall time it took.
+
+    `median_seconds` measures console time — detection to approval — and is only meaningful for incidents an
+    operator worked during this session. `preview` counts containments recorded without contacting any system.
+    """
+    cur.execute(
+        """SELECT count(*) FILTER (WHERE current_class IN ('suspicious','high_risk'))          AS actionable,
+                  count(*) FILTER (WHERE contained_at IS NOT NULL)                             AS contained,
+                  count(*) FILTER (WHERE containment_mode = 'preview')                         AS preview,
+                  count(*) FILTER (WHERE containment_mode = 'applied')                         AS applied,
+                  percentile_disc(0.5) WITHIN GROUP (
+                      ORDER BY extract(epoch FROM (contained_at - created_at))
+                  ) FILTER (WHERE contained_at IS NOT NULL)                                    AS median_seconds
+           FROM incidents WHERE run_id=%s""",
+        (run_id,),
+    )
+    row = dict(one(cur))
+    median = row.pop("median_seconds", None)
+    return {**{k: int(v or 0) for k, v in row.items()}, "median_seconds": float(median) if median is not None else None}
 
 
 @router.post("/runs/{run_id}/replay")

@@ -42,6 +42,8 @@ export interface RunCounts {
   notifications?: Record<string, number>
   explanation_jobs?: Record<string, number>
   late_events?: number
+  /** Actionable incidents vs. those an operator took a containment action on, and the median console time. */
+  containment?: { actionable: number; contained: number; preview: number; applied: number; median_seconds: number | null }
 }
 
 export interface Run {
@@ -398,6 +400,133 @@ export interface PlaybooksBlock {
   applicable: Playbook[]
   selected_by_ai: string[]
   catalog_version: number
+}
+
+// Containment actions. Parameters are bound server-side from typed facts; the AI never supplies one.
+export type ActionSeverity = 'containment' | 'handoff'
+export type ProposalState = 'proposed' | 'dry_run' | 'executed' | 'failed' | 'rolled_back'
+export type ActionOutcome = 'preview' | 'applied' | 'failed'
+export type VerificationStatus = 'satisfied' | 'contradicted' | 'pending' | 'unavailable' | 'not_applicable'
+
+export interface PreconditionCheck {
+  check: string
+  ok: boolean
+  detail: string
+}
+
+export interface Verification {
+  query_id: string
+  criterion: string
+  status: VerificationStatus
+  /** null when the criterion cannot yet be decided from data under the cutoff. */
+  holds: boolean | null
+  observed?: number
+  expected?: number
+  detail: string
+  after_seq: number
+  cutoff_seq: number
+}
+
+export interface BoundAction {
+  action_id: string
+  playbook_id: string
+  title: string
+  kind: string
+  severity: ActionSeverity
+  reversible: boolean
+  summary: string
+  impact: string
+  permissions: string | string[] | null
+  rollback: string | string[]
+  verification: { id: string; criterion: string }
+  params: Record<string, string>
+  /** parameter -> `fact:<fact_id>.args.<key>` or `incident.<column>`; the provenance of every target. */
+  bound_from: Record<string, string>
+  bound_fact_ids: string[]
+  params_hash: string
+  available: boolean
+  unmet: string[]
+  checks: PreconditionCheck[]
+  proposal: { proposal_id: string; state: ProposalState; params_hash: string; created_at: string; updated_at: string } | null
+  dry_run_current: boolean
+  stale_approval: boolean
+}
+
+export interface ActionLogEntry {
+  id: number
+  proposal_id: string
+  action_id: string
+  kind: string
+  phase: 'dry_run' | 'execute' | 'verify' | 'rollback'
+  operator: string
+  adapter: string
+  outcome: string
+  error: string | null
+  result: Record<string, unknown> | null
+  params_hash: string
+  created_at: string
+}
+
+export interface ActionsBlock {
+  catalog_version: number
+  adapter: string
+  execution_mode: 'preview' | 'live'
+  version: number
+  cutoff_seq: number
+  contained_at: string | null
+  containment_mode: 'preview' | 'applied' | null
+  actions: BoundAction[]
+  log: ActionLogEntry[]
+}
+
+export interface DryRunResponse {
+  proposal_id: string
+  action: BoundAction
+  result: {
+    would_issue: Record<string, unknown>
+    targets: Record<string, string>
+    bound_from: Record<string, string>
+    checks: PreconditionCheck[]
+    verification_preview: Verification
+    adapter: string
+    applied_to_external_system: boolean
+  }
+}
+
+export interface ExecuteResponse {
+  proposal_id: string
+  action: BoundAction
+  outcome: ActionOutcome
+  error: string | null
+  result: Record<string, unknown> & { verification?: Verification; applied_to_external_system?: boolean | string }
+  contained_at: string | null
+}
+
+export interface VerifyResponse {
+  proposal_id: string
+  verification: Verification
+}
+
+export interface RollbackResponse {
+  proposal_id: string
+  outcome: ActionOutcome
+  error: string | null
+}
+
+export interface ResponsePacket {
+  run_id: string
+  incident_id: string
+  version: number
+  fact_packet_hash: string | null
+  content_sha256: string
+  markdown: string
+}
+
+export interface StoredPacket {
+  packet_id: string
+  content_sha256: string
+  version: number
+  notification_queued: boolean
 }
 
 // Analytics (Tiger continuous aggregate with raw tail / as-of fallback).
@@ -779,6 +908,24 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+
+  listActions: (runId: string, incidentId: string, version?: number) =>
+    request<ActionsBlock>(`${API}/runs/${enc(runId)}/incidents/${enc(incidentId)}/actions${qs({ version })}`),
+  dryRunAction: (runId: string, incidentId: string, actionId: string, version?: number) =>
+    request<DryRunResponse>(`${API}/runs/${enc(runId)}/incidents/${enc(incidentId)}/actions/${enc(actionId)}/dry-run${qs({ version })}`, { method: 'POST' }),
+  executeAction: (runId: string, incidentId: string, actionId: string, version?: number) =>
+    request<ExecuteResponse>(`${API}/runs/${enc(runId)}/incidents/${enc(incidentId)}/actions/${enc(actionId)}/execute${qs({ version })}`, { method: 'POST' }),
+  verifyAction: (runId: string, incidentId: string, actionId: string, version?: number) =>
+    request<VerifyResponse>(`${API}/runs/${enc(runId)}/incidents/${enc(incidentId)}/actions/${enc(actionId)}/verify${qs({ version })}`, { method: 'POST' }),
+  rollbackAction: (runId: string, incidentId: string, actionId: string, version?: number) =>
+    request<RollbackResponse>(`${API}/runs/${enc(runId)}/incidents/${enc(incidentId)}/actions/${enc(actionId)}/rollback${qs({ version })}`, { method: 'POST' }),
+
+  getResponsePacket: (runId: string, incidentId: string, version?: number) =>
+    request<ResponsePacket>(`${API}/runs/${enc(runId)}/incidents/${enc(incidentId)}/response-packet${qs({ version })}`),
+  responsePacketDownloadUrl: (runId: string, incidentId: string, version?: number) =>
+    `${API}/runs/${enc(runId)}/incidents/${enc(incidentId)}/response-packet${qs({ version, download: true })}`,
+  storeResponsePacket: (runId: string, incidentId: string, version?: number, notify = true) =>
+    request<StoredPacket>(`${API}/runs/${enc(runId)}/incidents/${enc(incidentId)}/response-packet${qs({ version, notify })}`, { method: 'POST' }),
 
   timeseries: (runId: string, q: TimeseriesQuery) =>
     request<TimeseriesResponse>(`${API}/runs/${enc(runId)}/analytics/timeseries${qs({ ...q })}`),

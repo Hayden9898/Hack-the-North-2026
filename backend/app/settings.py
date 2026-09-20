@@ -41,6 +41,9 @@ class Settings(BaseSettings):
 
     slack_mode: str = Field(default="preview", pattern="^(preview|live)$")
     slack_webhook_url: str = ""
+    # Containment actions. `preview` records what would be issued; `live` POSTs it to ACTION_WEBHOOK_URL.
+    action_mode: str = Field(default="preview", pattern="^(preview|live)$")
+    action_webhook_url: str = ""
     max_run_notification_count: int = 20
 
     # Worker identity; overridden per process.
@@ -57,6 +60,11 @@ class Settings(BaseSettings):
     @property
     def slack_live(self) -> bool:
         return self.slack_mode == "live" and bool(self.slack_webhook_url)
+
+    @property
+    def action_live(self) -> bool:
+        """Actions reach a real system only when a mode AND an endpoint are both configured."""
+        return self.action_mode == "live" and bool(self.action_webhook_url)
 
     @property
     def loopback_only(self) -> bool:
@@ -79,10 +87,17 @@ class Settings(BaseSettings):
             slack = "preview"
         else:
             slack = "live_requested_missing_webhook"
+        if self.action_live:
+            actions = "live"
+        elif self.action_mode == "preview":
+            actions = "preview"
+        else:
+            actions = "live_requested_missing_webhook"
         return {
             "sentry": "enabled" if self.sentry_enabled else "disabled_no_dsn",
             "llm": f"enabled:{self.llm_provider}" if self.llm_enabled else "deterministic_only_no_key",
             "slack": slack,
+            "actions": actions,
         }
 
 

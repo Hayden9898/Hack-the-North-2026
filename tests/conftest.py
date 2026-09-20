@@ -22,6 +22,9 @@ from app.settings import get_settings  # noqa: E402
 FIXTURES = ROOT / "tests" / "fixtures"
 
 TRUNCATE_ORDER = [
+    "response_packets",
+    "action_log",
+    "action_proposals",
     "analyst_feedback",
     "ui_updates",
     "notification_outbox",
