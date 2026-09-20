@@ -1,7 +1,7 @@
 # Log & Order
 
 A behavioral security investigation console for HTTP access logs. It replays or ingests events in causal order,
-computes history-relative features, runs independent deterministic rules (R1–R5) and a frozen Isolation Forest,
+computes history-relative features, runs independent deterministic rules (R1–R6) and a frozen Isolation Forest,
 groups matches into versioned incidents with typed, provable facts, previews Slack alerts through a durable outbox,
 and lets a constrained AI step *select* facts and qualified hypotheses that a validator checks before anything is shown.
 
@@ -34,6 +34,11 @@ line is an explicit truncation marker and is correctly rejected by the strict pa
 It is useful for parser and UI smoke checks only. Do not train, calibrate, evaluate, or quote detector results from it.
 Use the original file (its expected digest/counts are in `tests/integration/test_import.py`) for canonical import and
 replay acceptance.
+
+The current policy adds R6, a suspicious-only detector for six unfamiliar-source login failures over an hour that
+never duplicates R1's fast-burst evidence. R4 can independently escalate either verified auth episode only after a
+subsequent login and sensitive-resource access. Historical reports predate R6 and must be regenerated on the original
+dataset before quoting its alert burden or effectiveness.
 
 Python 3.12, Node 20+ (tested with 24), Docker Desktop. `make` is optional: every target also runs as `python tasks.py <target>`.
 

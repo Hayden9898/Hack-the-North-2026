@@ -5,6 +5,7 @@ from typing import Any
 
 RULE_HEADLINES = {
     "R1": "Repeated failed logins from a source not in the account's familiar-login reference",
+    "R6": "Repeated login failures over an hour from a source not in the account's familiar-login reference",
     "R2": "First successful response for a sensitive resource after repeated denials for this account",
     "R3": "First successful admin request by this account, seconds after viewing a forum object",
     "R4": "Sensitive resource served to an unfamiliar account/source pair shortly after a successful login, following an earlier failed-login episode",
@@ -13,6 +14,7 @@ RULE_HEADLINES = {
 
 QUALIFIERS = {
     "R1": "Repeated failures indicate attempts, not who made them.",
+    "R6": "Repeated failures indicate attempts, not who made them.",
     "R2": "A measured change in the observed response, not proof of unauthorized access; an approved grant looks identical.",
     "R3": "Linked recorded requests; no causal assertion about the forum content.",
     "R4": "Suspected account misuse; session identity is not recorded in these logs.",

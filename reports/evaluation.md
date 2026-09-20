@@ -1,5 +1,9 @@
 # Evaluation — rules, model and hybrid on the supplied dataset
 
+> **Historical configuration note:** this report predates the R6 slow-auth-burst rule. Its counts remain a record of
+> the prior configuration, not evidence for R6. Re-run the canonical replay and evaluation on the original source
+> before reporting results from the current policy.
+
 **Scope and honesty statement.** All numbers come from `python -m ml.evaluate --model-id if_v1_2026-09-19`
 (`reports/evaluation_data.json`) and `python -m ml.calibrate` (`reports/calibration.json`, `reports/calibration_999.json`)
 run against the causal replay `rules-only-full` (run `0ca0d531-…`) of the supplied file

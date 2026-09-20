@@ -1,7 +1,7 @@
 """Incident correlation with typed keys, immutable versions, evidence memberships and relations (architecture.md §7).
 
 Runs inside the detector transaction. Grouping: same primary rule + typed key within the correlation window.
-Other rules attach only through explicit links (R4 → the R1 pair episode; R5 → the R2 access-change incident, with a
+Other rules attach only through explicit links (R4 → the R1/R6 pair episode; R5 → the R2 access-change incident, with a
 relation to the R3 incident it links). Class only increases automatically.
 """
 from __future__ import annotations
@@ -170,7 +170,7 @@ def _find_target(cur: psycopg.Cursor[Any], run_id: str, ev: Event, m: RuleMatch,
     """Locate the incident this match attaches to, locking it."""
     target_id: str | None = None
     if m.rule_id == "R4":
-        target_id = m.params.get("r1_incident_id")
+        target_id = m.params.get("auth_episode_incident_id")
     elif m.rule_id == "R5":
         target_id = incident_for_rule.get("R2")
     if target_id:

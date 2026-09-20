@@ -18,6 +18,7 @@ PACKET_SCHEMA_VERSION = "1"
 
 UNKNOWN_CODES_BY_RULE = {
     "R1": ["credential_source_unknown", "session_identity_unavailable"],
+    "R6": ["credential_source_unknown", "session_identity_unavailable"],
     "R2": ["authorized_change_record_unavailable", "role_change_contents_unavailable"],
     "R3": ["request_body_unavailable", "role_change_contents_unavailable", "user_agent_unavailable"],
     "R4": ["session_identity_unavailable", "credential_source_unknown", "external_transfer_unproven"],
@@ -121,7 +122,7 @@ def build_packet(
             if row:
                 add(_event_fact(row, cutoff_seq, role), trigger=is_current)
         legs_ids = [leg["event_id"] for leg in m["legs"] if leg["event_id"] in events]
-        if rid == "R1":
+        if rid in ("R1", "R6"):
             add(_fact("auth_failures_in_window", {"pair": m["key_value"], "window_seconds": p["window_seconds"], "at_seq": m["run_seq"]},
                       p["failures_in_window"], cutoff_seq, legs_ids, role,
                       query={"id": "pair_login_401_count_window", "version": 1, "params": {"window_seconds": p["window_seconds"]}}), trigger=is_current)
@@ -148,11 +149,11 @@ def build_packet(
         elif rid == "R4":
             login = next((leg for leg in m["legs"] if leg["role"] == "successful_login"), None)
             sens = next((leg for leg in m["legs"] if leg["role"] == "sensitive_success"), None)
-            r1 = next((leg for leg in m["legs"] if leg["role"] == "r1_episode_match"), None)
+            episode = next((leg for leg in m["legs"] if leg["role"] == "auth_episode_match"), None)
             if login and sens:
                 add(_fact("time_delta_seconds", {"from_event": login["event_id"], "to_event": sens["event_id"]}, p["seconds_since_login"], cutoff_seq, [login["event_id"], sens["event_id"]], role), trigger=is_current)
-            if r1 and sens:
-                add(_fact("time_delta_seconds", {"from_event": r1["event_id"], "to_event": sens["event_id"]}, p["seconds_since_r1"], cutoff_seq, [r1["event_id"], sens["event_id"]], role), trigger=is_current)
+            if episode and sens:
+                add(_fact("time_delta_seconds", {"from_event": episode["event_id"], "to_event": sens["event_id"]}, p["seconds_since_auth_episode"], cutoff_seq, [episode["event_id"], sens["event_id"]], role), trigger=is_current)
             add(_fact("source_familiarity", {"pair": m["key_value"], "reference_hash": reference_hash}, "unfamiliar", cutoff_seq, [], role), trigger=is_current)
         elif rid == "R5":
             a_view = next((leg for leg in m["legs"] if leg["role"] == "a_viewed_object"), None)
