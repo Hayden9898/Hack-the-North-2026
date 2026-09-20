@@ -221,7 +221,7 @@ Concise record of milestones, decisions, commands and results. Newest entries at
   unknown codes, playbooks, bound actions, action log, dispositions; `sha256` + fact packet hash; `POST` stores it
   and queues a `response_packet` message through the existing outbox (same preview/live rules, idempotent key).
 - API `api/actions.py`: `GET …/actions`, `POST …/actions/{id}/{dry-run,execute,verify,rollback}`,
-  `GET|POST …/response-packet` (`?download=true` → `.md` attachment). Migration `0004` (`action_proposals`,
+  `GET|POST …/response-packet` (`?download=true` → `.md` attachment). Migration `0005` (`action_proposals`,
   `action_log`, `response_packets`, containment columns). Health `integrations.actions`.
 - UI: `pages/ActionsSection.tsx` under the playbooks — bound parameters with "bound from" column, impact /
   permissions / rollback / verification, dry-run request viewer, confirm-to-execute, verification banner, rollback,

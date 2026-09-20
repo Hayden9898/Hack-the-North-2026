@@ -70,7 +70,7 @@ authentication/SSE requirements are documented in [frontend/README.md](frontend/
 The research inventory is in [docs/design/frontend-direction.md](docs/design/frontend-direction.md).
 Incident overviews now include a versioned investigation brief with direct proof links and a local JSON export.
 See [the brief contract and migration notes](docs/case-brief.md); existing installations must run migrations through
-`0004` before starting the updated API and detector.
+`0005` before starting the updated API and detector.
 
 ### Model (optional but recommended)
 
