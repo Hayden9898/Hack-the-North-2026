@@ -3,7 +3,7 @@ import { ExhibitA } from './ExhibitA'
 import { Limits, Method } from './Limits'
 import { Masthead } from './Masthead'
 import { OpeningStatement } from './OpeningStatement'
-import { Footer, SystemStatus } from './SystemStatus'
+import { Closing, Footer, SystemStatus } from './SystemStatus'
 
 export function Landing() {
   return (
@@ -22,6 +22,7 @@ export function Landing() {
         <Limits />
         <Method />
         <SystemStatus />
+        <Closing />
       </main>
       <Footer />
     </div>

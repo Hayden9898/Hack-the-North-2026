@@ -131,3 +131,6 @@ export const RULES = [
   ['R4', 'Escalates a match when the account/source pair is unfamiliar against the frozen August reference.'],
   ['R5', 'Escalates an access change on a resource classed as confidential.'],
 ] as const
+
+/** id -> one-line description, for glossing R-chips where they are encountered. */
+export const RULE_TEXT: Record<string, string> = Object.fromEntries(RULES.map(([id, text]) => [id, text]))

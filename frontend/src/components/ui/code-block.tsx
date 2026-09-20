@@ -18,7 +18,7 @@ export function CodeBlock({
   maxHeight,
   className,
   copyable = true,
-  wrap = true,
+  wrap = false,
 }: {
   code: string
   /** Short caption, e.g. "raw log line 168338". */
@@ -30,9 +30,11 @@ export function CodeBlock({
   className?: string
   copyable?: boolean
   /**
-   * Wrap long lines instead of scrolling them. On by default: evidence the reader has to
-   * scroll sideways to finish reading is evidence they will not check, and an unconstrained
-   * <pre> widens its grid track, which broke the mobile layout.
+   * Wrap long lines instead of scrolling them. OFF by default: a wrapped log line breaks
+   * mid-token (timestamps split between digits, paths split mid-word), which undermines the
+   * one block whose entire purpose is to be verifiable character by character. Scrolling
+   * keeps the line intact. The container is width-constrained either way, so an overflowing
+   * line can never widen the page again.
    */
   wrap?: boolean
 }) {
@@ -81,10 +83,18 @@ export function CodeBlock({
         </button>
       ) : null}
 
+      {/* Scroll affordance. pointer-events-none so it never blocks selecting the evidence. */}
+      {wrap ? null : (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 z-[1] w-10 bg-gradient-to-l from-surface to-transparent"
+        />
+      )}
+
       <pre
         className={cn(
           'px-3 py-2.5 font-mono text-mono text-fg',
-          wrap ? 'whitespace-pre-wrap break-all' : 'overflow-x-auto',
+          wrap ? 'whitespace-pre-wrap break-all' : 'overflow-x-auto whitespace-pre',
           maxHeight && 'overflow-y-auto',
         )}
         style={maxHeight ? { maxHeight } : undefined}
