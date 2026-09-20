@@ -234,3 +234,41 @@ Concise record of milestones, decisions, commands and results. Newest entries at
   run containment counts. `ruff`, `mypy` (68 files), `tsc`, `oxlint` clean.
 - Not done: no real remediation endpoint, so the `live` adapter is **unverified**; the catalog is reviewed content,
   not a claim about CSE's systems; no Slack Block Kit buttons (would need an interactive app, not a webhook).
+
+### Review pass (2026-09-20) — seven-slice code audit, bugs fixed ✅
+- Method: one reviewer per slice (ingest/schema, features/detection/workers, incidents/investigation, containment
+  actions, API/notifications/ops, frontend, ML) confirmed each finding against the code before it was fixed; one
+  fixer per slice on disjoint files. Static gates before and after: `ruff`, `mypy`, `tsc`, `oxlint`, `vite build`.
+- Containment: a repeat dry run no longer resets an executed proposal (`already_executed`); `verify` reads the
+  approval cutoff from the execute log row instead of comparing replayed event times with wall-clock time (was
+  always `pending` on replays); a `failed` execute needs a fresh dry run; rollback recomputes `containment_mode`;
+  `split` bindings keep separators inside the remainder; every write takes the run row lock before emitting a
+  UI update. The catalog is validated at load (binding sources, precondition args, verification ids and their
+  params) — that caught `force_credential_reset` never binding the `source` its verification query needs.
+- Investigation: the assistant turn now echoes the provider's full content (thinking blocks included), which
+  `claude-opus-5` requires on tool rounds and repair turns; validator rejections are labelled `rejected` rather
+  than `fallback`; the stale-version guard is re-checked under lock when the result is persisted; explanation jobs
+  have an attempt ceiling with a deterministic fallback; hypothesis gates no longer accept always-present context
+  facts; an escalating rule reopens a closed incident and the headline follows the highest-outcome rule.
+- Detector/workers: a poison record is blamed by its own `run_seq` and the healthy prefix of the microbatch commits
+  first; `model_health` is reconciled every batch; the default model must match the run's familiarity reference
+  (otherwise `rules_only`, not `degraded`); naive run timestamps are normalised to UTC; `virtual_time` starts at
+  `max(visible_start, range_start)`; live digests are promoted on idle steps; `ui_updates.update_seq` is allocated
+  under the run row lock everywhere (side-effect worker, jobs, feedback, actions) — the race produced duplicate
+  Slack deliveries in live mode.
+- Ingest: invalid UTF-8, NUL bytes and out-of-range byte counts become rejects instead of aborting the import;
+  duplicate event ids inside one live batch are `duplicate`/`conflict`, not a 500; a `failed` dataset upload is
+  requeued. ML: an unloadable artifact degrades to rules-only instead of blocking the run; `--activate` demotes
+  the previous active model; the manifest is written before the DB commit; `feature_config_hash` (policy
+  `features` + routes) is checked at load; explicit `--source-run` gets the same guards as the default query.
+- API/ops: the API refuses a non-loopback bind without secrets at startup and `/health/ready` reports
+  `auth_secrets_missing`; the SSE run check no longer blocks the event loop; pagination bounds; worker
+  `APP_BASE_URL` in compose; `tasks.py` rejects unknown positional args (the printed `--activate` hint was silently
+  dropped); Makefile gains the verify targets. Frontend: benchmark error response no longer crashes the shell (root
+  `errorElement` added); 503 readiness bodies are shown as diagnostics with the operator-token control kept;
+  replay controls keep run counts; percentiles are not rescaled; failed executes are shown inline; `action` SSE
+  events refresh containment; `?version=abc` falls back to current.
+- Not fixed (recorded): live-mode execute POSTs inside the request transaction, so a crash after the POST leaves
+  no log row; `action_log` append-only is by convention (no trigger); `requirements.lock.txt` is a Windows snapshot
+  the image does not install; the dataset import lock is released after open, so two concurrent imports of the
+  same file still race.

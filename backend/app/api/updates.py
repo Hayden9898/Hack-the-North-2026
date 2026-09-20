@@ -20,6 +20,11 @@ POLL_SECONDS = 0.5
 MAX_GAP = 5000  # if a client is further behind than this, tell it to resync from a snapshot
 
 
+def _require_run(url: str, run_id: str) -> None:
+    with transaction(url) as conn:
+        deps.load_run(conn, run_id)
+
+
 def _fetch(url: str, run_id: str, after: int, limit: int = 200) -> tuple[list[dict[str, Any]], int]:
     with transaction(url) as conn, conn.cursor() as cur:
         cur.execute("SELECT coalesce(max(update_seq), 0) AS m FROM ui_updates WHERE run_id=%s", (run_id,))
@@ -41,8 +46,8 @@ async def updates(
     after: int | None = Query(default=None, ge=0),
     once: bool = Query(default=False, description="polling fallback: send what is available, then close"),
 ) -> EventSourceResponse:
-    with transaction(s.database_url) as conn:
-        deps.load_run(conn, run_id)
+    # Pool checkout can block for seconds when the database is down; keep it off the event loop so /health/live stays live.
+    await asyncio.get_running_loop().run_in_executor(None, _require_run, s.database_url, run_id)
     try:
         cursor = int(last_event_id) if last_event_id else (after if after is not None else 0)
     except ValueError as exc:

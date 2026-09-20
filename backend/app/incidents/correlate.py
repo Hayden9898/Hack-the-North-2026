@@ -40,6 +40,21 @@ def _max_class(a: str, b: str) -> str:
     return a if CLASS_RANK[a] >= CLASS_RANK[b] else b
 
 
+def _rule_num(rule_id: str) -> int:
+    return int(rule_id[1:]) if rule_id[1:].isdigit() else 99
+
+
+def primary_rule(matches: list[dict[str, Any]]) -> str | None:
+    """The rule that determines the headline: highest outcome rank first (R4/R5 high risk beat the R1/R6 or R2
+    episode they escalated), then the highest rule number for a stable tie-break."""
+    if not matches:
+        return None
+    best: dict[str, int] = {}
+    for m in matches:
+        best[m["rule_id"]] = max(best.get(m["rule_id"], 0), CLASS_RANK.get(m.get("outcome") or "", 0))
+    return max(best, key=lambda r: (best[r], _rule_num(r)))
+
+
 def apply_matches(
     conn: psycopg.Connection[Any],
     *,
@@ -110,14 +125,14 @@ def apply_matches(
                     )
             # All matches of this incident so far (for the packet).
             cur.execute(
-                "SELECT run_seq, rule_id, event_id, event_time, key_value, legs, params FROM rule_matches WHERE run_id=%s AND incident_id=%s ORDER BY run_seq",
+                "SELECT run_seq, rule_id, event_id, event_time, key_value, legs, params, outcome FROM rule_matches WHERE run_id=%s AND incident_id=%s ORDER BY run_seq",
                 (run_id, incident_id),
             )
             all_matches = [dict(r) for r in cur.fetchall()]
-            rule_ids = sorted({r["rule_id"] for r in all_matches}, key=lambda x: (int(x[1:]) if x[1:].isdigit() else 99))
+            rule_ids = sorted({r["rule_id"] for r in all_matches}, key=_rule_num)
             packet = build_packet(conn, run_id, incident_id, new_version, ev.run_seq, ev, observed, all_matches, reference_hash,
                                   int(cfg.policy["correlation"]["max_packet_events"]))
-            summary = summarize(rule_ids, new_class, packet["facts"], packet["unknown_codes"])
+            summary = summarize(rule_ids, new_class, packet["facts"], packet["unknown_codes"], primary_rule=primary_rule(all_matches))
             strength = {
                 "rules": rule_ids,
                 "legs_present": all(any(f["kind"] == "event_observed" and leg["event_id"] in f["evidence_event_ids"] for f in packet["facts"]) for mm in all_matches for leg in mm["legs"]),
@@ -126,6 +141,11 @@ def apply_matches(
                 "distinct_evidence_events": len({f["evidence_event_ids"][0] for f in packet["facts"] if f["kind"] == "event_observed"}),
             }
             first_time = min(incident["first_event_time"], ev.event_time)
+            # A closed incident that a higher-class rule attaches to (R4 → closed auth episode) must surface again:
+            # class only rises automatically, and a risen class reopens the incident. Lowering/closing stays an
+            # analyst disposition (architecture.md §7).
+            escalated = prev_class is not None and CLASS_RANK[new_class] > CLASS_RANK[prev_class]
+            new_status = "open" if escalated and incident.get("status") != "open" else incident.get("status", "open")
             cur.execute(
                 """INSERT INTO incident_versions (run_id, incident_id, version, threat_class, trigger_seq, trigger_event_id, timeline_start,
                        timeline_end, rule_ids, evidence_strength, summary)
@@ -138,11 +158,11 @@ def apply_matches(
                 (run_id, incident_id, new_version, ev.run_seq, packet["packet_hash"], jsonb(packet), jsonb(packet["completeness"])),
             )
             cur.execute(
-                """UPDATE incidents SET current_version=%s, current_class=%s, last_seq=%s, last_event_time=%s, first_event_time=%s,
+                """UPDATE incidents SET current_version=%s, current_class=%s, status=%s, last_seq=%s, last_event_time=%s, first_event_time=%s,
                        updated_at=now() WHERE run_id=%s AND incident_id=%s""",
-                (new_version, new_class, ev.run_seq, ev.event_time, first_time, run_id, incident_id),
+                (new_version, new_class, new_status, ev.run_seq, ev.event_time, first_time, run_id, incident_id),
             )
-            incident.update(current_version=new_version, current_class=new_class, last_seq=ev.run_seq, last_event_time=ev.event_time)
+            incident.update(current_version=new_version, current_class=new_class, status=new_status, last_seq=ev.run_seq, last_event_time=ev.event_time)
             change = IncidentChange(incident_id, new_version, prev_class, new_class, rule_ids, packet["packet_hash"], summary)
             if side_effects:
                 cur.execute("SELECT count(*) n FROM incident_evidence WHERE run_id=%s AND incident_id=%s", (run_id, incident_id))

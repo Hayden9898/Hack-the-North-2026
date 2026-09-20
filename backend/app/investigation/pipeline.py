@@ -85,6 +85,7 @@ def run_investigation(conn: psycopg.Connection[Any], run_id: str, packet: dict[s
     reasons_all: list[str] = []
     last_raw: Any = None
     total_tool_calls = 0
+    had_proposal = False  # True once the model submitted anything the validator could judge (rejected ≠ provider failure)
     attempts = int(icfg["max_repairs"]) + 1
     for attempt in range(attempts):
         if time.monotonic() - job_t0 > job_budget:
@@ -103,6 +104,7 @@ def run_investigation(conn: psycopg.Connection[Any], run_id: str, packet: dict[s
             # Ask once more with the problem stated; the loop bound is max_repairs.
             messages.append({"role": "user", "content": f"Your previous attempt failed: {outcome}. Call {SUBMIT_TOOL} with valid selections."})
             continue
+        had_proposal = True
         with sentry.span("explanation.validate"):
             vr = validate(proposal, packet, applicable_ids)
         if vr.ok:
@@ -110,7 +112,6 @@ def run_investigation(conn: psycopg.Connection[Any], run_id: str, packet: dict[s
             return {"state": "validated", "validated": {**vr.validated, "tool_log": budget.log}, "proposal_raw": last_raw, "rejection_reasons": reasons_all, "model_name": explainer.model_name, "tool_calls": total_tool_calls}
         reasons_all.extend(f"attempt {attempt}: {r}" for r in vr.reasons)
         messages.append({"role": "user", "content": "Your selections were rejected by the validator:\n- " + "\n- ".join(vr.reasons[:8]) + f"\nCall {SUBMIT_TOOL} again with corrected selections using only fact ids from the packet."})
-    had_proposal = any(" unknown fact id" in r or "schema:" in r or "contradictory" in r or "playbook" in r or "mismatch" in r or "required kind" in r for r in reasons_all)
     fb = deterministic_fallback(packet, "AI proposal rejected by the validator; deterministic summary shown" if had_proposal else "AI review unavailable (timeout/provider error); deterministic summary shown")
     fb["state"] = "rejected" if had_proposal else "fallback"
     fb["proposal_raw"] = last_raw
@@ -144,7 +145,13 @@ def _attempt(explainer: Explainer, system: str, messages: list[dict[str, Any]], 
         if reply.stop_reason == "max_tokens":
             return None, raw_tail, "output token ceiling reached before submission"
         tool_uses = [b for b in reply.content if b.type == "tool_use"]
-        assistant_content = [({"type": "text", "text": b.text} if b.type == "text" else {"type": "tool_use", "id": b.id, "name": b.name, "input": b.input}) for b in reply.content]
+        # Echo the provider's turn verbatim when available (keeps signed thinking blocks intact); scripted replies
+        # carry no provider turn, so rebuild from the typed blocks.
+        assistant_content: list[Any]
+        if reply.assistant_content is not None:
+            assistant_content = reply.assistant_content
+        else:
+            assistant_content = [({"type": "text", "text": b.text} if b.type == "text" else {"type": "tool_use", "id": b.id, "name": b.name, "input": b.input}) for b in reply.content]
         messages.append({"role": "assistant", "content": assistant_content})
         if not tool_uses:
             return None, raw_tail, "no submission (model ended without calling submit_selections)"

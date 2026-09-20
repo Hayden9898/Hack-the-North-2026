@@ -127,8 +127,10 @@ def _resolve(spec: dict[str, Any], *, incident: dict[str, Any], facts: list[dict
         return None, src, f"unsupported binding source {src!r}"
 
     if split := spec.get("split"):
-        parts = str(value).split(str(split.get("sep", "|")))
+        # Composite keys are `account|rest`; only the first separator splits, so a path containing the separator
+        # survives intact as the remainder segment.
         index = int(split.get("index", 0))
+        parts = str(value).split(str(split.get("sep", "|")), max(index, 1))
         if index >= len(parts):
             return None, source, f"value {value!r} has no segment {index}"
         value = parts[index]

@@ -237,15 +237,20 @@ export function ActivityPanel({ runId, processedSeq, run }: { runId: string; pro
             <span style={{ color: 'var(--danger)' }}>
               Benchmark failed (HTTP {benchErr.status ?? '—'}): {benchErr.text}
             </span>
+          ) : bench.result && 'error' in bench.result ? (
+            <span className="muted">
+              Benchmark not available: {bench.result.error}.{' '}
+              {/aggregate not refreshed/i.test(bench.result.error) ? 'Use "Refresh aggregate" above, then run it again.' : ''}
+            </span>
           ) : bench.result ? (
             <dl className="kvs">
               <div className="kv">
                 <dt>raw ms (median)</dt>
-                <dd className="mono">{bench.result.raw_ms.median.toFixed(1)}</dd>
+                <dd className="mono">{bench.result.raw_ms?.median?.toFixed(1) ?? '—'}</dd>
               </div>
               <div className="kv">
                 <dt>aggregate ms (median)</dt>
-                <dd className="mono">{bench.result.aggregate_ms.median.toFixed(1)}</dd>
+                <dd className="mono">{bench.result.aggregate_ms?.median?.toFixed(1) ?? '—'}</dd>
               </div>
               <div className="kv">
                 <dt>identical results</dt>

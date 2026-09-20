@@ -307,6 +307,8 @@ def post_feedback(
         # Closing records disposition; detections and versions are never erased or downgraded.
         if body.disposition in ("closed", "false_positive", "benign_explained"):
             cur.execute("UPDATE incidents SET status='closed', updated_at=now() WHERE run_id=%s AND incident_id=%s", (run_id, incident_id))
+        # Serialise update_seq allocation with the detector (same lock order: run row first) so max+1 cannot collide.
+        cur.execute("SELECT 1 FROM runs WHERE run_id=%s FOR UPDATE", (run_id,))
         cur.execute(
             "INSERT INTO ui_updates (run_id, update_seq, type, payload) VALUES (%s, (SELECT coalesce(max(update_seq),0)+1 FROM ui_updates WHERE run_id=%s), 'feedback', %s)",
             (run_id, run_id, __import__("app.db.engine", fromlist=["jsonb"]).jsonb({"incident_id": incident_id, "disposition": body.disposition})),

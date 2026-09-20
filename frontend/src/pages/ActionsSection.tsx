@@ -89,7 +89,8 @@ export function ActionsSection({
       ) : (
         <ul className="plain stack">
           {containment.map((a) => (
-            <ActionCard key={a.action_id} runId={runId} incidentId={incidentId} version={version} action={a} mode={d.execution_mode} onChanged={reload} />
+            // Keyed by version too: switching incident version must drop the previous version's dry-run/verification state.
+            <ActionCard key={`${version}-${a.action_id}`} runId={runId} incidentId={incidentId} version={version} action={a} mode={d.execution_mode} onChanged={reload} />
           ))}
         </ul>
       )}
@@ -152,14 +153,18 @@ function ActionCard({
   const [dryRun, setDryRun] = useState<Record<string, unknown> | null>(null)
   const [verification, setVerification] = useState<Verification | null>(null)
   const [confirming, setConfirming] = useState(false)
+  // An execute that answers HTTP 200 with outcome "failed": not a transport error, but the operator must see it.
+  const [execFailure, setExecFailure] = useState<string | null>(null)
 
   const state = action.proposal?.state ?? null
   const executed = state === 'executed'
   const rolledBack = state === 'rolled_back'
+  const failed = state === 'failed'
 
   async function run<T>(label: string, fn: () => Promise<T>, after?: (r: T) => void) {
     setBusy(label)
     setErr(null)
+    setExecFailure(null)
     try {
       const r = await fn()
       after?.(r)
@@ -184,6 +189,7 @@ function ActionCard({
               <strong>{action.title}</strong>
               {executed ? <Tag tone="warn">executed ({mode})</Tag> : null}
               {rolledBack ? <Tag tone="muted">rolled back</Tag> : null}
+              {failed ? <Tag tone="danger">failed</Tag> : null}
               {!action.available ? <Tag tone="muted">unavailable</Tag> : null}
               {action.stale_approval ? <Tag tone="danger">binding changed</Tag> : null}
               {!action.reversible ? <Tag tone="danger">not reversible</Tag> : null}
@@ -269,6 +275,7 @@ function ActionCard({
                     disabled={busy !== null}
                     onClick={() =>
                       void run('exec', () => api.executeAction(runId, incidentId, action.action_id, version), (r) => {
+                        if (r.outcome === 'failed') setExecFailure(r.error ?? 'execution failed')
                         const v = (r.result as { verification?: Verification }).verification
                         if (v) setVerification(v)
                       })
@@ -285,7 +292,13 @@ function ActionCard({
                   type="button"
                   className="btn btn-sm btn-primary"
                   disabled={busy !== null || executed || !action.dry_run_current}
-                  title={action.dry_run_current ? undefined : 'Run a dry run first'}
+                  title={
+                    action.dry_run_current
+                      ? undefined
+                      : failed || execFailure
+                        ? 'The last execution failed; a new dry run is required before approving again'
+                        : 'Run a dry run first'
+                  }
                   onClick={() => setConfirming(true)}
                 >
                   Approve &amp; execute
@@ -312,6 +325,11 @@ function ActionCard({
               {e ? (
                 <span className="small" style={{ color: 'var(--danger)' }}>
                   HTTP {e.status ?? '—'}: {detail}
+                </span>
+              ) : null}
+              {execFailure ? (
+                <span className="small" style={{ color: 'var(--danger)' }} role="alert">
+                  Execution failed: {execFailure}
                 </span>
               ) : null}
             </div>

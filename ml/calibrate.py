@@ -15,7 +15,14 @@ from app.config import get_config
 from app.db.engine import connect_direct, jsonb
 from app.features.vector import FEATURE_NAMES
 from app.settings import get_settings
-from ml.common import anomaly_scores, load_manifest, load_matrix, rarity_baseline
+from ml.common import (
+    anomaly_scores,
+    check_config_drift,
+    load_manifest,
+    load_matrix,
+    rarity_baseline,
+    write_manifest,
+)
 
 
 def main() -> int:
@@ -27,11 +34,13 @@ def main() -> int:
     ap.add_argument("--sample", type=int, default=12)
     ap.add_argument("--database-url", default=None)
     ap.add_argument("--out", default="reports/calibration.json")
+    ap.add_argument("--allow-config-drift", action="store_true", help="proceed even if the current config differs from the training config")
     args = ap.parse_args()
     settings = get_settings()
     cfg = get_config()
     model_dir = Path(settings.model_dir)
     manifest = load_manifest(model_dir, args.model_id)
+    check_config_drift(manifest, cfg, args.allow_config_drift)
     est = joblib.load(model_dir / args.model_id / manifest["artifact_file"])
     conn = connect_direct(args.database_url or settings.database_url)
     cal = load_matrix(conn, manifest["source_run_id"], cfg, "calibration")
@@ -89,16 +98,29 @@ def main() -> int:
     report["chosen"] = {"percentile": pct, "threshold": threshold, "alerts": int(len(flagged_idx)), "alerts_per_day": round(len(flagged_idx) / cal_days, 2), "ties": int((scores == threshold).sum())}
     report["samples"] = samples
     status = "active" if args.activate else ("shadow" if args.shadow else "candidate")
-    with conn.cursor() as cur:
-        cur.execute("UPDATE models SET status=%s, threshold=%s, manifest = manifest || %s WHERE model_id=%s",
-                    (status, threshold, jsonb({"threshold": threshold, "threshold_percentile": pct, "calibration_review": report["chosen"], "status": status}), args.model_id))
-    conn.commit()
-    conn.close()
+    # The detector reads the threshold from the manifest on disk, so the manifest must be in place before the DB row
+    # says the model is usable at this threshold.
     if pct != manifest["threshold_percentile"] or threshold != manifest["threshold"]:
         manifest["threshold"], manifest["threshold_percentile"] = threshold, pct
     manifest["status"] = status
     manifest["calibration_review"] = report["chosen"]
-    (model_dir / args.model_id / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    write_manifest(model_dir, args.model_id, manifest)
+    demoted: list[str] = []
+    with conn.cursor() as cur:
+        if status == "active":
+            # Exactly one active model: demote the previous one in the same transaction so activation can roll back
+            # to an older artifact instead of the newest active row always winning.
+            cur.execute("UPDATE models SET status='shadow' WHERE status='active' AND model_id<>%s RETURNING model_id", (args.model_id,))
+            demoted = [r["model_id"] for r in cur.fetchall()]
+        cur.execute("UPDATE models SET status=%s, threshold=%s, manifest = manifest || %s WHERE model_id=%s",
+                    (status, threshold, jsonb({"threshold": threshold, "threshold_percentile": pct, "calibration_review": report["chosen"], "status": status}), args.model_id))
+        if cur.rowcount != 1:
+            conn.rollback()
+            raise SystemExit(f"model {args.model_id} is not registered in the models table (was it trained with ml.train?)")
+    conn.commit()
+    conn.close()
+    for m in demoted:
+        print(f"demoted previously active model {m} to shadow")
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps(report, indent=2, default=str), encoding="utf-8")
     print(json.dumps({k: report[k] for k in ("model_id", "calibration_rows", "percentiles", "chosen")}, indent=2))

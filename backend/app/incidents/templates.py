@@ -39,7 +39,9 @@ def _fmt_event(v: dict[str, Any]) -> str:
     return f"{v['event_time']} {v['account']}@{v['ip']} {v['method']} {v['path']} -> {v['status']} ({line})"
 
 
-def summarize(rule_ids: list[str], threat_class: str, facts: list[dict[str, Any]], unknown_codes: list[str]) -> dict[str, Any]:
+def summarize(rule_ids: list[str], threat_class: str, facts: list[dict[str, Any]], unknown_codes: list[str], primary_rule: str | None = None) -> dict[str, Any]:
+    """`primary_rule` chooses the headline (the rule with the highest outcome rank, see correlate.primary_rule);
+    without it the last rule id is used."""
     by_kind: dict[str, list[dict[str, Any]]] = {}
     # Current-version (trigger) facts first; older support facts only add lines that are not already present.
     for f in sorted(facts, key=lambda x: {"trigger": 0, "support": 1, "context": 2}.get(x.get("role", "support"), 1)):
@@ -61,7 +63,7 @@ def summarize(rule_ids: list[str], threat_class: str, facts: list[dict[str, Any]
             lines.append(f"Source pair {f['args']['pair']} is '{f['value']}' relative to the frozen August login reference.")
     lines = raw_lines
     trig = [f for f in by_kind.get("event_observed", []) if f["role"] == "trigger"]
-    primary = rule_ids[-1] if rule_ids else ""
+    primary = primary_rule or (rule_ids[-1] if rule_ids else "")
     return {
         "headline": RULE_HEADLINES.get(primary, "Detector match"),
         "class": threat_class,

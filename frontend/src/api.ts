@@ -33,6 +33,8 @@ export interface Health {
   integrations: Integrations
   sentry_active: boolean
   degraded_modes: string[]
+  /** Why the API answered not_ready (database_unavailable, migrations_behind, config_invalid, auth_secrets_missing); absent on older builds. */
+  not_ready_reasons?: string[]
 }
 
 export interface RunCounts {
@@ -75,7 +77,8 @@ export interface Run {
   notifications_sent: number
   pause_at_visible_start: boolean
   integrations: Integrations
-  counts: RunCounts
+  /** Present on GET /runs and GET /runs/:id; the replay-control response omits it. */
+  counts?: RunCounts
   created_at: string
   updated_at: string
 }
@@ -588,7 +591,7 @@ export interface RefreshResponse {
   duration_ms?: number
 }
 
-export interface BenchmarkResponse {
+export interface BenchmarkResult {
   watermark: string | null
   rows: number
   identical_results: boolean
@@ -596,6 +599,9 @@ export interface BenchmarkResponse {
   aggregate_ms: { median: number; min: number; max: number }
   repeats: number
 }
+
+/** HTTP 200 either way: the benchmark cannot run until the aggregate has been refreshed once for the run. */
+export type BenchmarkResponse = BenchmarkResult | { error: string }
 
 export interface Explanation {
   run_id: string
@@ -762,8 +768,13 @@ export function describeError(err: unknown): { status: number | null; text: stri
     const d = err.detail
     let text: string
     if (typeof d === 'string') text = d
-    else if (d && typeof d === 'object' && 'error' in d) text = String((d as { error: unknown }).error)
-    else if (d && typeof d === 'object') text = JSON.stringify(d)
+    else if (d && typeof d === 'object' && 'error' in d) {
+      // Action refusals carry `error` plus a human `message` and, for unavailable actions, the unmet preconditions.
+      const o = d as { error: unknown; message?: unknown; unmet?: unknown }
+      text = String(o.error)
+      if (typeof o.message === 'string' && o.message && o.message !== text) text += `: ${o.message}`
+      if (Array.isArray(o.unmet) && o.unmet.length > 0) text += ` (unmet: ${o.unmet.map(String).join('; ')})`
+    } else if (d && typeof d === 'object') text = JSON.stringify(d)
     else text = err.message
     return { status: err.status, text }
   }
@@ -861,6 +872,34 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T
 }
 
+function isHealthObject(v: unknown): v is Health {
+  if (!v || typeof v !== 'object') return false
+  const o = v as Record<string, unknown>
+  return typeof o.status === 'string' && !!o.database && typeof o.database === 'object' && typeof (o.database as { ok?: unknown }).ok === 'boolean'
+}
+
+/**
+ * GET /health/ready answers 503 for every not-ready reason (database down, migration mismatch, config error) with the
+ * full health object as the body. Only a database failure is a "database unavailable" condition; the other reasons
+ * are reported through the same Health shape so the console can show the diagnostic banner instead of a generic error.
+ */
+async function healthRequest(): Promise<Health> {
+  try {
+    return await request<Health>('/health/ready')
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 503) {
+      // The 503 body is the health object itself, or {detail: <health object>} if a wrapper intervened.
+      const d = err.detail
+      const h = isHealthObject(d) ? d : d && typeof d === 'object' && 'detail' in d && isHealthObject((d as { detail: unknown }).detail) ? (d as { detail: Health }).detail : null
+      if (h) {
+        setDbDown(h.database.ok === false)
+        return h
+      }
+    }
+    throw err
+  }
+}
+
 function qs(params: Record<string, string | number | boolean | null | undefined>): string {
   const sp = new URLSearchParams()
   for (const [k, v] of Object.entries(params)) {
@@ -875,7 +914,7 @@ const API = '/api/v1'
 const enc = encodeURIComponent
 
 export const api = {
-  health: () => request<Health>('/health/ready'),
+  health: () => healthRequest(),
 
   listRuns: () => request<Run[]>(`${API}/runs`),
   getRun: (runId: string) => request<Run>(`${API}/runs/${enc(runId)}`),

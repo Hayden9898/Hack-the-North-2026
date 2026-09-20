@@ -120,3 +120,66 @@ def test_every_action_declares_a_known_verification_query(action_id):
     qid = action["verification"]["id"]
     assert qid == "none" or qid in QUERIES, f"{action_id} names verification query {qid!r}"
     assert action["verification"]["criterion"]
+
+
+def test_split_keeps_a_separator_inside_the_remainder_segment():
+    # Composite keys are built with split("|", 1) upstream, so a path containing "|" must survive intact.
+    facts = [fact("prior_endpoint_post_2xx_count", {"account_endpoint": "acct_2|/api/admin/role|update", "before_seq": 80}, 0)]
+    b = bind("revert_role_change", incident(), version("R3"), facts)
+    assert b.available and b.params == {"account": "acct_2", "endpoint": "/api/admin/role|update"}
+
+
+def test_split_still_reports_a_missing_segment():
+    facts = [fact("prior_endpoint_post_2xx_count", {"account_endpoint": "acct_2", "before_seq": 80}, 0)]
+    b = bind("revert_role_change", incident(), version("R3"), facts)
+    assert not b.available and any("no segment 1" in u for u in b.unmet)
+
+
+# ------------------------------------------------------------------------------------------------- catalog validation
+
+def _action(**overrides):
+    base = {
+        "id": "a1", "playbook_id": "p", "title": "t", "kind": "k", "severity": "containment", "reversible": True,
+        "summary": "s", "impact": "i", "rollback": "r",
+        "params": {"account": {"from": "incident.account"}},
+        "preconditions": [{"check": "always"}],
+        "verification": {"id": "account_activity_after", "criterion": "c"},
+    }
+    return {**base, **overrides}
+
+
+def _write_catalog(tmp_path, name, actions):
+    import yaml
+
+    d = tmp_path / name  # a distinct directory per case: load_catalog is cached by config_dir
+    d.mkdir()
+    (d / "actions.yaml").write_text(yaml.safe_dump({"version": 1, "actions": actions}), encoding="utf-8")
+    return str(d)
+
+
+def test_catalog_accepts_a_well_formed_action_and_the_parameterless_handoff(tmp_path):
+    handoff = _action(id="h", severity="handoff", params={}, verification={"id": "none", "criterion": "c"})
+    split = _action(id="s", params={"account": {"from": "fact:k.args.account_endpoint", "split": {"sep": "|", "index": 0}}})
+    loaded = load_catalog(_write_catalog(tmp_path, "ok", [_action(), handoff, split]))
+    assert [a["id"] for a in loaded] == ["a1", "h", "s"]
+
+
+@pytest.mark.parametrize(
+    ("name", "overrides", "message"),
+    [
+        ("bad_source", {"params": {"account": {"from": "incident.account.nested"}}}, "unsupported binding source"),
+        ("bad_fact_source", {"params": {"account": {"from": "fact:k.field"}}}, "unsupported binding source"),
+        ("free_text_source", {"params": {"account": {"from": "llm"}}}, "unsupported binding source"),
+        ("bad_split_index", {"params": {"account": {"from": "incident.account", "split": {"index": -1}}}}, "split index"),
+        ("split_index_not_int", {"params": {"account": {"from": "incident.account", "split": {"index": "0"}}}}, "split index"),
+        ("fact_present_no_kind", {"preconditions": [{"check": "fact_present"}]}, "names no fact kind"),
+        ("fact_value_in_no_kind", {"preconditions": [{"check": "fact_value_in", "values": ["x"]}]}, "names no fact kind"),
+        ("fact_value_in_no_values", {"preconditions": [{"check": "fact_value_in", "kind": "k", "values": []}]}, "non-empty values"),
+        ("rule_any_no_rules", {"preconditions": [{"check": "rule_any"}]}, "non-empty rules"),
+        ("unknown_query", {"verification": {"id": "nope", "criterion": "c"}}, "unknown verification query"),
+        ("query_param_undeclared", {"verification": {"id": "success_on_path_after", "criterion": "c"}}, "undeclared parameter.* path"),
+    ],
+)
+def test_catalog_rejects_malformed_actions_at_load_time(tmp_path, name, overrides, message):
+    with pytest.raises(ValueError, match=message):
+        load_catalog(_write_catalog(tmp_path, name, [_action(**overrides)]))

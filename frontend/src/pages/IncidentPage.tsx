@@ -35,7 +35,8 @@ export function IncidentPage() {
   const [sp, setSp] = useSearchParams()
   const nav = useNavigate()
   const versionParam = sp.get('version')
-  const version = versionParam ? Number(versionParam) : undefined
+  // Only a positive integer is a version; anything else (e.g. ?version=abc → NaN) means "current version".
+  const version = parseVersion(versionParam)
   const inc = useFetch<IncidentDetail>(() => api.getIncident(runId, incidentId, version), [runId, incidentId, version])
   const [drawerFact, setDrawerFact] = useState<Fact | null>(null)
   const [highlight, setHighlight] = useState<string | null>(null)
@@ -279,6 +280,13 @@ export function IncidentPage() {
 }
 
 /** packet.completeness.rules_incomplete is a string[] of rule/fact codes (empty = complete); tolerate a legacy boolean. */
+/** `?version=` must be a positive integer to be sent to the API; otherwise the current version is requested. */
+function parseVersion(raw: string | null): number | undefined {
+  if (!raw) return undefined
+  const n = Number(raw)
+  return Number.isInteger(n) && n >= 1 ? n : undefined
+}
+
 function rulesIncompleteCodes(packet: { completeness?: { rules_incomplete?: boolean | string[] } } | null | undefined): string[] {
   const v = packet?.completeness?.rules_incomplete
   if (Array.isArray(v)) return v

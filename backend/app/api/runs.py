@@ -292,7 +292,7 @@ def get_event(run_id: str, run_seq: int, conn: psycopg.Connection[Any] = Depends
 
 
 @router.get("/runs/{run_id}/late")
-def list_late(run_id: str, conn: psycopg.Connection[Any] = Depends(deps.db), limit: int = Query(default=100, le=200)) -> dict[str, Any]:
+def list_late(run_id: str, conn: psycopg.Connection[Any] = Depends(deps.db), limit: int = Query(default=100, ge=1, le=200)) -> dict[str, Any]:
     deps.load_run(conn, run_id)
     with conn.cursor() as cur:
         cur.execute(

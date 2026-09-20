@@ -86,11 +86,23 @@ async def upload_dataset(
     with conn.cursor() as cur:
         cur.execute("SELECT * FROM datasets WHERE id=%s", (dataset_id,))
         existing = cur.fetchone()
-        if existing:
+        if existing and existing["import_state"] != "failed":
             tmp.unlink(missing_ok=True)
             return {**_serialize(dict(existing)), "job": "existing"}
         final = upload_dir / f"{dataset_id}.log"
         tmp.replace(final)
+        if existing:
+            # A failed import is retried from the start: the importer resumes at progress_line, and rejects recorded
+            # before the failure are cleared here, so the checkpoint must go back to line 0 to keep counts complete.
+            cur.execute("DELETE FROM ingestion_rejects WHERE dataset_id=%s", (dataset_id,))
+            cur.execute(
+                """UPDATE datasets SET import_state='pending', error=NULL, progress_line=0, progress_bytes=0,
+                       total_lines=0, valid_count=0, rejected_count=0, first_event_time=NULL, last_event_time=NULL,
+                       stats = stats || %s, updated_at=now()
+                   WHERE id=%s RETURNING *""",
+                (jsonb({"upload_path": str(final)}), dataset_id),
+            )
+            return {**_serialize(dict(one(cur))), "job": "requeued"}
         cur.execute(
             """INSERT INTO datasets (id, content_sha256, original_name, bytes, parse_version, import_state, stats)
                VALUES (%s, %s, %s, %s, %s, 'pending', %s) RETURNING *""",
