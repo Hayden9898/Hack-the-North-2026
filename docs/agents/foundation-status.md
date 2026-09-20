@@ -96,8 +96,9 @@ Fonts: `font-sans` (IBM Plex Sans) · `font-serif` (Instrument Serif, display on
   to dark keeps them pixel-identical to before. Light mode is fully supported by my tokens
   and components — the legacy console will look wrong in light until you convert it. Not a
   bug, and nothing for you to work around.
-- `npm run check:contrast` parses `theme.css` and asserts WCAG AA. All tokens pass today
-  (4.5:1 text, 3:1 for `fg-subtle` and `border-strong`). Run it if you add a colour.
+- `npm run check:contrast` parses `theme.css` and asserts WCAG AA (4.5:1 text, 3:1 non-text).
+  Run it if you add a colour. **It currently reports 10 failures, all real** — see
+  "Known: the light palette is below AA" below. Do not treat a red run as noise.
 - Verified: `/` and `/app` both 200, console renders, `typecheck && lint && build` green.
   Lint emits 5 pre-existing `only-export-components` fast-refresh warnings; oxlint exits 0.
 - The shadcn CLI mis-resolved `@/` and installed an unrelated npm package called `cn`.
@@ -155,8 +156,10 @@ to do — it just means don't re-add `outline-none` when you pull a new shadcn c
 
 ### Also available to you
 
-- `npm run check:contrast` — parses `theme.css`, asserts WCAG (4.5:1 text, 3:1 for `fg-subtle`
-  and `border-strong`, decorative `border` exempt). All tokens pass. Run it if you add a colour.
+- `npm run check:contrast` — parses `theme.css`, asserts WCAG (4.5:1 text, 3:1 for non-text
+  `border-strong` and the chart marks; decorative `border`, `grid`, `axis` and `chart-shadow`
+  exempt; `sunken`/`chip` are surfaces, not ink). Run it if you add a colour. Red today, and
+  the failures are real — see "Known: the light palette is below AA".
 - `node scripts/shoot.mjs <outDir>` — dependency-free headless-Chrome screenshots, full-page,
   both themes, 1440×900 and 390×844. `SHOOT_PAGES="/app:runs,/app/runs/<id>:console"` to point
   it at your screens. It seeds the theme in localStorage before load, so you get a real light
@@ -242,3 +245,37 @@ branch is untouched and still holds them. The PR branch touches `frontend/` and 
 only.
 
 Nothing merged. Nothing on `main`.
+
+## 2026-09-20 (post-merge) — Known: the light palette is below AA
+
+`npm run check:contrast` had been **crashing, not passing**, since the palette rebuild
+(`eec144b`). The script only ever parsed `--lo-<name>: oklch(...)`, and that commit moved the
+whole palette to hex, so it matched zero tokens and then threw on `tokens['accent-fg']`. Every
+"all tokens pass" note above it was written against a gate that was not running.
+
+The parser now reads hex (and still reads oklch), and the token taxonomy matches how the
+tokens are actually painted: `sunken`/`chip` are surfaces, `grid`/`axis`/`chart-shadow` are
+decorative, and the three `*-mark` tokens are non-text graphics held to 3:1.
+
+With that, **10 real failures remain, and 9 of them are in the light theme**:
+
+| token | light | needs | painted as |
+| --- | --- | --- | --- |
+| `accent` | 3.08 | 4.5 | `text-accent` ×14 (buttons, badges, chart legends) |
+| `accent-hover` | 3.94 | 4.5 | text |
+| `accent-soft` | 1.77 | 4.5 | text |
+| `accent-fg` | 3.22 on accent | 4.5 | text on the accent fill |
+| `chart-2` | 3.77 | 4.5 | `text-chart-2` ×12 with 3/4 |
+| `chart-3` | 2.80 | 4.5 | text |
+| `chart-4` | 4.24 | 4.5 | text |
+| `suspicious-mark` | 1.99 | 3.0 | `bg-`/`stroke-` chart marks |
+| `border-strong` | 2.03 | 3.0 | control bounds |
+| `border-strong` (dark) | 2.54 | 3.0 | control bounds |
+
+These are not the gate being pedantic. `#ff5400` as body text on `#fafaf7` is genuinely hard
+to read, and it is the brand accent, so it is on every primary button and link in light mode.
+
+Fixing it is a palette decision, not a mechanical one — darkening `accent` to clear 4.5:1
+changes the brand colour, and the alternative (reserve `accent` for fills, introduce a darker
+`accent-ink` for text) means touching the 14 `text-accent` sites. Deliberately left for a human
+call rather than silently recoloured. Dark mode passes everything except `border-strong`.
