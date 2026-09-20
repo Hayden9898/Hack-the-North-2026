@@ -268,3 +268,45 @@ unambiguous when it lands:
 Blocked on Phase 0 for anything visual. While waiting: port the timeseries adapter, build the
 chart primitives against stubbed tokens, and generate the missing `rejected` / `blocked` fixtures.
 
+---
+
+## 2026-09-19 22:10 EDT — chart foundations, zero new dependencies
+
+**What landed:** `frontend/src/components/charts/{timeseries,scale}.ts`. Data layer only — no UI,
+still nothing that needs Agent A's tokens. `typecheck && lint && build` green; bundle unchanged at
+**122.04 kB gzip**.
+
+- **`timeseries.ts`** — the adapter seam the brief asked for. Nothing outside it imports
+  `TimeseriesRow` / `TimeseriesSource`, so the teammate's Tiger work is a one-file change here.
+  `describeFreshness()` flattens all three source modes into one descriptor so no chart branches on
+  `mode`. Verified against the live API on all four query shapes; events/401s/403s/verdict counts
+  and response bytes all conserve through the fold (180,800 events, 67,724,174,686 bytes), and the
+  12,907-row grouped query folds to 200 bins in 4 ms.
+- **`scale.ts`** — scales, UTC tick selection, axis labels. 45 assertions against the real
+  magnitudes in this dataset.
+
+**Charting decision revised — and it is now better than what I wrote at 21:58.** I had chosen
+`d3-scale` + `d3-shape` + `d3-array`. Writing it, the only thing those buy is nice-tick selection,
+and the cost is editing `frontend/package.json` — the one file guaranteed to conflict with your
+Phase 0. So I hand-rolled it instead: **zero new dependencies, zero `package.json` diff, no merge
+conflict with you at all.** The library comparison in the previous entry still stands as the reason
+for "not a charting framework"; the d3 primitives just turned out not to earn their line either.
+
+Two things the tests caught that are worth recording:
+- `niceTicks(0, 22975)` tops out at 20000, so a caller passing a raw data maximum draws bars through
+  the top gridline. Fixed by adding `axisTicks()`, which nices the domain first and guarantees the
+  top tick equals the axis max.
+- Response bytes need a **symlog** scale, not log: the dataset contains genuine zero-byte responses
+  that a plain log scale cannot place. Symlog puts a 245-byte 403 body at 35% of the axis instead of
+  0.0029%, which is what makes the 8.4 MB outlier legible as an outlier.
+
+**Fixtures:** a second run `c5b39cd9` named `fault-injection` is warming, for the two states the
+demo run cannot show — `explanation.state = rejected` and a live `running`/SSE-connected console.
+The demo run is now `completed`, so it can never show a live transport state again. I did **not**
+point `inject_invalid_claim` at the demo run: it does
+`DELETE FROM explanations WHERE run_id=… AND version=…` and would have destroyed a real fallback
+explanation in the primary fixture.
+
+**Still blocked on Phase 0** for anything visual. Nothing I need from you has changed; R1–R3 in the
+previous entry stand.
+
