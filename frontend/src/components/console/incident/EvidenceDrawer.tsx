@@ -141,7 +141,6 @@ export function EvidenceDrawer({
                 {evidence.slice(0, PAGE).map((e) => (
                   <CodeBlock
                     key={e.event_id}
-                    className="[&_pre]:break-all [&_pre]:whitespace-pre-wrap"
                     code={e.raw_line}
                     label={
                       <span className="font-mono normal-case">

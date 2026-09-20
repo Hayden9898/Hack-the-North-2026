@@ -72,13 +72,12 @@ export function EventPage() {
           ))}
         </div>
 
-        {/* Not using CodeBlock's lineNumbers branch: its gutter is a hardcoded 3.5ch and a
-            six-digit line number overruns it into the log text (filed to Agent A as R7). The
-            line number is already in the label, so wrap the <pre> directly instead — the raw
-            line must never be clipped on the screen whose job is showing it. */}
+        {/* wrap="always": this is the one screen whose entire job is showing the exact line,
+            so it must be visible in full without a scroll. Agent A's wrap breaks at spaces
+            rather than mid-token, so byte fidelity survives the wrap. */}
         <CodeBlock
-          className="[&_pre]:break-all [&_pre]:whitespace-pre-wrap"
           code={e.raw_line}
+          wrap="always"
           label={
             <span className="font-mono normal-case">
               line {e.line_number ?? '—'} · run_seq {e.run_seq} · {fmtTime(e.event_time)}

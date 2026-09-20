@@ -1,28 +1,47 @@
+/*
+ * Legacy console palette.
+ *
+ * These were hardcoded dark hexes. Once the rules were scoped to `.app`, `.app { background:
+ * var(--bg) }` began painting the whole console shell dark in BOTH themes — a class selector on
+ * a real div, with no competing utility, so light mode rendered as a dark slab with light cards
+ * on it. Verified by sampling painted pixels: every point in the light-theme viewport came back
+ * rgb(14,17,22).
+ *
+ * Aliased to the theme tokens rather than deleted, so every remaining legacy rule follows the
+ * active theme instead of pinning it. All six console screens are converted and no longer read
+ * these, but the landing page and any unconverted surface still can.
+ */
 :root {
-  color-scheme: dark;
-  --bg: #0e1116;
-  --bg-2: #151a22;
-  --bg-3: #1c232e;
-  --bg-hover: #222b38;
-  --line: #2a3442;
-  --line-strong: #3a4757;
-  --fg: #e6ebf2;
-  --fg-2: #aab6c6;
-  --fg-3: #7d8a9c;
-  --accent: #6ab0ff;
+  --bg: var(--color-bg);
+  --bg-2: var(--color-surface);
+  --bg-3: var(--color-surface-raised);
+  --bg-hover: var(--color-hover);
+  --line: var(--color-border);
+  --line-strong: var(--color-border-strong);
+  --fg: var(--color-fg);
+  --fg-2: var(--color-fg-muted);
+  --fg-3: var(--color-fg-subtle);
+  --accent: var(--color-accent);
   --accent-2: #3d7fd6;
-  --ok: #3ccf91;
-  --ok-bg: #12352a;
-  --warn: #f2b94b;
-  --warn-bg: #3a2d10;
-  --danger: #ff6b6b;
-  --danger-bg: #431c1c;
-  --info: #7cc4ff;
-  --info-bg: #15304a;
-  --pending: #8a95a5;
-  --pending-bg: #262d37;
-  --ai: #c79bff;
-  --ai-bg: #2b1f3f;
+  /* Semantic legacy pairs, likewise aliased so the shell's notices and the degraded banner
+     follow the theme instead of staying a dark slab on a light page.
+
+     Backgrounds all point at surface-raised rather than the matching verdict wash: a wash sits
+     too close in lightness to its own foreground (the degraded banner measured 1.13:1 in light
+     when paired that way), whereas every semantic token is contrast-checked against
+     surface-raised by `npm run check:contrast`. */
+  --ok: var(--color-normal);
+  --ok-bg: var(--color-surface-raised);
+  --warn: var(--color-suspicious);
+  --warn-bg: var(--color-surface-raised);
+  --danger: var(--color-high-risk);
+  --danger-bg: var(--color-surface-raised);
+  --info: var(--color-accent);
+  --info-bg: var(--color-surface-raised);
+  --pending: var(--color-pending);
+  --pending-bg: var(--color-surface-raised);
+  --ai: var(--color-accent);
+  --ai-bg: var(--color-surface-raised);
   --mono: ui-monospace, 'Cascadia Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
   --sans: system-ui, -apple-system, 'Segoe UI', Roboto, Inter, sans-serif;
   --radius: 6px;
@@ -280,20 +299,25 @@ button.link {
   border-bottom: 1px solid var(--line);
   font-size: 13px;
 }
+/*
+ * Banner text and borders were hardcoded light creams/pinks that only read on a dark fill.
+ * Once the backgrounds started following the theme, the degraded banner measured 1.23:1 on a
+ * light page. Themed tokens on both sides instead.
+ */
 .banner-danger {
   background: var(--danger-bg);
-  color: #ffd2d2;
-  border-color: #6a2b2b;
+  color: var(--color-high-risk);
+  border-color: var(--color-border-strong);
 }
 .banner-warn {
   background: var(--warn-bg);
-  color: #ffe4b0;
-  border-color: #6a5220;
+  color: var(--color-fg);
+  border-color: var(--color-border-strong);
 }
 .banner-info {
   background: var(--info-bg);
-  color: #cfe7ff;
-  border-color: #2b4f75;
+  color: var(--color-fg);
+  border-color: var(--color-border-strong);
 }
 .banner-ai {
   background: var(--ai-bg);
