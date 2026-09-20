@@ -8,9 +8,10 @@ from fastapi import APIRouter, Response
 
 from app.config import get_config
 from app.db import migrate
-from app.db.engine import ping
+from app.db.engine import connect_direct, ping
 from app.observability import sentry
 from app.settings import get_settings
+from app.workers import runs as runs_mod
 
 router = APIRouter(tags=["health"])
 
@@ -32,7 +33,7 @@ def ready(response: Response) -> dict[str, Any]:
         except Exception as exc:  # noqa: BLE001
             migrations = {"current": None, "head": None, "ok": False, "error": type(exc).__name__}
     model_dir = Path(settings.model_dir)
-    manifests = sorted(p.name for p in model_dir.glob("*/manifest.json")) if model_dir.exists() else []
+    manifests = sorted(p.parent.name for p in model_dir.glob("*/manifest.json")) if model_dir.exists() else []
     config_ok = True
     config_hash = None
     try:
@@ -50,6 +51,15 @@ def ready(response: Response) -> dict[str, Any]:
         degraded.append("slack_preview")
     if not manifests:
         degraded.append("no_model_artifacts_rules_only")
+    active_model = None
+    if db_ok:
+        try:
+            with connect_direct(settings.database_url) as conn:
+                active_model = runs_mod.active_model_id(conn)
+        except Exception:  # noqa: BLE001
+            active_model = None
+    if active_model is None:
+        degraded.append("no_active_model_rules_only")
     if status != "ready":
         response.status_code = 503
     return {
@@ -57,7 +67,7 @@ def ready(response: Response) -> dict[str, Any]:
         "database": {"ok": db_ok, "detail": db_detail},
         "migrations": migrations,
         "config": {"ok": config_ok, "hash": config_hash},
-        "models": {"artifacts": manifests},
+        "models": {"artifacts": manifests, "active": active_model},
         "integrations": integrations,
         "sentry_active": sentry.enabled(),
         "degraded_modes": degraded,

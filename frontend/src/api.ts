@@ -7,7 +7,7 @@
 export type ThreatClass = 'normal' | 'suspicious' | 'high_risk'
 export type Phase = 'warmup' | 'visible'
 export type RunState = 'created' | 'warming' | 'running' | 'paused' | 'completed' | 'blocked'
-export type ModelHealth = 'active' | 'rules_only' | 'degraded' | 'shadow' | string
+export type ModelHealth = 'active' | 'pending_load' | 'rules_only' | 'degraded' | 'shadow' | string
 export type ExplanationState = 'validated' | 'fallback' | 'rejected'
 export type DeliveryState = 'debounce' | 'pending' | 'leased' | 'sent' | 'preview' | 'failed'
 export type Disposition = 'confirmed_suspicious' | 'benign_explained' | 'needs_more_evidence' | 'false_positive' | 'closed'
@@ -23,7 +23,7 @@ export interface Health {
   database: { ok: boolean; detail: string | null }
   migrations: { current: string | null; head: string | null; ok: boolean; error?: string }
   config: { ok: boolean; hash: string | null }
-  models: { artifacts: string[] }
+  models: { artifacts: string[]; active: string | null }
   integrations: Integrations
   sentry_active: boolean
   degraded_modes: string[]
@@ -80,6 +80,22 @@ export interface RunCreateBody {
   speed?: number
   pause_at_visible_start: boolean
   model_id?: string
+  /** Explicit opt-out. Without it (and without model_id) the newest active model is attached. */
+  rules_only?: boolean
+}
+
+export interface Model {
+  model_id: string
+  feature_version: string
+  status: 'candidate' | 'active' | 'shadow' | 'rejected' | string
+  threshold: number | null
+  reference_hash: string | null
+  artifact_sha256: string
+  created_at: string
+  algorithm: string | null
+  threshold_percentile: string | null
+  is_default: boolean
+  artifact_present: boolean
 }
 
 export interface ReplayControlBody {
@@ -685,6 +701,8 @@ export const api = {
   createRun: (body: RunCreateBody) => request<Run>(`${API}/runs`, { method: 'POST', body: JSON.stringify(body) }),
   replay: (runId: string, body: ReplayControlBody) =>
     request<Run>(`${API}/runs/${enc(runId)}/replay`, { method: 'POST', body: JSON.stringify(body) }),
+
+  listModels: () => request<Model[]>(`${API}/models`),
 
   listDatasets: () => request<Dataset[]>(`${API}/datasets`),
   getDataset: (id: string) => request<DatasetDetail>(`${API}/datasets/${enc(id)}`),

@@ -20,6 +20,14 @@ from app.observability import sentry
 CONTROL_STATES = {"created", "warming", "running", "paused", "completed", "blocked"}
 
 
+def active_model_id(conn: psycopg.Connection[Any]) -> str | None:
+    """The newest model marked active, or None. Runs default to it so ML scoring is never silently skipped."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT model_id FROM models WHERE status='active' ORDER BY created_at DESC, model_id DESC LIMIT 1")
+        row = cur.fetchone()
+    return row["model_id"] if row else None
+
+
 def create_run(
     conn: psycopg.Connection[Any],
     cfg: DetectionConfig,
@@ -35,8 +43,13 @@ def create_run(
     pause_at_visible_start: bool = False,
     source_id: str | None = None,
     reference: Reference | None = None,
+    use_active_model: bool = True,
 ) -> dict[str, Any]:
+    """Create an isolated run. Without an explicit model_id the newest active model is attached; pass
+    use_active_model=False for a deliberately rules-only pass (e.g. the causal snapshot run that feeds training)."""
     run_id = str(uuid.uuid4())
+    if model_id is None and use_active_model:
+        model_id = active_model_id(conn)
     if reference is None:
         if dataset_id:
             reference = build_reference(conn, dataset_id, cfg)

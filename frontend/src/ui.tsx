@@ -23,7 +23,7 @@ export function StateBadge({ state, label }: { state: string; label?: string }) 
 }
 
 export function ModelHealthBadge({ health }: { health: ModelHealth }) {
-  const tone = health === 'active' ? 'ok' : 'warn'
+  const tone = health === 'active' || health === 'pending_load' ? 'ok' : 'warn'
   return (
     <span className={`badge badge-model badge-model-${tone}`} title={modelHealthExplanation(health) ?? 'Model scoring is active'}>
       {modelHealthLabel(health)}

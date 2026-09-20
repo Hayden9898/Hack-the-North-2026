@@ -115,3 +115,18 @@ Concise record of milestones, decisions, commands and results. Newest entries at
 - Not done: the candidate is **not** activated (active model still `if_v1_2026-09-19`, so `reports/evaluation.md`
   still describes the live demo); activate with
   `python -m ml.calibrate --model-id if_v1_domain_2026-09-19 --percentile 99.9 --activate`.
+
+### M9 — Runs always attach the active model (branch `fix-ml-pipeline`) ✅
+- Root cause of the "rules-only mode" banner on UI-created runs: `model_id` was per run, the run form's model field
+  was free text defaulting to blank, and nothing resolved the active model on the operator's behalf. Only
+  `replay-demo` looked it up, so `hybrid-full` scored with ML while every UI-created run was rules-only.
+- `runs.create_run` now defaults `model_id` to the newest active model (`runs.active_model_id`); rules-only is an
+  explicit opt-out (`use_active_model=False`, API `rules_only: true`, CLI `--rules-only`). `model_id` + `rules_only`
+  together is a 422. No active model still degrades visibly to `rules_only` (never a fabricated model).
+- New `GET /api/v1/models` (status, threshold, `is_default`, `artifact_present`); run form is a model picker that
+  shows the active model as the default option and a labelled rules-only opt-out; `pending_load` gets a label.
+- `/health/ready` reports `models.active` and a `no_active_model_rules_only` degraded mode; the artifacts list now
+  names model ids (it listed `manifest.json` twice before).
+- Verified: `tests/integration/test_run_default_model.py` 4 passed (default/newest/explicit/opt-out, API, health);
+  full suite 100 passed (11 min); mypy, ruff, tsc, oxlint, vite build clean. The running API must be restarted to
+  pick this up (`serve_api` runs without reload).
