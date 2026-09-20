@@ -20,18 +20,16 @@ export function SystemStatus() {
 
   return (
     <Section className="pt-16 pb-10">
-      <div className="rounded-xl border border-border bg-surface p-6 sm:p-8">
-        <div className="grid gap-x-12 gap-y-8 lg:grid-cols-12">
-          <div className="lg:col-span-5">
-            <Stamp>System state</Stamp>
-            <p className="mt-5 max-w-[42ch] text-body text-fg-muted">
-              Read live from <span className="font-mono text-fg">/health/ready</span> when this page
-              loaded. Degraded modes are declared. The console tells you when it is running with
-              something switched off.
-            </p>
-          </div>
+      <div className="rounded-doc border border-border bg-surface p-6 sm:p-8">
+        <Stamp>System state</Stamp>
+        <div className="mt-5">
+          <p className="max-w-[68ch] text-body text-fg-muted">
+            Read live from <span className="font-mono text-fg">/health/ready</span> when this page
+            loaded. Degraded modes are declared. The console tells you when it is running with
+            something switched off.
+          </p>
 
-          <div className="lg:col-span-7">
+          <div className="mt-5">
             {health.loading && !health.data ? (
               <div className="flex flex-col gap-2">
                 <Skeleton className="h-5 w-48" />
@@ -77,7 +75,7 @@ export function SystemStatus() {
                   can change underneath this page; the demo run's own model_health cannot, because
                   it is a recorded property of a run that already finished.
                 */}
-                <p className="mt-5 max-w-[62ch] text-body text-fg-muted">
+                <p className="mt-5 max-w-[68ch] text-body text-fg-muted">
                   {health.data.models.artifacts.length === 0 ? (
                     <>
                       No model artifacts are present on this machine, so scoring is{' '}
@@ -139,18 +137,19 @@ export function Footer() {
       <Section className="flex flex-col gap-6 py-10 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="font-serif text-heading">Log &amp; Order</p>
-          <p className="mt-1.5 max-w-[48ch] text-caption text-fg-subtle">
-            Built for Hack the North 2026 · CSE challenge. Dataset {DATASET.id} —{' '}
-            {DATASET.lines.toLocaleString()} lines, {DATASET.rejects} rejected. Account names and
-            addresses identify recorded actors and sources, not people.
+          <p className="mt-1.5 max-w-[52ch] font-normal text-caption text-fg-subtle normal-case">
+            Built for Hack the North 2026 · CSE challenge. Dataset{' '}
+            <span className="font-mono">{DATASET.id}</span> — {DATASET.lines.toLocaleString()} lines,{' '}
+            {DATASET.rejects} rejected. Account names and addresses identify recorded actors and
+            sources, not people.
           </p>
         </div>
-        <Link
-          to="/app"
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-sm text-body text-accent transition-opacity duration-150 hover:opacity-80"
+        <a
+          href="/health/ready"
+          className="shrink-0 rounded-sm font-mono text-caption text-fg-muted transition-colors duration-150 hover:text-fg"
         >
-          Open the console <ArrowRight className="size-3.5" />
-        </Link>
+          /health/ready
+        </a>
       </Section>
     </footer>
   )

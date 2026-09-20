@@ -17,7 +17,7 @@ import { RuleTag, Section, Stamp } from './parts'
 export function Docket() {
   return (
     <Section id="docket" className="py-16 sm:py-20">
-      <Stamp>March 2026 · {RUN.incidentsTotal} incidents · rules only</Stamp>
+      <Stamp>Docket · {RUN.incidentsTotal} incidents · March 2026 · rules only</Stamp>
 
       <h2 className="mt-7 max-w-[22ch] font-serif text-[clamp(1.875rem,3.6vw,2.75rem)] leading-[1.05] tracking-[-0.02em]">
         Three things in eight months looked wrong.
@@ -82,9 +82,9 @@ export function Docket() {
                 <span>seq {inc.span}</span>
                 <Link
                   to="/app"
-                  className="inline-flex items-center gap-1 text-accent transition-opacity duration-150 hover:opacity-80"
+                  className="inline-flex items-center gap-1 text-fg-muted transition-colors duration-150 hover:text-accent"
                 >
-                  open in console <ArrowUpRight className="size-3" />
+                  open incident {inc.docket} <ArrowUpRight className="size-3" />
                 </Link>
               </div>
             </li>

@@ -15,12 +15,12 @@
 
 :root {
   /* Surfaces & text — warm neutral ramp */
-  --lo-bg: oklch(0.985 0.004 85);
-  --lo-surface: oklch(0.965 0.005 85);
-  --lo-surface-raised: oklch(1 0 0);
+  --lo-bg: oklch(0.968 0.009 85);
+  --lo-surface: oklch(0.987 0.006 85);
+  --lo-surface-raised: oklch(0.998 0.003 85);
   /* `border` is a decorative hairline (no WCAG minimum). `border-strong` bounds interactive
      controls and is held to 3:1 per WCAG 1.4.11 — use it for inputs, not for card edges. */
-  --lo-border: oklch(0.9 0.006 80);
+  --lo-border: oklch(0.885 0.009 80);
   --lo-border-strong: oklch(0.64 0.014 80);
   --lo-fg: oklch(0.22 0.01 60);
   --lo-fg-muted: oklch(0.44 0.01 60);
@@ -49,7 +49,7 @@
 
   /* Neutral hover/active wash. Named `hover` (not shadcn's `accent`) because in this
      design system `accent` is the brand brass and must never fill a hover state. */
-  --lo-hover: oklch(0.935 0.006 80);
+  --lo-hover: oklch(0.945 0.011 80);
 
   color-scheme: light;
 }
@@ -138,9 +138,13 @@
 
   /* ---- Radii: deliberately NOT all the same value ---- */
   --radius-sm: 0.1875rem; /*  3px — chips, tags, inline marks */
-  --radius-md: 0.3125rem; /*  5px — buttons, inputs */
-  --radius-lg: 0.5rem; /*  8px — cards, popovers */
-  --radius-xl: 0.875rem; /* 14px — sheets, modals, hero slabs */
+  --radius-md: 0.3125rem; /*  5px — buttons, inputs, interactive controls */
+  --radius-lg: 0.5rem; /*  8px — popovers, menus */
+  --radius-xl: 0.875rem; /* 14px — sheets, modals */
+  /* Evidence and record surfaces are documents, not controls: square. Using this instead of
+     --radius-lg on log strips, the run record and the system-state panel is what makes the
+     page read as paper with UI on top, rather than as uniformly rounded web cards. */
+  --radius-doc: 0.0625rem; /*  1px — log strips, record panels, exhibits */
 
   /* ---- Type scale ---- */
   --text-display: 4rem;

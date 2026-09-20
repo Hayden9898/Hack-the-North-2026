@@ -13,7 +13,7 @@ export function Limits() {
     <Section id="limits" className="py-16 sm:py-20">
       <div className="grid gap-x-12 gap-y-10 lg:grid-cols-12">
         <div className="lg:col-span-5">
-          <Stamp>On the record</Stamp>
+          <Stamp>Limits · {UNKNOWNS.length} declared unknowns</Stamp>
           <h2 className="mt-7 font-serif text-[clamp(1.875rem,3.6vw,2.75rem)] leading-[1.05] tracking-[-0.02em]">
             What this cannot tell you.
           </h2>
@@ -23,7 +23,7 @@ export function Limits() {
             not determine is the part that makes the rest worth trusting.
           </p>
           <p className="mt-4 max-w-[46ch] text-body text-fg-muted">
-            &ldquo;High risk&rdquo; here means <span className="text-fg">urgently investigate</span>. It
+            &ldquo;High risk&rdquo; here means <span className="font-mono text-fg">urgently investigate</span>. It
             is a priority signal about recorded activity — never a conclusion about a person.
           </p>
         </div>
@@ -55,12 +55,20 @@ export function Method() {
           Five rules, then a validator.
         </h2>
         <div className="lg:col-span-8">
-          <p className="max-w-[64ch] text-body text-fg-muted">
+          <p className="max-w-[62ch] text-body text-fg-muted">
             Detection is deterministic: the same lines in the same order always produce the same
             verdicts. A constrained language step may select which facts to surface and propose
-            qualified hypotheses, but a validator checks every claim against the recorded facts before
-            it reaches the screen. It cannot invent a fact, and it cannot downgrade a detector verdict.
+            qualified hypotheses, but a validator checks every claim against the recorded facts
+            before it reaches the screen.
+          </p>
+          <p className="mt-5 max-w-[62ch] border-accent border-l-2 pl-4 text-[1.0625rem] text-fg leading-[1.5]">
+            The language step cannot invent a fact, and it cannot downgrade a detector verdict.
             Rejected proposals are displayed as rejected.
+          </p>
+          <p className="mt-4 max-w-[62ch] text-body text-fg-muted">
+            In this run it was switched off entirely — the rules produced every verdict shown above,
+            which is what the <span className="font-mono text-fg">deterministic summaries only</span>{' '}
+            state below reports.
           </p>
         </div>
       </div>
@@ -70,12 +78,12 @@ export function Method() {
           <div
             key={id}
             id={id.toLowerCase()}
-            className="grid scroll-mt-24 gap-2 border-border border-t py-3.5 sm:grid-cols-[4rem_1fr] sm:gap-6"
+            className="grid scroll-mt-24 gap-2 border-border border-t py-3.5 sm:grid-cols-[2.5rem_1fr] sm:gap-5"
           >
             <dt>
               <RuleTag>{id}</RuleTag>
             </dt>
-            <dd className="max-w-[74ch] text-body text-fg-muted">{text}</dd>
+            <dd className="text-body text-fg-muted">{text}</dd>
           </div>
         ))}
       </dl>
