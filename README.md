@@ -43,84 +43,12 @@ Kafka, no Redis and no separate queue to scale. One database does it all.
 
 ## System Architecture
 
-<!-- Replace with the rendered image once exported. -->
+<img width="2645" height="8070" alt="watchtowerarch" src="https://github.com/user-attachments/assets/9a84deb8-1139-4976-b1d6-ad82842fe04c" />
 
-```mermaid
-flowchart LR
-    subgraph IN["⚡ Ingest"]
-        F["Log files"]
-        L["Live API"]
-        I["Ordered admission"]
-    end
-
-    subgraph DET["🧠 Detect"]
-        FE["Causal features"]
-        R["Rules R1–R6"]
-        M["Frozen Isolation Forest"]
-        P["Policy"]
-    end
-
-    subgraph INV["🔍 Investigate"]
-        C["Incidents + proofs"]
-        AI["Claude"]
-        V["Validator"]
-    end
-
-    subgraph ACT["🛡️ Contain"]
-        A["Actions"]
-        VR["Verify / rollback"]
-    end
-
-    DB[("TimescaleDB")]
-    UI["Console"]
-    S["Slack"]
-
-    F & L --> I --> FE
-    FE --> R & M --> P --> C
-    C --> AI --> V --> UI
-    C --> A --> VR --> S
-    I & C & A <--> DB
-    DB -. SSE .-> UI
-
-    classDef core fill:#f0f9ff,stroke:#0284c7,color:#0c4a6e
-    classDef ai fill:#f5f3ff,stroke:#7c3aed,color:#4c1d95
-    classDef store fill:#f0fdf4,stroke:#16a34a,color:#14532d
-    class F,L,I,FE,R,M,P,C,A,VR,UI,S core
-    class AI,V ai
-    class DB store
-```
 
 ## Sequence Diagram
+<img width="7520" height="4320" alt="watchtowerseqdia" src="https://github.com/user-attachments/assets/bc334857-e2d4-4428-96d8-70c0d43b5163" />
 
-<!-- Replace with the rendered image once exported. -->
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Src as Logs
-    participant API
-    participant DB as TimescaleDB
-    participant Det as Detector
-    participant AI as Claude
-    participant Op as Operator
-    participant Act as Actions
-
-    Src->>API: Log batch
-    API->>DB: Ordered admission
-    loop Microbatches
-        Det->>DB: Rules + ML score
-    end
-    DB-->>Op: Live alert (SSE)
-    Op->>AI: Investigate
-    AI->>AI: Validate every claim
-    AI-->>Op: Verified explanation
-    Op->>Act: Approve
-    rect rgba(22, 163, 74, 0.08)
-        Act->>DB: Execute
-        Act->>DB: Verify
-        Act-->>Op: Contained ✓
-    end
-```
 
 ## Project Planning
 
