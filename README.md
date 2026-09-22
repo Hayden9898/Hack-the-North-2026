@@ -210,7 +210,7 @@ runs rules-only until a trained artifact is force-added. Runbook: [docs/DEPLOY.m
 
 | Topic | Where |
 |---|---|
-| Specification | [`overview.md`](overview.md) → [`architecture.md`](architecture.md) → `plan(3).md` |
+| Specification | [`overview.md`](overview.md) → [`architecture.md`](architecture.md) → [`plan.md`](plan.md) |
 | Progress and decisions | [`PROGRESS.md`](PROGRESS.md) |
 | Reproducible acceptance workflow | [docs/verification-guide.md](docs/verification-guide.md) |
 | Adversarial regression gate and its scope | [docs/adversarial-evaluation.md](docs/adversarial-evaluation.md) |
